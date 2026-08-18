@@ -102,7 +102,55 @@ export const taskSchema = z.object({
 
 export const taskToggleSchema = z.object({ done: z.boolean() });
 
+// --- Automations ------------------------------------------------------------
+
+export const automationTriggers = [
+  'PROJECT_CREATED',
+  'PROJECT_STAGE_CHANGED',
+  'CLIENT_CREATED',
+  'INVOICE_SENT',
+  'INVOICE_PAID',
+] as const;
+
+export const automationActions = ['SEND_EMAIL', 'CREATE_TASK', 'MOVE_STAGE'] as const;
+
+export const automationStepSchema = z.object({
+  action: z.enum(automationActions),
+  delayMinutes: z.coerce.number().int().min(0).max(525_600).default(0),
+  subject: optionalText(200),
+  body: optionalText(4000),
+  targetStage: z.enum(projectStages).optional(),
+});
+
+export const automationSchema = z
+  .object({
+    name: z.string().trim().min(1, 'Name this automation').max(140),
+    trigger: z.enum(automationTriggers),
+    triggerStage: z.enum(projectStages).optional(),
+    status: z.enum(['ACTIVE', 'INACTIVE']).default('INACTIVE'),
+    steps: z.array(automationStepSchema).max(40).default([]),
+  })
+  .refine(
+    (value) => value.trigger !== 'PROJECT_STAGE_CHANGED' || Boolean(value.triggerStage),
+    { message: 'Pick the stage that should set this off', path: ['triggerStage'] },
+  )
+  .refine((value) => value.steps.every((step) => step.action !== 'MOVE_STAGE' || step.targetStage), {
+    message: 'A move-stage step needs a target stage',
+    path: ['steps'],
+  })
+  .refine(
+    (value) => value.steps.every((step) => step.action === 'MOVE_STAGE' || Boolean(step.subject)),
+    { message: 'Give every email and task step a subject', path: ['steps'] },
+  );
+
+/** Strict: a body carrying anything besides `status` is an edit, not a toggle. */
+export const automationStatusSchema = z
+  .object({ status: z.enum(['ACTIVE', 'INACTIVE']) })
+  .strict();
+
 export type ClientInput = z.input<typeof clientSchema>;
+export type AutomationInput = z.input<typeof automationSchema>;
+export type AutomationStepInput = z.input<typeof automationStepSchema>;
 export type ProjectInput = z.input<typeof projectSchema>;
 export type InvoiceInput = z.input<typeof invoiceSchema>;
 export type PaymentInput = z.input<typeof paymentSchema>;

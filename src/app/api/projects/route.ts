@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handler, HttpError, parseBody } from '@/lib/api';
 import { projectSchema } from '@/lib/validation';
+import { fireTrigger } from '@/lib/automations';
 
 export const GET = handler(async (ctx) => {
   const projects = await prisma.project.findMany({
@@ -32,5 +33,11 @@ export const POST = handler(async (ctx, request: Request) => {
       valueCents: data.valueCents,
     },
   });
+  await fireTrigger('PROJECT_CREATED', {
+    workspaceId: ctx.workspaceId,
+    projectId: project.id,
+    clientId: client.id,
+  });
+
   return NextResponse.json({ project }, { status: 201 });
 });

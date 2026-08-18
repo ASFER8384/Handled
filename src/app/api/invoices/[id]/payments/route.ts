@@ -4,6 +4,7 @@ import { handler, HttpError, notFound, parseBody } from '@/lib/api';
 import { paymentSchema } from '@/lib/validation';
 import { resyncInvoiceStatus } from '@/lib/invoices';
 import { balanceCents } from '@/lib/money';
+import { fireTrigger } from '@/lib/automations';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -37,6 +38,15 @@ export const POST = handler(async (ctx, request: Request, { params }: Params) =>
     const status = await resyncInvoiceStatus(tx, id);
     return { payment, status };
   });
+
+  // Only a payment that finishes the invoice counts as "paid".
+  if (result.status === 'PAID') {
+    await fireTrigger('INVOICE_PAID', {
+      workspaceId: ctx.workspaceId,
+      projectId: invoice.projectId,
+      clientId: invoice.clientId,
+    });
+  }
 
   return NextResponse.json(result, { status: 201 });
 });

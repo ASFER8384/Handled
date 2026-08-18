@@ -20,11 +20,11 @@ export default async function LandingPage() {
       <MarketingHeader />
 
       {/* ---- Hero ---------------------------------------------------- */}
-      <section className="relative overflow-hidden bg-brand-yellow">
-        {/* Tilted photo cards bleeding off each edge, as on the real site. */}
+      <section className="relative overflow-hidden bg-brand-clay">
+        {/* Tilted cards bleeding off each edge. */}
         <div
           aria-hidden
-          className="absolute top-40 -left-24 hidden h-56 w-64 -rotate-6 rounded-2xl bg-gradient-to-br from-amber-200 via-orange-200 to-rose-200 shadow-xl lg:block"
+          className="absolute top-40 -left-24 hidden h-56 w-64 -rotate-6 rounded-2xl bg-gradient-to-br from-orange-200 via-rose-200 to-stone-200 shadow-xl lg:block"
         />
         <div
           aria-hidden
@@ -55,7 +55,7 @@ export default async function LandingPage() {
       </section>
 
       {/* ---- Product shot straddling the hero edge -------------------- */}
-      <section className="relative bg-brand-yellow pb-px">
+      <section className="relative bg-brand-clay pb-px">
         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-white" />
         <div className="relative mx-auto w-full max-w-6xl px-6">
           <AppMockup />
@@ -74,7 +74,7 @@ export default async function LandingPage() {
             title="No enquiry slips through"
             body="Every enquiry lands in one pipeline and stays there — visible, sorted, and impossible to forget about."
             chips={['Lead form', 'Scheduler', 'Automations', 'Questionnaires']}
-            tint="bg-brand-blue"
+            tint="bg-brand-sky"
           >
             <LeadPanel />
           </FeatureSection>
@@ -84,7 +84,7 @@ export default async function LandingPage() {
             title="Invoices that reconcile themselves"
             body="Send an invoice, record what lands, and let the balance keep itself current. Status is derived from real payments — never typed in by hand."
             chips={['Invoices', 'Payments', 'Reminders', 'Reporting']}
-            tint="bg-brand-green"
+            tint="bg-brand-sage"
             flip
           >
             <InvoicePanel />
@@ -115,7 +115,7 @@ export default async function LandingPage() {
       </section>
 
       {/* ---- Closing CTA ---------------------------------------------- */}
-      <section className="bg-brand-yellow">
+      <section className="bg-brand-clay">
         <div className="mx-auto w-full max-w-3xl px-6 py-24 text-center">
           <h2 className="display text-4xl leading-tight sm:text-5xl">
             Ready to run your business from one desk?
@@ -175,7 +175,7 @@ function AppMockup() {
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between border-b border-brand-ink/10 px-5 py-3">
             <div className="h-7 w-48 rounded-full bg-brand-ink/5" />
-            <span className="rounded-md bg-brand-blue/30 px-3 py-1 text-sm font-medium">+ New</span>
+            <span className="rounded-md bg-brand-clay-soft px-3 py-1 text-sm font-medium">+ New</span>
           </div>
 
           <div className="px-6 py-6">
@@ -201,7 +201,7 @@ function AppMockup() {
                     <td className="py-3 font-medium">{r.name}</td>
                     <td className="py-3 text-brand-ink/70">{r.client}</td>
                     <td className="py-3">
-                      <span className="rounded-full bg-brand-yellow-soft px-2.5 py-1 text-xs font-medium">
+                      <span className="rounded-full bg-brand-clay px-2.5 py-1 text-xs font-medium">
                         {r.stage}
                       </span>
                     </td>
@@ -254,7 +254,7 @@ function InvoicePanel() {
     <div className="rounded-xl bg-white p-6 shadow-xl">
       <div className="flex items-baseline justify-between">
         <p className="display text-2xl">INV-0001</p>
-        <span className="rounded-full bg-brand-yellow-soft px-3 py-1 text-xs font-medium">
+        <span className="rounded-full bg-brand-clay px-3 py-1 text-xs font-medium">
           Part paid
         </span>
       </div>

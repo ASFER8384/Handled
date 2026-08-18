@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { handler, HttpError, notFound, parseBody } from '@/lib/api';
 import { invoiceStatusSchema } from '@/lib/validation';
 import { resyncInvoiceStatus } from '@/lib/invoices';
+import { fireTrigger } from '@/lib/automations';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -32,6 +33,14 @@ export const PATCH = handler(async (ctx, request: Request, { params }: Params) =
     const settled = await resyncInvoiceStatus(tx, id);
     return settled;
   });
+
+  if (status === 'SENT') {
+    await fireTrigger('INVOICE_SENT', {
+      workspaceId: ctx.workspaceId,
+      projectId: invoice.projectId,
+      clientId: invoice.clientId,
+    });
+  }
 
   return NextResponse.json({ ok: true, status: updated });
 });

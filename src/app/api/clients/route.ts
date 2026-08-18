@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handler, parseBody } from '@/lib/api';
 import { clientSchema } from '@/lib/validation';
+import { fireTrigger } from '@/lib/automations';
 
 export const GET = handler(async (ctx) => {
   const clients = await prisma.client.findMany({
@@ -23,5 +24,7 @@ export const POST = handler(async (ctx, request: Request) => {
       notes: data.notes ?? null,
     },
   });
+  await fireTrigger('CLIENT_CREATED', { workspaceId: ctx.workspaceId, clientId: client.id });
+
   return NextResponse.json({ client }, { status: 201 });
 });

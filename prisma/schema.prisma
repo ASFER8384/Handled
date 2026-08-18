@@ -103,6 +103,8 @@ model Workspace {
   projects    Project[]
   invoices    Invoice[]
   tasks       Task[]
+  automations Automation[]
+  automationRuns AutomationRun[]
 
   @@map("workspace")
 }
@@ -141,6 +143,7 @@ model Client {
 
   projects Project[]
   invoices Invoice[]
+  automationRuns AutomationRun[]
 
   @@index([workspaceId])
   @@index([workspaceId, name])
@@ -177,6 +180,7 @@ model Project {
 
   invoices Invoice[]
   tasks    Task[]
+  automationRuns AutomationRun[]
 
   @@index([workspaceId, stage])
   @@index([clientId])
@@ -277,4 +281,134 @@ model Task {
 
   @@index([workspaceId, done])
   @@map("task")
+}
+
+// ---------------------------------------------------------------------------
+// Automations — a trigger, then steps that run on their own clock.
+//
+// Editing is blocked while an automation has a live run, and changes only ever
+// affect runs started afterwards; steps already scheduled keep the shape they
+// were created with.
+// ---------------------------------------------------------------------------
+
+enum AutomationStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AutomationTrigger {
+  PROJECT_CREATED
+  PROJECT_STAGE_CHANGED
+  CLIENT_CREATED
+  INVOICE_SENT
+  INVOICE_PAID
+}
+
+enum AutomationAction {
+  SEND_EMAIL
+  CREATE_TASK
+  MOVE_STAGE
+}
+
+enum RunStatus {
+  RUNNING
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum RunStepStatus {
+  PENDING
+  DONE
+  FAILED
+}
+
+model Automation {
+  id     String            @id @default(cuid())
+  name   String
+  status AutomationStatus  @default(INACTIVE)
+  trigger AutomationTrigger
+  /// PROJECT_STAGE_CHANGED only: fires when a project enters this stage.
+  triggerStage ProjectStage?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  steps AutomationStep[]
+  runs  AutomationRun[]
+
+  @@index([workspaceId, status])
+  @@map("automation")
+}
+
+model AutomationStep {
+  id       String           @id @default(cuid())
+  position Int
+  action   AutomationAction
+  /// Waited *after* the previous step finishes, so delays accumulate down the list.
+  delayMinutes Int          @default(0)
+  /// SEND_EMAIL: subject. CREATE_TASK: task title.
+  subject     String?
+  body        String?
+  /// MOVE_STAGE: the stage to move the project into.
+  targetStage ProjectStage?
+
+  automationId String
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  runSteps AutomationRunStep[]
+
+  @@index([automationId, position])
+  @@map("automation_step")
+}
+
+model AutomationRun {
+  id         String    @id @default(cuid())
+  status     RunStatus @default(RUNNING)
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  automationId String
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  steps AutomationRunStep[]
+
+  @@index([workspaceId, status])
+  @@index([automationId])
+  @@map("automation_run")
+}
+
+model AutomationRunStep {
+  id         String        @id @default(cuid())
+  position   Int
+  status     RunStepStatus @default(PENDING)
+  dueAt      DateTime
+  executedAt DateTime?
+  /// What actually happened — this is the run timeline the activity tab shows.
+  detail     String?
+
+  /// Snapshot of the step as it stood when the run started. Editing an
+  /// automation must not rewrite history, so the run carries its own copy and
+  /// the link back to the live step is allowed to go null.
+  action      AutomationAction
+  subject     String?
+  body        String?
+  targetStage ProjectStage?
+
+  runId  String
+  run    AutomationRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  stepId String?
+  step   AutomationStep? @relation(fields: [stepId], references: [id], onDelete: SetNull)
+
+  @@index([status, dueAt])
+  @@index([runId, position])
+  @@map("automation_run_step")
 }

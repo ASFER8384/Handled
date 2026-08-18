@@ -9,6 +9,7 @@ const NAV = [
   { href: '/clients', label: 'Clients' },
   { href: '/invoices', label: 'Invoices' },
   { href: '/tasks', label: 'Tasks' },
+  { href: '/automations', label: 'Automations' },
 ] as const;
 
 export default async function AppLayout({ children }: LayoutProps<'/'>) {

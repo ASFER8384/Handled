@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handler, notFound, parseBody } from '@/lib/api';
 import { projectStageSchema } from '@/lib/validation';
+import { fireTrigger } from '@/lib/automations';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -15,6 +16,12 @@ export const PATCH = handler(async (ctx, request: Request, { params }: Params) =
     data: { stage },
   });
   if (count === 0) notFound('Project');
+
+  await fireTrigger('PROJECT_STAGE_CHANGED', {
+    workspaceId: ctx.workspaceId,
+    projectId: id,
+    stage,
+  });
 
   return NextResponse.json({ ok: true, stage });
 });
