@@ -44,8 +44,8 @@ export function Rail({
     >
       {/* Labels are clipped here, not on the aside — the flyout has to escape. */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="flex items-center gap-2 px-3">
-        <span className="flex h-9 w-10 shrink-0 items-center justify-center font-mono text-[11px] leading-3 font-bold text-white">
+      <div className="flex h-11 w-full items-center gap-3 pl-[22px]">
+        <span className="w-5 shrink-0 text-center font-mono text-[10px] leading-[10px] font-bold text-white">
           HD
           <br />
           LD
@@ -55,7 +55,7 @@ export function Rail({
         </span>
       </div>
 
-      <nav className="mt-5 flex flex-col gap-1 px-3">
+      <nav className="mt-4 flex flex-col">
         {items.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
@@ -63,14 +63,14 @@ export function Rail({
               key={item.href}
               href={item.href}
               aria-current={active ? 'page' : undefined}
-              className={`relative flex h-10 items-center gap-3 rounded-lg pl-[7px] transition-colors ${
+              className={`relative flex h-11 w-full items-center gap-3 pl-[22px] transition-colors ${
                 active ? 'bg-white/15 text-white' : 'text-white/55 hover:bg-white/10 hover:text-white'
               }`}
             >
               {active && (
                 <span
                   aria-hidden
-                  className="absolute -left-3 h-6 w-[3px] rounded-r-full bg-white"
+                  className="absolute left-0 h-6 w-[3px] rounded-r-full bg-white"
                 />
               )}
               <svg
@@ -95,19 +95,21 @@ export function Rail({
 
       </div>
 
-      <div className="relative mt-2 px-3">
-        <div className="mb-3 h-px bg-white/10" />
-
+      <div
+        className="relative"
+        onMouseEnter={() => setMenuOpen(true)}
+        onMouseLeave={() => setMenuOpen(false)}
+      >
         <button
           type="button"
           onClick={() => setMenuOpen((value) => !value)}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
-          className={`flex h-10 w-full items-center gap-3 rounded-lg pl-[7px] transition-colors ${
+          className={`flex h-11 w-full items-center gap-3 pl-[22px] transition-colors ${
             menuOpen ? 'bg-white/15 text-white' : 'text-white/55 hover:bg-white/10 hover:text-white'
           }`}
         >
-          <span className="bg-accent flex h-7 w-7 shrink-0 items-center justify-center rounded text-[11px] font-semibold text-white">
+          <span className="bg-accent flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold text-white">
             {initials}
           </span>
           <span className="text-sm whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-data-open:opacity-100">
@@ -117,17 +119,12 @@ export function Rail({
 
         {menuOpen && (
           <>
-            {/* Click-away layer so the flyout closes like a real menu. */}
-            <button
-              type="button"
-              aria-hidden
-              tabIndex={-1}
-              className="fixed inset-0 z-40 cursor-default"
-              onClick={() => setMenuOpen(false)}
-            />
+            {/* The padding is the bridge: it keeps the gap hoverable, so the
+                pointer crosses from row to panel without closing the menu. */}
+            <div className="absolute bottom-0 left-full z-50 pl-2">
             <div
               role="menu"
-              className="bg-brand-ink absolute bottom-3 left-full z-50 ml-1 w-60 overflow-hidden rounded-lg border border-white/10 shadow-2xl"
+              className="bg-brand-ink w-60 overflow-hidden rounded-lg border border-white/10 shadow-2xl"
             >
               <div className="flex items-center gap-3 px-4 py-3">
                 <span className="bg-accent flex h-9 w-9 shrink-0 items-center justify-center rounded text-sm font-semibold text-white">
@@ -180,6 +177,7 @@ export function Rail({
               >
                 Log out
               </button>
+            </div>
             </div>
           </>
         )}
