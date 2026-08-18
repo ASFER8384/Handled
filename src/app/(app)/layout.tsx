@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { requireWorkspace } from '@/lib/session';
-import { RailLink } from '@/components/rail';
-import { AccountMenu } from '@/components/account-menu';
+import { Rail } from '@/components/rail';
 
 // Declared here, not in rail.tsx: a 'use client' module only exports client
 // references, so a plain array imported from one is not an array on the server.
@@ -27,33 +26,12 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
 
   return (
     <div className="flex min-h-full flex-1">
-      {/* --- dark icon rail ------------------------------------------- */}
-      <aside className="bg-brand-ink sticky top-0 flex h-screen w-16 shrink-0 flex-col items-center gap-2 py-4">
-        <Link
-          href="/dashboard"
-          aria-label="Handled home"
-          className="mb-4 flex h-9 w-9 items-center justify-center rounded bg-white/10 font-mono text-[10px] leading-3 font-bold text-white"
-        >
-          HD
-          <br />
-          LD
-        </Link>
-
-        <nav className="flex flex-col items-center gap-1">
-          {RAIL.map((item) => (
-            <RailLink key={item.href} href={item.href} label={item.label} icon={item.icon} />
-          ))}
-        </nav>
-
-        <div className="mt-auto">
-          <span
-            title={ctx.userName}
-            className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 text-xs font-semibold text-white"
-          >
-            {initials}
-          </span>
-        </div>
-      </aside>
+      <Rail
+        items={[...RAIL]}
+        initials={initials}
+        name={ctx.userName}
+        workspace={ctx.workspaceName}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* --- top bar ------------------------------------------------- */}
@@ -77,12 +55,6 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
             <Link href="/invoices/new" className="btn-primary px-3 py-1.5 text-sm">
               + New
             </Link>
-            <AccountMenu
-              initials={initials}
-              name={ctx.userName}
-              email={ctx.userEmail}
-              workspace={ctx.workspaceName}
-            />
           </div>
         </header>
 
