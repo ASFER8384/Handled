@@ -105,11 +105,11 @@ export function Rail({
           onClick={() => setMenuOpen((value) => !value)}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
-          className={`flex h-11 w-full items-center gap-3 pl-[22px] transition-colors ${
+          className={`flex h-11 w-full items-center gap-2 pl-[18px] transition-colors ${
             menuOpen ? 'bg-white/15 text-white' : 'text-white/55 hover:bg-white/10 hover:text-white'
           }`}
         >
-          <span className="bg-accent flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold text-white">
+          <span className="bg-accent flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-semibold text-white">
             {initials}
           </span>
           <span className="text-sm whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-data-open:opacity-100">
@@ -121,13 +121,13 @@ export function Rail({
           <>
             {/* The padding is the bridge: it keeps the gap hoverable, so the
                 pointer crosses from row to panel without closing the menu. */}
-            <div className="absolute bottom-0 left-full z-50 pl-2">
+            <div className="absolute bottom-0 left-full z-50 pl-1">
             <div
               role="menu"
               className="bg-brand-ink w-60 overflow-hidden rounded-lg border border-white/10 shadow-2xl"
             >
               <div className="flex items-center gap-3 px-4 py-3">
-                <span className="bg-accent flex h-9 w-9 shrink-0 items-center justify-center rounded text-sm font-semibold text-white">
+                <span className="bg-accent flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sm font-semibold text-white">
                   {initials}
                 </span>
                 <span className="min-w-0">
