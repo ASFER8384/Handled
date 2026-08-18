@@ -16,7 +16,26 @@ function createClient() {
   });
 }
 
-export const prisma = globalForPrisma.prisma ?? createClient();
+let client: PrismaClient | undefined;
 
-// Next.js dev hot-reload would otherwise open a new pool on every edit.
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+function getClient(): PrismaClient {
+  // Next.js dev hot-reload would otherwise open a new pool on every edit.
+  if (process.env.NODE_ENV !== 'production') return (globalForPrisma.prisma ??= createClient());
+  return (client ??= createClient());
+}
+
+/**
+ * Connects on first use, not on import. `next build` loads every route module
+ * to collect page data, so importing this must not require DATABASE_URL —
+ * otherwise the build depends on a runtime secret it has no business needing.
+ */
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, property) {
+    const instance = getClient() as unknown as Record<string | symbol, unknown>;
+    const value = instance[property];
+    return typeof value === 'function' ? value.bind(instance) : value;
+  },
+  has(_target, property) {
+    return property in (getClient() as unknown as object);
+  },
+});
