@@ -74,7 +74,6 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
           </div>
 
           <div className="ml-auto flex items-center gap-3">
-            <span className="text-muted hidden text-sm sm:inline">{ctx.workspaceName}</span>
             <Link href="/invoices/new" className="btn-primary px-3 py-1.5 text-sm">
               + New
             </Link>
