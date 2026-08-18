@@ -1,0 +1,118 @@
+@import 'tailwindcss';
+
+:root {
+  --background: #fbfaf8;
+  --surface: #ffffff;
+  --foreground: #1c1a17;
+  --muted: #6f6862;
+  --border: #e7e2da;
+  --accent: #b4762a;
+  --accent-soft: #f6ecdc;
+
+  /* Marketing palette. */
+  --brand-yellow: #fffa56;
+  --brand-yellow-soft: #fffa77;
+  --brand-ink: #142127;
+  --brand-cream: #f4eae0;
+  --brand-blue: #9ab9e8;
+  --brand-green: #99d3ac;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-brand-yellow: var(--brand-yellow);
+  --color-brand-yellow-soft: var(--brand-yellow-soft);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-cream: var(--brand-cream);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-green: var(--brand-green);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-line bg-surface;
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-foreground;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none
+      placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/20;
+  }
+
+  /* Tailwind v4 cannot @apply a class defined in this same layer, so each
+     button variant restates the shared shape rather than composing .btn. */
+  .btn,
+  .btn-primary,
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium
+      transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-primary {
+    @apply bg-accent text-white hover:bg-accent/90;
+  }
+
+  .btn-ghost {
+    @apply border border-line bg-surface text-foreground hover:bg-accent-soft;
+  }
+
+  .field-error {
+    @apply mt-1 text-sm text-red-700;
+  }
+
+  /* --- Marketing site ------------------------------------------------- */
+
+  .display {
+    font-family: var(--font-display), ui-serif, Georgia, serif;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+  }
+
+  .eyebrow {
+    @apply font-mono text-xs font-medium tracking-[0.18em] uppercase;
+  }
+
+  .pill,
+  .pill-dark,
+  .pill-light {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-base
+      font-medium transition-transform duration-150 hover:-translate-y-0.5;
+  }
+
+  .pill-dark {
+    @apply bg-brand-ink text-white hover:bg-brand-ink/90;
+  }
+
+  .pill-light {
+    @apply border border-brand-ink/15 bg-white text-brand-ink hover:bg-brand-ink/5;
+  }
+
+  .chip {
+    @apply rounded-full border border-brand-ink/10 bg-white px-4 py-2 text-sm font-medium
+      text-brand-ink transition-colors;
+  }
+
+  .chip-active {
+    @apply border-transparent bg-brand-blue/40;
+  }
+}
