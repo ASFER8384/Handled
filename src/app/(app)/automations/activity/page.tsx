@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
-import { sweepDueSteps, ACTION_LABELS } from '@/lib/automations';
+import { sweepDueSteps } from '@/lib/automations';
+import { ACTION_LABELS } from '@/lib/automation-labels';
 import { EmptyState, PageHeader, formatDate } from '@/components/ui';
 import { CancelRunButton } from './cancel-run-button';
 

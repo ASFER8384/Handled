@@ -11,7 +11,16 @@ function createClient() {
     throw new Error('DATABASE_URL is not set. Copy .env.example to .env and fill it in.');
   }
   return new PrismaClient({
-    adapter: new PrismaPg({ connectionString }),
+    adapter: new PrismaPg({
+      connectionString,
+      // Neon closes idle connections well before node-postgres would notice,
+      // so retire them here first — otherwise the pool hands out a dead socket
+      // and the query fails with P1017 "Server has closed the connection".
+      idleTimeoutMillis: 10_000,
+      connectionTimeoutMillis: 15_000,
+      max: 10,
+      keepAlive: true,
+    }),
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   });
 }

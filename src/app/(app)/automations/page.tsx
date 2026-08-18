@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
-import { sweepDueSteps, TRIGGER_LABELS } from '@/lib/automations';
+import { sweepDueSteps } from '@/lib/automations';
+import { TRIGGER_LABELS } from '@/lib/automation-labels';
 import { EmptyState, PageHeader, STAGE_LABELS } from '@/components/ui';
 import { AutomationMenu } from './automation-menu';
 import { AutomationToggle } from './automation-toggle';

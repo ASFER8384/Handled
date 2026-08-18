@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { api } from '@/lib/client-fetch';
 import { STAGE_LABELS } from '@/components/ui';
 import { automationTriggers, projectStages } from '@/lib/validation';
-import { TRIGGER_LABELS } from '@/lib/automations';
+import { TRIGGER_LABELS } from '@/lib/automation-labels';
 
 type Values = { name: string; trigger: (typeof automationTriggers)[number]; triggerStage: string };
 

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
 import { STAGE_LABELS } from '@/components/ui';
-import { ACTION_LABELS, TRIGGER_LABELS } from '@/lib/automations';
+import { ACTION_LABELS, TRIGGER_LABELS } from '@/lib/automation-labels';
 import { automationActions, automationTriggers, projectStages } from '@/lib/validation';
 import type { ProjectStage } from '@/generated/prisma/enums';
 

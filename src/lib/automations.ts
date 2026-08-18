@@ -1,10 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import type {
-  AutomationAction,
-  AutomationTrigger,
-  Prisma,
-  ProjectStage,
-} from '@/generated/prisma/client';
+import type { AutomationAction, AutomationTrigger, ProjectStage } from '@/generated/prisma/client';
 
 /**
  * Automations run on a due-time sweep rather than a background worker: every
@@ -201,18 +196,4 @@ export async function hasLiveRun(automationId: string, workspaceId: string): Pro
   return live > 0;
 }
 
-export const TRIGGER_LABELS: Record<AutomationTrigger, string> = {
-  PROJECT_CREATED: 'Project created',
-  PROJECT_STAGE_CHANGED: 'Project enters stage',
-  CLIENT_CREATED: 'Client added',
-  INVOICE_SENT: 'Invoice sent',
-  INVOICE_PAID: 'Invoice paid in full',
-};
 
-export const ACTION_LABELS: Record<AutomationAction, string> = {
-  SEND_EMAIL: 'Send email',
-  CREATE_TASK: 'Create task',
-  MOVE_STAGE: 'Move project stage',
-};
-
-export type StepInput = Prisma.AutomationStepCreateWithoutAutomationInput;
