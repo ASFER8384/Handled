@@ -1,51 +1,93 @@
 import Link from 'next/link';
 import { requireWorkspace } from '@/lib/session';
-import { NavLink } from '@/components/nav-link';
-import { SignOutButton } from '@/components/sign-out-button';
+import { RailLink } from '@/components/rail';
+import { AccountMenu } from '@/components/account-menu';
 
-const NAV = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/projects', label: 'Projects' },
-  { href: '/clients', label: 'Clients' },
-  { href: '/invoices', label: 'Invoices' },
-  { href: '/tasks', label: 'Tasks' },
-  { href: '/automations', label: 'Automations' },
+// Declared here, not in rail.tsx: a 'use client' module only exports client
+// references, so a plain array imported from one is not an array on the server.
+const RAIL = [
+  { href: '/dashboard', label: 'Home', icon: 'home' },
+  { href: '/projects', label: 'Projects', icon: 'projects' },
+  { href: '/clients', label: 'Clients', icon: 'clients' },
+  { href: '/invoices', label: 'Invoices', icon: 'invoices' },
+  { href: '/tasks', label: 'Tasks', icon: 'tasks' },
+  { href: '/automations', label: 'Automations', icon: 'automations' },
 ] as const;
 
 export default async function AppLayout({ children }: LayoutProps<'/'>) {
   const ctx = await requireWorkspace();
 
-  return (
-    <div className="flex flex-1">
-      <aside className="border-line bg-surface hidden w-60 shrink-0 border-r p-5 md:block">
-        <Link href="/dashboard" className="text-sm font-semibold tracking-widest text-accent uppercase">
-          Handled
-        </Link>
-        <p className="text-muted mt-1 truncate text-sm">{ctx.workspaceName}</p>
+  const initials =
+    ctx.userName
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('') || ctx.userEmail[0]?.toUpperCase();
 
-        <nav className="mt-8 space-y-1">
-          {NAV.map((item) => (
-            <NavLink key={item.href} href={item.href}>
-              {item.label}
-            </NavLink>
+  return (
+    <div className="flex min-h-full flex-1">
+      {/* --- dark icon rail ------------------------------------------- */}
+      <aside className="bg-brand-ink sticky top-0 flex h-screen w-16 shrink-0 flex-col items-center gap-2 py-4">
+        <Link
+          href="/dashboard"
+          aria-label="Handled home"
+          className="mb-4 flex h-9 w-9 items-center justify-center rounded bg-white/10 font-mono text-[10px] leading-3 font-bold text-white"
+        >
+          HD
+          <br />
+          LD
+        </Link>
+
+        <nav className="flex flex-col items-center gap-1">
+          {RAIL.map((item) => (
+            <RailLink key={item.href} href={item.href} label={item.label} icon={item.icon} />
           ))}
         </nav>
+
+        <div className="mt-auto">
+          <span
+            title={ctx.userName}
+            className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 text-xs font-semibold text-white"
+          >
+            {initials}
+          </span>
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="border-line bg-surface flex items-center justify-between border-b px-6 py-3">
-          <nav className="flex gap-3 md:hidden">
-            {NAV.map((item) => (
-              <Link key={item.href} href={item.href} className="text-muted text-sm">
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-          <span className="text-muted hidden text-sm md:inline">{ctx.userEmail}</span>
-          <SignOutButton />
+        {/* --- top bar ------------------------------------------------- */}
+        <header className="border-line bg-surface sticky top-0 z-30 flex items-center gap-4 border-b px-6 py-2.5">
+          <div className="bg-accent-soft/60 text-muted flex items-center gap-2 rounded-full px-4 py-1.5 text-sm">
+            <svg
+              aria-hidden
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+            >
+              <circle cx="11" cy="11" r="6" />
+              <path d="m20 20-4.5-4.5" strokeLinecap="round" />
+            </svg>
+            Search
+          </div>
+
+          <div className="ml-auto flex items-center gap-3">
+            <span className="text-muted hidden text-sm sm:inline">{ctx.workspaceName}</span>
+            <Link href="/invoices/new" className="btn-primary px-3 py-1.5 text-sm">
+              + New
+            </Link>
+            <AccountMenu
+              initials={initials}
+              name={ctx.userName}
+              email={ctx.userEmail}
+              workspace={ctx.workspaceName}
+            />
+          </div>
         </header>
 
-        <main className="flex-1 px-6 py-8">{children}</main>
+        <main className="flex-1 px-8 py-8">{children}</main>
       </div>
     </div>
   );
