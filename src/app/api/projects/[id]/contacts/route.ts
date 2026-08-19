@@ -48,3 +48,66 @@ export const POST = handler(async (ctx, request: Request, { params }: Params) =>
 
   return NextResponse.json({ contact: link.client }, { status: 201 });
 });
+
+/**
+ * The workspace address book, read against one project: every contact carries
+ * where it stands in relation to this project, so the list can say "the client
+ * here" or name the project someone else belongs to instead of labelling every
+ * row the same way.
+ */
+export const GET = handler(async (ctx, _request: Request, { params }: Params) => {
+  const { id } = await params;
+
+  const project = await prisma.project.findFirst({
+    where: { id, workspaceId: ctx.workspaceId },
+    select: { id: true, clientId: true },
+  });
+  if (!project) notFound('Project');
+
+  const clients = await prisma.client.findMany({
+    where: { workspaceId: ctx.workspaceId },
+    orderBy: { name: 'asc' },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      projects: { select: { id: true, name: true }, orderBy: { createdAt: 'desc' }, take: 3 },
+      projectContacts: {
+        select: { project: { select: { id: true, name: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+      },
+    },
+  });
+
+  const linked = new Set(
+    (
+      await prisma.projectContact.findMany({
+        where: { projectId: id },
+        select: { clientId: true },
+      })
+    ).map((row) => row.clientId),
+  );
+
+  const contacts = clients.map((client) => {
+    // Both ways of belonging count, and neither should be listed twice.
+    const elsewhere = [
+      ...client.projects,
+      ...client.projectContacts.map((row) => row.project),
+    ].filter(
+      (entry, index, all) =>
+        entry.id !== id && all.findIndex((other) => other.id === entry.id) === index,
+    );
+
+    return {
+      id: client.id,
+      name: client.name,
+      email: client.email,
+      relation:
+        client.id === project.clientId ? 'client' : linked.has(client.id) ? 'linked' : 'other',
+      projects: elsewhere.map((entry) => entry.name),
+    };
+  });
+
+  return NextResponse.json({ contacts });
+});

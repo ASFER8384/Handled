@@ -8,6 +8,12 @@ import { DEFAULT_ISO, findCountry } from '@/lib/countries';
 
 export type Contact = { id: string; name: string; email: string | null };
 
+/** A contact seen from one project: whose it is, and where else it appears. */
+type Option = Contact & {
+  relation: 'client' | 'linked' | 'other';
+  projects: string[];
+};
+
 export function AddContactDialog({
   projectId,
   exclude,
@@ -27,7 +33,7 @@ export function AddContactDialog({
   const [phone, setPhone] = useState('');
   const [lastInteraction, setLastInteraction] = useState('');
   const [search, setSearch] = useState('');
-  const [contacts, setContacts] = useState<Contact[] | null>(null);
+  const [contacts, setContacts] = useState<Option[] | null>(null);
   const [lookupFailed, setLookupFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
@@ -40,16 +46,16 @@ export function AddContactDialog({
   // never be left waiting on a lookup that is never coming.
   useEffect(() => {
     const stop = new AbortController();
-    fetch('/api/clients', { signal: stop.signal, cache: 'no-store' })
+    fetch(`/api/projects/${projectId}/contacts`, { signal: stop.signal, cache: 'no-store' })
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error('lookup'))))
-      .then((payload: { clients?: Contact[] }) => setContacts(payload.clients ?? []))
+      .then((payload: { contacts?: Option[] }) => setContacts(payload.contacts ?? []))
       .catch((reason: unknown) => {
         if ((reason as Error | null)?.name === 'AbortError') return;
         setContacts(null);
         setLookupFailed(true);
       });
     return () => stop.abort();
-  }, [attempt]);
+  }, [attempt, projectId]);
 
   const matches = (contacts ?? []).filter((contact) => {
     const term = search.trim().toLowerCase();
@@ -252,7 +258,10 @@ export function AddContactDialog({
               </li>
             )}
             {matches.map((contact) => {
-              const already = exclude.includes(contact.id);
+              // Already here, in either sense: the client the project is for,
+              // or somebody added to it since.
+              const already =
+                contact.relation !== 'other' || exclude.includes(contact.id);
               return (
                 <li key={contact.id}>
                   <button
@@ -275,7 +284,9 @@ export function AddContactDialog({
                         {contact.email ?? 'No email on file'}
                       </span>
                     </span>
-                    {already && <span className="text-muted ml-auto text-xs">On this project</span>}
+                    <span className="text-muted ml-auto shrink-0 pl-3 text-xs">
+                      {belonging(contact, exclude)}
+                    </span>
                   </button>
                 </li>
               );
@@ -287,6 +298,15 @@ export function AddContactDialog({
       )}
     </Dialog>
   );
+}
+
+/** What the right-hand side of a row says: whose contact this is. */
+function belonging(contact: Option, exclude: string[]): string {
+  if (contact.relation === 'client') return 'Client of this project';
+  if (contact.relation === 'linked' || exclude.includes(contact.id)) return 'On this project';
+  if (contact.projects.length === 0) return 'Not on a project';
+  const [first, ...rest] = contact.projects;
+  return rest.length > 0 ? `${first} +${rest.length}` : first;
 }
 
 function initials(name: string): string {
