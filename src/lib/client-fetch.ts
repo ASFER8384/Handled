@@ -1,5 +1,7 @@
 'use client';
 
+import type { FieldValues, UseFormSetError } from 'react-hook-form';
+
 export type ApiFailure = { error: string; fields?: Record<string, string> };
 
 /**
@@ -25,4 +27,25 @@ export async function api<T>(
     };
   }
   return { data: payload as T, error: null };
+}
+
+/**
+ * Puts the server's complaint where it belongs. A refusal that names fields —
+ * an address already in use, say — marks those inputs; anything unattributed
+ * goes to the foot of the form.
+ */
+export function showFailure<T extends FieldValues>(
+  failure: ApiFailure,
+  setError: UseFormSetError<T>,
+  setFormError: (message: string | null) => void,
+): void {
+  const named = Object.entries(failure.fields ?? {});
+  if (named.length === 0) {
+    setFormError(failure.error);
+    return;
+  }
+  setFormError(null);
+  for (const [field, message] of named) {
+    setError(field as Parameters<UseFormSetError<T>>[0], { message });
+  }
 }

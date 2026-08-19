@@ -7,7 +7,7 @@ import { Dialog } from '@/components/dialog';
 import { InfoHint } from '@/components/ui';
 import { CountrySelect } from '@/components/country-select';
 import { DEFAULT_ISO, findCountry } from '@/lib/countries';
-import { api } from '@/lib/client-fetch';
+import { api, showFailure } from '@/lib/client-fetch';
 
 // Schemas that coerce dates have an output type the form never holds, so these
 // forms carry their own shape and let the route do the validating.
@@ -152,6 +152,7 @@ function ContactDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
     handleSubmit,
     watch,
     setValue,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<ContactValues>({ defaultValues: { countryIso: DEFAULT_ISO } });
 
@@ -194,7 +195,7 @@ function ContactDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
       },
     });
     if (error) {
-      setFormError(error.error);
+      showFailure(error, setError, setFormError);
       return;
     }
 
@@ -281,6 +282,7 @@ function ContactDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
               {...register('phone')}
             />
           </div>
+          {errors.phone && <p className="field-error">{errors.phone.message}</p>}
         </div>
 
         <div>

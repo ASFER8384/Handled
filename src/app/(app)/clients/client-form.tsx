@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
-import { api } from '@/lib/client-fetch';
+import { api, showFailure } from '@/lib/client-fetch';
 
 // The schema coerces a date, so its output type is not what the form holds —
 // this form carries its own shape and lets the route do the validating.
@@ -22,6 +22,7 @@ export function ClientForm() {
     register,
     handleSubmit,
     reset,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<ClientInput>();
 
@@ -29,7 +30,7 @@ export function ClientForm() {
     setFormError(null);
     const { error } = await api('/api/clients', { method: 'POST', body: values });
     if (error) {
-      setFormError(error.error);
+      showFailure(error, setError, setFormError);
       return;
     }
     reset();
@@ -67,7 +68,9 @@ export function ClientForm() {
           className="input"
           {...register('email', { pattern: /.+@.+\..+/ })}
         />
-        {errors.email && <p className="field-error">Enter a valid email</p>}
+        {errors.email && (
+          <p className="field-error">{errors.email.message ?? 'Enter a valid email'}</p>
+        )}
       </div>
 
       <div>
@@ -75,6 +78,7 @@ export function ClientForm() {
           Phone
         </label>
         <input id="client-phone" className="input" {...register('phone')} />
+        {errors.phone && <p className="field-error">{errors.phone.message}</p>}
       </div>
 
       <div>

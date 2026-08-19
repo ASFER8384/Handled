@@ -104,7 +104,7 @@ export async function refuseDuplicateContact(
     );
     if (taken) {
       throw new HttpError(409, `${email} is already saved as ${taken.name}.`, {
-        email: `Already used by ${taken.name}. Pick them under Existing contact instead.`,
+        email: `Already used by ${taken.name}.`,
       });
     }
   }
