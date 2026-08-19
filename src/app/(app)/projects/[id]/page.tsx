@@ -131,16 +131,32 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
               content scrolls under them --------------------------------- */}
       <div data-tab-header className="bg-background sticky top-14 z-20 -mx-8 px-8">
         <div className="border-line flex flex-wrap items-center justify-between gap-4 border-b py-5">
-          <div className="flex items-center gap-3">
-            <span className="bg-accent-soft text-accent flex h-10 w-10 items-center justify-center rounded-full font-semibold">
-              {project.client.name.slice(0, 1).toUpperCase()}
-            </span>
-            <div>
-              <Link href={`/clients/${project.client.id}`} className="font-medium hover:underline">
-                {project.client.name}
-              </Link>
-              <p className="text-muted text-sm">{project.client.email ?? 'No email on file'}</p>
-            </div>
+          {/* Everyone on the project, the client first. */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            {[project.client, ...project.contacts.map((entry) => entry.client)].map(
+              (person, index) => (
+                <div key={person.id} className="flex items-center gap-3">
+                  <span
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-semibold ${
+                      index === 0 ? 'bg-accent-soft text-accent' : 'bg-black/[0.07]'
+                    }`}
+                  >
+                    {person.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <div className="min-w-0">
+                    <Link
+                      href={`/clients/${person.id}`}
+                      className="block truncate font-medium hover:underline"
+                    >
+                      {person.name}
+                    </Link>
+                    <p className="text-muted truncate text-sm">
+                      {person.email ?? 'No email on file'}
+                    </p>
+                  </div>
+                </div>
+              ),
+            )}
           </div>
 
           <div className="flex items-center gap-4">
