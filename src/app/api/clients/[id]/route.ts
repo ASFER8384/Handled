@@ -19,6 +19,8 @@ export const PATCH = handler(async (ctx, request: Request, { params }: Params) =
       phone: data.phone ?? null,
       company: data.company ?? null,
       notes: data.notes ?? null,
+      lastInteractionAt: data.lastInteractionAt ?? null,
+      ...(data.tags ? { tags: data.tags } : {}),
     },
   });
   if (count === 0) notFound('Client');

@@ -43,6 +43,7 @@ export const clientSchema = z.object({
   address: optionalText(400),
   lastInteractionAt: optionalDate,
   notes: optionalText(1000),
+  tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
 });
 
 // --- Projects ---------------------------------------------------------------

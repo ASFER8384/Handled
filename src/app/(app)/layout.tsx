@@ -7,7 +7,7 @@ import { Rail } from '@/components/rail';
 const RAIL = [
   { href: '/dashboard', label: 'Home', icon: 'home' },
   { href: '/projects', label: 'Projects', icon: 'projects' },
-  { href: '/clients', label: 'Clients', icon: 'clients' },
+  { href: '/clients', label: 'Contacts', icon: 'clients' },
   { href: '/invoices', label: 'Invoices', icon: 'invoices' },
   { href: '/tasks', label: 'Tasks', icon: 'tasks' },
   { href: '/automations', label: 'Automations', icon: 'automations' },

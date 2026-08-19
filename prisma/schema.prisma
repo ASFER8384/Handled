@@ -145,6 +145,8 @@ model Client {
   notes     String?
   /// Last time this contact was spoken to — typed in, not derived.
   lastInteractionAt DateTime?
+  /// Loose labels, kept in the order they were added.
+  tags      String[] @default([])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

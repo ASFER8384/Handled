@@ -27,6 +27,7 @@ export const POST = handler(async (ctx, request: Request) => {
       address: data.address ?? null,
       lastInteractionAt: data.lastInteractionAt ?? null,
       notes: data.notes ?? null,
+      tags: data.tags ?? [],
     },
   });
   await fireTrigger('CLIENT_CREATED', { workspaceId: ctx.workspaceId, clientId: client.id });
