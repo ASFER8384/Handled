@@ -11,18 +11,26 @@ export type Contact = { id: string; name: string; email: string | null };
 /** A contact seen from one project: whose it is, and where else it appears. */
 type Option = Contact & {
   relation: 'client' | 'linked' | 'other';
-  projects: string[];
+  /** Every project they are on, the one being looked at first. */
+  projects: { name: string; here: boolean }[];
 };
 
 export function AddContactDialog({
   projectId,
   exclude,
+  attach = true,
   onClose,
   onAdded,
 }: {
   projectId: string;
-  /** Client ids already on the project, shown but not addable twice. */
+  /** Ids that cannot be picked again, because they are already where this goes. */
   exclude: string[];
+  /**
+   * Whether this puts the contact on the project. False when it is only
+   * choosing who an email goes to: a name typed there is saved to the address
+   * book and put on the message, and the project is left alone.
+   */
+  attach?: boolean;
   onClose: () => void;
   onAdded: (contact: Contact) => void;
 }) {
@@ -73,22 +81,34 @@ export function AddContactDialog({
   });
 
   async function add() {
+    // Picking someone who already exists, for an email only, writes nothing.
+    if (!attach && mode === 'existing') {
+      const chosen = (contacts ?? []).find((contact) => contact.id === picked);
+      if (chosen) onAdded(chosen);
+      return;
+    }
+
     setBusy(true);
     setError(null);
     setFaults({});
-    const body =
-      mode === 'existing'
-        ? { clientId: picked }
-        : {
-            name,
-            email,
-            phone: phone.trim() ? `${findCountry(countryIso).dial} ${phone.trim()}` : undefined,
-            lastInteractionAt: lastInteraction || undefined,
-          };
-    const { data, error: failure } = await api<{ contact: Contact }>(
-      `/api/projects/${projectId}/contacts`,
-      { method: 'POST', body },
-    );
+    const details = {
+      name,
+      email,
+      phone: phone.trim() ? `${findCountry(countryIso).dial} ${phone.trim()}` : undefined,
+      lastInteractionAt: lastInteraction || undefined,
+    };
+
+    const { data, error: failure } = attach
+      ? await api<{ contact: Contact }>(`/api/projects/${projectId}/contacts`, {
+          method: 'POST',
+          body: mode === 'existing' ? { clientId: picked } : details,
+        })
+      : await api<{ client: Contact }>('/api/clients', { method: 'POST', body: details }).then(
+          (result) => ({
+            data: result.data ? { contact: result.data.client } : null,
+            error: result.error,
+          }),
+        );
     setBusy(false);
     if (failure || !data) {
       // A named field carries its own message; only what has no home goes
@@ -104,7 +124,7 @@ export function AddContactDialog({
 
   return (
     <Dialog
-      title="Add contact to project"
+      title={attach ? 'Add contact to project' : 'Add a recipient'}
       onClose={onClose}
       footer={
         <button
@@ -113,7 +133,7 @@ export function AddContactDialog({
           disabled={busy || !ready}
           className="btn-primary px-5 disabled:opacity-40"
         >
-          {busy ? 'Adding…' : 'Add to project'}
+          {busy ? 'Adding…' : attach ? 'Add to project' : 'Add to email'}
         </button>
       }
     >
@@ -334,14 +354,17 @@ export function AddContactDialog({
 }
 
 /**
- * Said only when it tells you something: that they are on the email already,
- * or that they came from somewhere else. This project's own people need no
- * caption — you are looking at their project.
+ * Where a contact stands: on this email already, or the projects they belong
+ * to. This project is named too — somebody on it and on another needs both
+ * halves to make sense, and a blank says neither.
  */
 function belonging(contact: Option, exclude: string[]): string {
   if (exclude.includes(contact.id)) return 'Added';
-  if (contact.relation !== 'other') return '';
-  return contact.projects[0] ?? '';
+  if (contact.projects.length === 0) return '';
+
+  const named = contact.projects.map((entry) => (entry.here ? 'This project' : entry.name));
+  const shown = named.slice(0, 2).join(', ');
+  return named.length > 2 ? `${shown} +${named.length - 2}` : shown;
 }
 
 function initials(name: string): string {

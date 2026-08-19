@@ -245,8 +245,8 @@ export function EmailComposer({
         <button
           type="button"
           onClick={() => setAdding(true)}
-          aria-label="Add contact to project"
-          title="Add contact to project"
+          aria-label="Add a recipient"
+          title="Add a recipient"
           className="border-line text-muted hover:border-accent hover:text-accent flex h-7 w-7 items-center justify-center rounded-full border transition-colors"
         >
           +
@@ -684,6 +684,7 @@ export function EmailComposer({
       {adding && (
         <AddContactDialog
           projectId={projectId}
+          attach={false}
           exclude={people.map((person) => person.id)}
           onClose={() => setAdding(false)}
           onAdded={(contact) => {

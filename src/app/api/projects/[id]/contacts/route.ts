@@ -91,14 +91,12 @@ export const GET = handler(async (ctx, _request: Request, { params }: Params) =>
   );
 
   const contacts = clients.map((client) => {
-    // Both ways of belonging count, and neither should be listed twice.
-    const elsewhere = [
-      ...client.projects,
-      ...client.projectContacts.map((row) => row.project),
-    ].filter(
-      (entry, index, all) =>
-        entry.id !== id && all.findIndex((other) => other.id === entry.id) === index,
-    );
+    // Being the client of a project and being added to one both count as
+    // belonging, and neither should be listed twice.
+    const belongsTo = [...client.projects, ...client.projectContacts.map((row) => row.project)]
+      .filter((entry, index, all) => all.findIndex((other) => other.id === entry.id) === index)
+      // The project being looked at leads, since it is the one in question.
+      .sort((a, b) => Number(b.id === id) - Number(a.id === id));
 
     return {
       id: client.id,
@@ -106,7 +104,7 @@ export const GET = handler(async (ctx, _request: Request, { params }: Params) =>
       email: client.email,
       relation:
         client.id === project.clientId ? 'client' : linked.has(client.id) ? 'linked' : 'other',
-      projects: elsewhere.map((entry) => entry.name),
+      projects: belongsTo.map((entry) => ({ name: entry.name, here: entry.id === id })),
     };
   });
 
