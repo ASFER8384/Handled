@@ -9,7 +9,7 @@ const prisma = new PrismaClient({
 });
 
 const DEMO_EMAIL = 'demo@handled.test';
-const DEMO_PASSWORD = 'demo-password-123';
+const DEMO_PASSWORD = 'demo123';
 
 async function main() {
   // Idempotent: re-running the seed refreshes the demo studio rather than

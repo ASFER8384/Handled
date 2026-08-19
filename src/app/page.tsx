@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/session';
@@ -9,7 +10,7 @@ const NUMBERS = [
   { value: 'One', label: 'Pipeline, from first enquiry to final payment' },
   { value: 'Zero', label: 'Spreadsheets needed to know where you stand' },
   { value: 'Auto', label: 'Invoice status, derived from real payments' },
-  { value: 'AED', label: 'Multi-currency totals in exact minor units' },
+  { value: 'AED', label: 'Many currencies, totalled in exact minor units' },
 ];
 
 export default async function LandingPage() {
@@ -21,25 +22,40 @@ export default async function LandingPage() {
 
       {/* ---- Hero ---------------------------------------------------- */}
       <section className="relative overflow-hidden bg-brand-clay">
-        {/* Tilted cards bleeding off each edge. */}
+        {/* Tilted photos bleeding off each edge. */}
         <div
           aria-hidden
-          className="absolute top-40 -left-24 hidden h-56 w-64 -rotate-6 rounded-2xl bg-gradient-to-br from-orange-200 via-rose-200 to-stone-200 shadow-xl lg:block"
-        />
+          className="absolute top-36 -left-10 hidden h-64 w-72 -rotate-6 overflow-hidden rounded-2xl shadow-xl lg:block"
+        >
+          <Image
+            src="/marketing/hero-left.jpg"
+            alt=""
+            fill
+            sizes="288px"
+            className="object-cover object-[72%_45%]"
+          />
+        </div>
         <div
           aria-hidden
-          className="absolute top-28 -right-20 hidden h-56 w-72 rotate-6 rounded-2xl bg-gradient-to-br from-slate-300 via-slate-200 to-stone-300 shadow-xl lg:block"
-        />
+          className="absolute top-24 -right-10 hidden h-72 w-72 rotate-6 overflow-hidden rounded-2xl shadow-xl lg:block"
+        >
+          <Image
+            src="/marketing/hero-right.jpg"
+            alt=""
+            fill
+            sizes="288px"
+            className="object-cover object-[35%_60%]"
+          />
+        </div>
 
         <div className="relative mx-auto w-full max-w-6xl px-6 pt-20 pb-10 text-center">
-          <p className="eyebrow text-brand-ink/70">Clientflow · Built in Dubai</p>
 
           <h1 className="display mx-auto mt-6 max-w-4xl text-5xl leading-[1.05] sm:text-6xl lg:text-[64px]">
             Every client, project and payment. One thread.
           </h1>
 
           <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed">
-            The clientflow platform for independent studios and freelancers — from the first
+            The Handled platform for independent studios and freelancers, from the first
             enquiry to the money landing.
           </p>
 
@@ -51,16 +67,10 @@ export default async function LandingPage() {
           </div>
         </div>
 
-        <HeroTabs />
       </section>
 
-      {/* ---- Product shot straddling the hero edge -------------------- */}
-      <section className="relative bg-brand-clay pb-px">
-        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-white" />
-        <div className="relative mx-auto w-full max-w-6xl px-6">
-          <AppMockup />
-        </div>
-      </section>
+      {/* ---- Tabs, and the product shot straddling the hero edge ------- */}
+      <HeroTabs />
 
       {/* ---- Feature sections ---------------------------------------- */}
       <section className="mx-auto w-full max-w-6xl px-6 py-24">
@@ -72,7 +82,7 @@ export default async function LandingPage() {
           <FeatureSection
             eyebrow="Capture leads"
             title="No enquiry slips through"
-            body="Every enquiry lands in one pipeline and stays there — visible, sorted, and impossible to forget about."
+            body="Every enquiry lands in one pipeline and stays there, visible, sorted, and impossible to forget about."
             chips={['Lead form', 'Scheduler', 'Automations', 'Questionnaires']}
             tint="bg-brand-sky"
           >
@@ -82,7 +92,7 @@ export default async function LandingPage() {
           <FeatureSection
             eyebrow="Get paid"
             title="Invoices that reconcile themselves"
-            body="Send an invoice, record what lands, and let the balance keep itself current. Status is derived from real payments — never typed in by hand."
+            body="Send an invoice, record what lands, and let the balance keep itself current. Status is derived from real payments, never typed in by hand."
             chips={['Invoices', 'Payments', 'Reminders', 'Reporting']}
             tint="bg-brand-sage"
             flip
@@ -143,79 +153,6 @@ export default async function LandingPage() {
 /* ------------------------------------------------------------------ */
 /* Product panels — the real app's own UI, drawn statically.           */
 /* ------------------------------------------------------------------ */
-
-function AppMockup() {
-  const rows = [
-    { name: 'Autumn gala film', client: 'Marina Events', stage: 'Booked', value: 'AED 12,000.00' },
-    {
-      name: 'Spring lookbook',
-      client: 'Orchard & Vine',
-      stage: 'Proposal sent',
-      value: 'AED 4,800.00',
-    },
-    { name: 'Harbour brand shoot', client: 'Nadia Rahman', stage: 'Enquiry', value: 'AED 7,200.00' },
-  ];
-
-  return (
-    <div className="overflow-hidden rounded-2xl border border-brand-ink/10 bg-white shadow-2xl">
-      <div className="flex">
-        <div className="hidden w-14 shrink-0 flex-col items-center gap-5 bg-brand-ink py-5 sm:flex">
-          <span className="font-mono text-[10px] leading-3 font-bold text-white">
-            HD
-            <br />
-            LD
-          </span>
-          {['◇', '▤', '◷', '✉'].map((glyph, i) => (
-            <span key={glyph} className={i === 0 ? 'text-white' : 'text-white/40'}>
-              {glyph}
-            </span>
-          ))}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between border-b border-brand-ink/10 px-5 py-3">
-            <div className="h-7 w-48 rounded-full bg-brand-ink/5" />
-            <span className="rounded-md bg-brand-clay-soft px-3 py-1 text-sm font-medium">+ New</span>
-          </div>
-
-          <div className="px-6 py-6">
-            <div className="flex items-center justify-between">
-              <h3 className="display text-3xl">Projects</h3>
-              <span className="rounded-md bg-brand-ink px-4 py-2 text-xs font-semibold tracking-wide text-white uppercase">
-                Create new
-              </span>
-            </div>
-
-            <table className="mt-6 w-full text-left text-sm">
-              <thead className="text-brand-ink/50">
-                <tr className="border-b border-brand-ink/10">
-                  <th className="pb-2 font-medium">Project</th>
-                  <th className="pb-2 font-medium">Client</th>
-                  <th className="pb-2 font-medium">Stage</th>
-                  <th className="pb-2 text-right font-medium">Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.name} className="border-b border-brand-ink/5 last:border-0">
-                    <td className="py-3 font-medium">{r.name}</td>
-                    <td className="py-3 text-brand-ink/70">{r.client}</td>
-                    <td className="py-3">
-                      <span className="rounded-full bg-brand-clay px-2.5 py-1 text-xs font-medium">
-                        {r.stage}
-                      </span>
-                    </td>
-                    <td className="py-3 text-right font-medium">{r.value}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function LeadPanel() {
   return (
@@ -327,7 +264,7 @@ function MarketingFooter() {
           <div>
             <p className="text-lg font-extrabold tracking-tight">HANDLED</p>
             <p className="mt-3 text-sm text-brand-ink/60">
-              Clientflow for independent businesses.
+              The platform for independent businesses.
             </p>
           </div>
           {groups.map((g) => (
@@ -342,7 +279,7 @@ function MarketingFooter() {
           ))}
         </div>
         <p className="mt-12 border-t border-brand-ink/10 pt-6 text-xs text-brand-ink/50">
-          © Handled &amp; Helm — clientflow for independent businesses.
+          © Handled. The platform for independent businesses.
         </p>
       </div>
     </footer>

@@ -569,7 +569,7 @@ function ProjectDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
           </select>
           {errors.clientId && <p className="field-error">{errors.clientId.message}</p>}
           {clients?.length === 0 && (
-            <p className="text-muted mt-1 text-xs">Add a contact first — a project hangs off one.</p>
+            <p className="text-muted mt-1 text-xs">Add a contact first. A project hangs off one.</p>
           )}
         </div>
 

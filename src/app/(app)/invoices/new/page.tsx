@@ -18,7 +18,7 @@ export default async function NewInvoicePage() {
 
   return (
     <>
-      <PageHeader title="New invoice" subtitle="It starts as a draft — nothing is sent yet." />
+      <PageHeader title="New invoice" subtitle="It starts as a draft. Nothing is sent yet." />
       {clients.length === 0 ? (
         <EmptyState title="Add a client first" body="An invoice has to be addressed to someone." />
       ) : (

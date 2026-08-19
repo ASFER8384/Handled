@@ -35,7 +35,7 @@ export default async function SettingsPage() {
             ])}
           </div>
           <p className="text-muted mt-2 text-xs">
-            Editing these is not built yet — the fields are read-only for now.
+            Editing these is not built yet. The fields are read only for now.
           </p>
         </section>
 

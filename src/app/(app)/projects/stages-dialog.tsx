@@ -120,7 +120,7 @@ export function StagesDialog({
       <div className="min-h-0 flex-1 overflow-y-auto px-10 py-8">
         <p>Customize your view by selecting stages you&rsquo;d like to show or hide.</p>
         <p className="mt-1">
-          You can also add, delete, rename, or reorder stages — these changes update every view.
+          You can also add, delete, rename, or reorder stages. These changes update every view.
         </p>
 
         <div className="mt-8 flex gap-6 overflow-x-auto pb-4">

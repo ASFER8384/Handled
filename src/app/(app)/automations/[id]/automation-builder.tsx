@@ -242,7 +242,7 @@ export function AutomationBuilder({
               <textarea
                 aria-label={`Step ${index + 1} body`}
                 className="input mt-3 h-24"
-                placeholder="Body — recorded on the run timeline until delivery is wired up."
+                placeholder="Body, recorded on the run timeline until delivery is wired up."
                 value={step.body}
                 onChange={(event) => updateStep(index, { body: event.target.value })}
               />

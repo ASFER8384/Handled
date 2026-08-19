@@ -35,7 +35,7 @@ export default async function AutomationsPage() {
     <>
       <PageHeader
         title="Automations"
-        subtitle="A trigger, then the steps that follow it — running whether you are here or not."
+        subtitle="A trigger, then the steps that follow it, running whether you are here or not."
         action={
           <Link href="/automations/activity" className="btn-ghost">
             Activity
@@ -48,7 +48,7 @@ export default async function AutomationsPage() {
           {automations.length === 0 ? (
             <EmptyState
               title="No automations yet"
-              body="Build one on the right — say, a task for yourself every time a project is created."
+              body="Build one on the right. Say, a task for yourself every time a project is created."
             />
           ) : (
             <ul className="space-y-3">

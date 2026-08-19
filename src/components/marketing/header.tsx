@@ -1,8 +1,5 @@
 import Link from 'next/link';
 
-const NAV = ['Business types', 'Product', 'Templates', 'Pricing', 'Resources'];
-const WITH_CARET = new Set(['Business types', 'Product', 'Resources']);
-
 export function MarketingHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-brand-ink/5 bg-white">
@@ -10,18 +7,6 @@ export function MarketingHeader() {
         <Link href="/" className="text-xl font-extrabold tracking-tight text-brand-ink">
           HANDLED
         </Link>
-
-        <nav className="hidden items-center gap-8 lg:flex">
-          {NAV.map((item) => (
-            <span
-              key={item}
-              className="flex cursor-default items-center gap-1 text-sm font-medium text-brand-ink"
-            >
-              {item}
-              {WITH_CARET.has(item) && <span className="text-xs text-brand-ink/50">▾</span>}
-            </span>
-          ))}
-        </nav>
 
         <div className="flex items-center gap-5">
           <Link
