@@ -46,6 +46,17 @@ export const STAGE_GROUPS: {
 ];
 
 /** What new workspaces can pick from. A workspace's own types join this list. */
+/** Where work came from. A workspace can type in anything beyond these. */
+export const LEAD_SOURCES = [
+  'Instagram',
+  'Google',
+  'Referral',
+  'Repeat client',
+  'Website',
+  'Word of mouth',
+  'Other',
+];
+
 export const PROJECT_TYPES = [
   'Corporate',
   'Event',

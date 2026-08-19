@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { api } from '@/lib/client-fetch';
 import { EmailComposer, type PreviousEmail, type Variable } from './email-composer';
 
 export type ActivityMessage = {
@@ -11,8 +12,10 @@ export type ActivityMessage = {
   body: string;
   bodyHtml: string | null;
   attachments: { id: string; name: string }[];
-  status: 'DRAFT' | 'QUEUED' | 'SENT' | 'FAILED';
+  status: 'DRAFT' | 'SCHEDULED' | 'QUEUED' | 'SENT' | 'FAILED';
   detail: string | null;
+  /** Set only while it is waiting for its send time. */
+  scheduledFor: string | null;
   createdAt: string;
 };
 
@@ -25,6 +28,7 @@ export type ActivityRun = {
 
 const LABEL: Record<ActivityMessage['status'], string> = {
   DRAFT: 'Draft',
+  SCHEDULED: 'Scheduled',
   QUEUED: 'Queued',
   SENT: 'Sent',
   FAILED: 'Failed',
@@ -32,10 +36,76 @@ const LABEL: Record<ActivityMessage['status'], string> = {
 
 const PILL: Record<ActivityMessage['status'], string> = {
   DRAFT: 'bg-black/[0.06]',
+  SCHEDULED: 'bg-brand-sky/60',
   QUEUED: 'bg-black/[0.06]',
   SENT: 'bg-brand-sage/50',
   FAILED: 'bg-accent-soft text-accent',
 };
+
+/** Pick a day and a time, and hand back the moment it stands for. */
+function ScheduleButton({
+  disabled,
+  onPick,
+}: {
+  disabled?: boolean;
+  onPick: (isoTime: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('09:00');
+
+  useEffect(() => {
+    if (!open) return;
+    function away(event: MouseEvent) {
+      if (!(event.target as HTMLElement).closest('[data-schedule]')) setOpen(false);
+    }
+    document.addEventListener('mousedown', away);
+    return () => document.removeEventListener('mousedown', away);
+  }, [open]);
+
+  return (
+    <span className="relative" data-schedule>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((shown) => !shown)}
+        className="hover:text-foreground font-medium disabled:opacity-50"
+      >
+        Schedule
+      </button>
+      {open && (
+        <div className="border-line bg-surface absolute right-0 bottom-full z-30 mb-2 w-[240px] space-y-2 rounded-md border p-3 text-sm shadow-lg">
+          <input
+            autoFocus
+            type="date"
+            value={date}
+            onChange={(event) => setDate(event.target.value)}
+            aria-label="Send on"
+            className="input-soft"
+          />
+          <input
+            type="time"
+            value={time}
+            onChange={(event) => setTime(event.target.value)}
+            aria-label="Send at"
+            className="input-soft"
+          />
+          <button
+            type="button"
+            disabled={!date}
+            onClick={() => {
+              onPick(new Date(`${date}T${time || '09:00'}`).toISOString());
+              setOpen(false);
+            }}
+            className="btn-primary w-full py-2 disabled:opacity-40"
+          >
+            Schedule it
+          </button>
+        </div>
+      )}
+    </span>
+  );
+}
 
 /**
  * The project's trail: emails written here, and automation runs that fired.
@@ -62,6 +132,29 @@ export function ActivityTab({
   const [sent, setSent] = useState(messages);
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  /** Send it now, hold it back, or throw it away: only for one not yet gone. */
+  async function act(id: string, body: Record<string, unknown>) {
+    setBusy(id);
+    const { data } = await api<{ message: ActivityMessage }>(`/api/project-messages/${id}`, {
+      method: 'PATCH',
+      body,
+    });
+    setBusy(null);
+    if (!data?.message) return;
+    setSent((current) => current.map((entry) => (entry.id === id ? data.message : entry)));
+    setNotice(data.message.detail);
+    router.refresh();
+  }
+
+  async function discard(id: string) {
+    setBusy(id);
+    setSent((current) => current.filter((entry) => entry.id !== id));
+    await api(`/api/project-messages/${id}`, { method: 'DELETE' });
+    setBusy(null);
+    router.refresh();
+  }
 
   // Only a message that actually went out is worth answering.
   const answerable = sent.find((message) => message.status !== 'DRAFT');
@@ -76,7 +169,7 @@ export function ActivityTab({
     : null;
 
   return (
-    <div className="mt-6 max-w-3xl">
+    <div className="mt-6">
       {open ? (
         <EmailComposer
           projectId={projectId}
@@ -152,9 +245,55 @@ export function ActivityTab({
                   </ul>
                 )}
 
-                <p className="text-muted mt-3 text-xs">
-                  {new Date(message.createdAt).toLocaleString('en-GB')}
-                </p>
+                <div className="text-muted mt-3 flex flex-wrap items-center gap-4 text-xs">
+                  <span>{new Date(message.createdAt).toLocaleString('en-GB')}</span>
+
+                  {message.scheduledFor && message.status === 'SCHEDULED' && (
+                    <span className="text-foreground font-medium">
+                      Goes out {new Date(message.scheduledFor).toLocaleString('en-GB')}
+                    </span>
+                  )}
+
+                  {message.status !== 'SENT' && (
+                    <span className="ml-auto flex items-center gap-4">
+                      <button
+                        type="button"
+                        disabled={busy === message.id}
+                        onClick={() => void act(message.id, { action: 'send' })}
+                        className="text-accent font-medium hover:underline disabled:opacity-50"
+                      >
+                        Send now
+                      </button>
+
+                      {message.status === 'SCHEDULED' ? (
+                        <button
+                          type="button"
+                          disabled={busy === message.id}
+                          onClick={() => void act(message.id, { action: 'unschedule' })}
+                          className="hover:text-foreground font-medium disabled:opacity-50"
+                        >
+                          Cancel schedule
+                        </button>
+                      ) : (
+                        <ScheduleButton
+                          disabled={busy === message.id}
+                          onPick={(when) =>
+                            void act(message.id, { action: 'schedule', scheduledFor: when })
+                          }
+                        />
+                      )}
+
+                      <button
+                        type="button"
+                        disabled={busy === message.id}
+                        onClick={() => void discard(message.id)}
+                        className="hover:text-accent font-medium disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                    </span>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

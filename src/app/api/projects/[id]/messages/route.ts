@@ -1,10 +1,8 @@
-import { readFile } from 'node:fs/promises';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handler, notFound, parseBody } from '@/lib/api';
 import { projectMessageSchema } from '@/lib/validation';
-import { sendEmail } from '@/lib/email';
-import { storagePath } from '@/lib/uploads';
+import { deliver } from '@/lib/messages';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -25,6 +23,9 @@ export const POST = handler(async (ctx, request: Request, { params }: Params) =>
       })
     : [];
 
+  const when = data.scheduledFor ? new Date(data.scheduledFor) : null;
+  const held = data.draft || (when !== null && when.getTime() > Date.now());
+
   // Stored first: a failed send must still leave a record of what was written.
   const message = await prisma.projectMessage.create({
     data: {
@@ -35,47 +36,22 @@ export const POST = handler(async (ctx, request: Request, { params }: Params) =>
       bodyHtml: data.bodyHtml ?? null,
       attachments: files.map((file) => ({ id: file.id, name: file.name })),
       replyToId: data.replyToId ?? null,
-      status: data.draft ? 'DRAFT' : 'QUEUED',
+      status: data.draft ? 'DRAFT' : when ? 'SCHEDULED' : 'QUEUED',
+      scheduledFor: data.draft ? null : when,
+      detail: data.draft
+        ? 'Saved as a draft. Nothing has been sent.'
+        : when
+          ? `Scheduled for ${when.toLocaleString('en-GB')}.`
+          : null,
     },
   });
 
-  if (data.draft) {
-    const draft = await prisma.projectMessage.update({
-      where: { id: message.id },
-      data: { detail: 'Saved as a draft. Nothing has been sent.' },
-    });
-    return NextResponse.json({ message: draft }, { status: 201 });
+  if (held) {
+    const waiting = await prisma.projectMessage.findUnique({ where: { id: message.id } });
+    return NextResponse.json({ message: waiting }, { status: 201 });
   }
 
-  // Uploaded files travel as base64; a linked one is left as a link in the body.
-  const attached = [];
-  for (const file of files) {
-    if (!file.storageKey) continue;
-    const bytes = await readFile(storagePath(file.storageKey)).catch(() => null);
-    if (!bytes) continue;
-    attached.push({
-      filename: file.name,
-      type: file.mimeType ?? 'application/octet-stream',
-      content: bytes.toString('base64'),
-    });
-  }
-
-  const result = await sendEmail({
-    to: data.to,
-    subject: data.subject,
-    body: data.body,
-    bodyHtml: data.bodyHtml,
-    attachments: attached,
-  });
-
-  const updated = await prisma.projectMessage.update({
-    where: { id: message.id },
-    data: {
-      status: result.delivered ? 'SENT' : 'QUEUED',
-      detail: result.detail,
-      sentAt: result.delivered ? new Date() : null,
-    },
-  });
-
-  return NextResponse.json({ message: updated }, { status: 201 });
+  await deliver(message.id);
+  const sent = await prisma.projectMessage.findUnique({ where: { id: message.id } });
+  return NextResponse.json({ message: sent }, { status: 201 });
 });

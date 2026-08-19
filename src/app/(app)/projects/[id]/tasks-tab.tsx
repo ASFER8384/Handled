@@ -122,9 +122,7 @@ export function TasksTab({
   return (
     <div className="mt-6">
       <div className="flex items-center justify-between gap-4">
-        <p className="text-muted">
-          Everything this project still needs doing, and who is holding it.
-        </p>
+        <p className="text-muted">Everything this project still needs doing.</p>
         <button
           type="button"
           onClick={() => void add()}
@@ -443,7 +441,7 @@ function Row({
           onBlur={() => title.trim() && title !== task.title && onPatch({ title: title.trim() })}
           onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.blur()}
           aria-label="Task title"
-          className={`w-full rounded px-2 py-1.5 transition-colors outline-none hover:bg-black/[0.05] focus:bg-black/[0.05] ${
+          className={`w-full rounded px-2 py-1.5 h-9 transition-colors outline-none hover:bg-black/[0.05] focus:bg-black/[0.05] ${
             task.done ? 'text-muted line-through' : ''
           }`}
         />
@@ -458,7 +456,7 @@ function Row({
             value={date}
             onChange={(event) => stamp(event.target.value, time)}
             aria-label="Due date"
-            className={`w-full rounded px-2 py-1.5 transition-colors outline-none hover:bg-black/[0.05] focus:bg-black/[0.05] ${
+            className={`w-full rounded px-2 py-1.5 h-9 transition-colors outline-none hover:bg-black/[0.05] focus:bg-black/[0.05] ${
               date ? '' : 'text-transparent'
             }`}
           />
@@ -476,7 +474,7 @@ function Row({
             disabled={!date}
             onChange={(event) => stamp(date, event.target.value)}
             aria-label="Due time"
-            className={`w-full rounded px-2 py-1.5 transition-colors outline-none hover:bg-black/[0.05] focus:bg-black/[0.05] disabled:cursor-not-allowed ${
+            className={`w-full rounded px-2 py-1.5 h-9 transition-colors outline-none hover:bg-black/[0.05] focus:bg-black/[0.05] disabled:cursor-not-allowed ${
               time ? '' : 'text-transparent'
             }`}
           />
@@ -502,7 +500,7 @@ function Row({
             value={task.assigneeId ?? ''}
             onChange={(event) => onPatch({ assigneeId: event.target.value || null })}
             aria-label="Assigned to"
-            className="text-muted w-full rounded bg-transparent px-1 py-1 transition-colors outline-none hover:bg-black/[0.05]"
+            className="text-muted h-9 w-full rounded bg-transparent px-1 transition-colors outline-none hover:bg-black/[0.05]"
           >
             <option value="">Nobody yet</option>
             {members.map((member) => (

@@ -159,7 +159,7 @@ export function NoteEditor({
               className="placeholder:text-muted w-full bg-transparent text-xl font-semibold outline-none"
             />
             <p className="text-muted mt-1 text-xs">
-              {shared ? 'Shared with the client' : 'Only your workspace can see this'}
+              {shared ? 'Shared with the client' : 'Only visible to you'}
             </p>
           </div>
 

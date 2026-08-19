@@ -113,6 +113,8 @@ export const projectMessageSchema = z.object({
   /** The formatted version. Plain text alone is still a valid message. */
   bodyHtml: z.string().max(200000).optional(),
   attachmentIds: z.array(z.string()).max(20).default([]),
+  /** Set to hold it back until then, instead of sending it now. */
+  scheduledFor: z.union([z.iso.datetime(), z.iso.date()]).optional(),
   replyToId: z.string().optional(),
   /** Parked rather than sent. */
   draft: z.coerce.boolean().default(false),
@@ -148,17 +150,63 @@ export const projectSchema = z.object({
 export const projectStageSchema = z.object({ stageId: z.string().min(1, 'Pick a stage') });
 
 /** Stage moves and re-assignment are the two edits the app makes to a project. */
+/** A date that may be cleared, and may or may not carry a time. */
+const nullableDate = z.union([z.iso.datetime(), z.iso.date(), z.literal(''), z.null()]).optional();
+
+export const availabilities = ['BUSY', 'FREE'] as const;
+export const fieldTypes = ['TEXT', 'LONG_TEXT', 'DATE', 'NUMBER', 'LINK', 'SELECT'] as const;
+
 export const projectPatchSchema = z
   .object({
     stageId: z.string().min(1).optional(),
     clientId: z.string().min(1).optional(),
     type: z.string().trim().max(80).optional(),
+    leadSource: z.string().trim().max(80).optional(),
+    tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+    name: z.string().trim().min(1, 'Name this project').max(100).optional(),
+    description: z.string().trim().max(2000).optional(),
+    location: z.string().trim().max(200).optional(),
+    timezone: z.string().trim().max(60).optional(),
+    dateTitle: z.string().trim().max(140).optional(),
+    availability: z.enum(availabilities).optional(),
+    eventDate: nullableDate,
+    endsAt: nullableDate,
+    allDay: z.boolean().optional(),
   })
-  .refine(
-    (value) =>
-      value.stageId !== undefined || value.clientId !== undefined || value.type !== undefined,
-    { message: 'Nothing to update' },
-  );
+  .refine((value) => Object.values(value).some((entry) => entry !== undefined), {
+    message: 'Nothing to update',
+  });
+
+/** What can be done to a message that has not gone out yet. */
+export const messageActionSchema = z.object({
+  action: z.enum(['send', 'schedule', 'unschedule']),
+  scheduledFor: z.union([z.iso.datetime(), z.iso.date()]).optional(),
+});
+
+export const projectDateSchema = z.object({
+  title: z.string().trim().min(1, 'Name this date').max(140),
+  startAt: nullableDate,
+  endAt: nullableDate,
+  allDay: z.coerce.boolean().default(false),
+  availability: z.enum(availabilities).default('BUSY'),
+  location: z.string().trim().max(200).optional(),
+});
+
+export const projectDatePatchSchema = projectDateSchema.partial();
+
+export const customFieldSchema = z.object({
+  name: z.string().trim().min(1, 'Name this field').max(60),
+  type: z.enum(fieldTypes).default('TEXT'),
+  options: z.array(z.string().trim().min(1).max(60)).max(30).default([]),
+  visibleToClient: z.coerce.boolean().default(true),
+});
+
+export const customFieldPatchSchema = customFieldSchema.partial().omit({ type: true });
+
+/** Every answer this project gives, sent together. An empty one clears it. */
+export const projectFieldValuesSchema = z.object({
+  values: z.array(z.object({ fieldId: z.string().min(1), value: z.string().max(2000) })).max(50),
+});
 
 // --- Invoices ---------------------------------------------------------------
 

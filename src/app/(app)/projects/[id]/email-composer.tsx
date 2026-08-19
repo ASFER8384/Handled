@@ -118,6 +118,8 @@ export function EmailComposer({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [replyTo, setReplyTo] = useState<PreviousEmail | null>(null);
   const [showFormat, setShowFormat] = useState(true);
+  const [sendDate, setSendDate] = useState('');
+  const [sendTime, setSendTime] = useState('09:00');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -169,7 +171,7 @@ export function EmailComposer({
     );
   }
 
-  async function submit(draft: boolean) {
+  async function submit(draft: boolean, scheduledFor?: string) {
     const html = getHtml();
     const text = getText();
     if (people.length === 0) {
@@ -197,6 +199,7 @@ export function EmailComposer({
         attachmentIds: attachments.map((file) => file.id),
         replyToId: replyTo?.id,
         draft,
+        scheduledFor,
       }),
     });
     const payload = (await response.json().catch(() => null)) as {
@@ -636,9 +639,42 @@ export function EmailComposer({
               <Caret className="h-3.5 w-3.5" />
             </button>
             {menu === 'send' && (
-              <div className="border-line bg-surface absolute right-0 bottom-full z-30 mb-1 w-[180px] rounded-md border py-1 shadow-lg">
+              <div className="border-line bg-surface absolute right-0 bottom-full z-30 mb-1 w-[250px] rounded-md border py-1 shadow-lg">
                 <MenuItem onClick={() => void submit(false)}>Send now</MenuItem>
                 <MenuItem onClick={() => void submit(true)}>Save as draft</MenuItem>
+
+                <div className="border-line mt-1 space-y-2 border-t px-3 pt-2.5 pb-1">
+                  <p className="text-muted text-xs font-semibold tracking-widest uppercase">
+                    Send later
+                  </p>
+                  <input
+                    type="date"
+                    value={sendDate}
+                    onChange={(event) => setSendDate(event.target.value)}
+                    aria-label="Send on"
+                    className="input-soft"
+                  />
+                  <input
+                    type="time"
+                    value={sendTime}
+                    onChange={(event) => setSendTime(event.target.value)}
+                    aria-label="Send at"
+                    className="input-soft"
+                  />
+                  <button
+                    type="button"
+                    disabled={!sendDate}
+                    onClick={() =>
+                      void submit(
+                        false,
+                        new Date(`${sendDate}T${sendTime || '09:00'}`).toISOString(),
+                      )
+                    }
+                    className="btn-primary mb-1 w-full py-2 disabled:opacity-40"
+                  >
+                    Schedule it
+                  </button>
+                </div>
               </div>
             )}
           </span>

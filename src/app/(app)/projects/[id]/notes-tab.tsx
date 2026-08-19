@@ -85,7 +85,7 @@ export function NotesTab({ projectId, notes }: { projectId: string; notes: Proje
           <select
             value={sort}
             onChange={(event) => setSort(event.target.value as typeof sort)}
-            className="rounded bg-transparent px-1 py-1 outline-none hover:bg-black/[0.05]"
+            className="h-9 rounded bg-transparent px-1 outline-none hover:bg-black/[0.05]"
           >
             {SORTS.map((option) => (
               <option key={option.key} value={option.key}>

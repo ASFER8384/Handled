@@ -28,17 +28,28 @@ export function AddContactDialog({
   const [lastInteraction, setLastInteraction] = useState('');
   const [search, setSearch] = useState('');
   const [contacts, setContacts] = useState<Contact[] | null>(null);
+  const [lookupFailed, setLookupFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Fetched the moment the dialog opens rather than when the tab is switched,
+  // so by the time anyone reaches the search the names are already sitting
+  // there. A refused or dropped request says so and offers another go: it must
+  // never be left waiting on a lookup that is never coming.
   useEffect(() => {
-    if (mode !== 'existing' || contacts) return;
-    void fetch('/api/clients')
-      .then((response) => (response.ok ? response.json() : null))
-      .then((payload: { clients?: Contact[] } | null) => setContacts(payload?.clients ?? []))
-      .catch(() => setContacts([]));
-  }, [mode, contacts]);
+    const stop = new AbortController();
+    fetch('/api/clients', { signal: stop.signal, cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error('lookup'))))
+      .then((payload: { clients?: Contact[] }) => setContacts(payload.clients ?? []))
+      .catch((reason: unknown) => {
+        if ((reason as Error | null)?.name === 'AbortError') return;
+        setContacts(null);
+        setLookupFailed(true);
+      });
+    return () => stop.abort();
+  }, [attempt]);
 
   const matches = (contacts ?? []).filter((contact) => {
     const term = search.trim().toLowerCase();
@@ -196,9 +207,49 @@ export function AddContactDialog({
           </div>
 
           <ul className="mt-4 space-y-2.5">
-            {contacts === null && <li className="text-muted text-sm">Looking them up…</li>}
+            {contacts === null &&
+              !lookupFailed &&
+              [0, 1, 2].map((row) => (
+                <li
+                  key={row}
+                  aria-hidden
+                  className="border-line flex animate-pulse items-center gap-3 rounded-lg border px-4 py-3"
+                >
+                  <span className="h-9 w-9 shrink-0 rounded-full bg-black/[0.07]" />
+                  <span className="flex-1 space-y-2">
+                    <span className="block h-3 w-1/3 rounded bg-black/[0.07]" />
+                    <span className="block h-3 w-1/2 rounded bg-black/[0.05]" />
+                  </span>
+                </li>
+              ))}
+            {contacts === null && !lookupFailed && (
+              <li aria-live="polite" className="sr-only">
+                Looking them up…
+              </li>
+            )}
+
+            {lookupFailed && (
+              <li className="border-line rounded-lg border border-dashed px-4 py-5 text-center">
+                <p className="text-muted text-sm">That list did not load.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLookupFailed(false);
+                    setAttempt((count) => count + 1);
+                  }}
+                  className="text-accent mt-1 text-sm font-medium hover:underline"
+                >
+                  Try again
+                </button>
+              </li>
+            )}
+
             {contacts !== null && matches.length === 0 && (
-              <li className="text-muted text-sm">Nobody by that name yet.</li>
+              <li className="text-muted text-sm">
+                {contacts.length === 0
+                  ? 'No contacts saved yet. Create one instead.'
+                  : 'Nobody by that name yet.'}
+              </li>
             )}
             {matches.map((contact) => {
               const already = exclude.includes(contact.id);

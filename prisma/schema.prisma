@@ -109,6 +109,8 @@ model Workspace {
   automations Automation[]
   automationRuns AutomationRun[]
 
+    customFields CustomField[]
+
   @@map("workspace")
 }
 
@@ -232,12 +234,18 @@ model Project {
   /// What kind of work this is — free text so a workspace can name its own.
   type        String?
   leadSource  String?
+  /// Free text labels, in the order they were added.
+  tags        String[] @default([])
   location    String?
   /// eventDate is the start; endsAt closes the range when there is one.
   eventDate   DateTime?
   endsAt      DateTime?
   allDay      Boolean      @default(true)
   timezone    String?
+  /// What the main date is called. The project's own name when left unset.
+  dateTitle   String?
+  /// How the main date shows on a calendar once the work is booked.
+  availability Availability @default(BUSY)
   valueCents  Int          @default(0)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -257,6 +265,8 @@ model Project {
   files          ProjectFile[]
   messages       ProjectMessage[]
   contacts       ProjectContact[]
+  dates          ProjectDate[]
+  fieldValues    ProjectFieldValue[]
 
   @@index([workspaceId, stageId])
   @@index([clientId])
@@ -307,6 +317,8 @@ model ProjectFile {
 enum MessageStatus {
   /// Written but deliberately not sent yet.
   DRAFT
+  /// Waiting for its own send time to come round.
+  SCHEDULED
   /// Written and stored, but no provider was configured to deliver it.
   QUEUED
   SENT
@@ -327,6 +339,8 @@ model ProjectMessage {
   /// [{ id, name }] of the project files sent along with it.
   attachments Json          @default("[]")
   status      MessageStatus @default(QUEUED)
+  /// When it should go out. Only ever set on a scheduled message.
+  scheduledFor DateTime?
   /// Why it sits where it does: provider response, or what is missing.
   detail    String?
   createdAt DateTime  @default(now())
@@ -596,4 +610,74 @@ model ProjectContact {
   @@unique([projectId, clientId])
   @@index([projectId])
   @@map("project_contact")
+}
+
+enum Availability {
+  BUSY
+  FREE
+}
+
+/// A date beyond the project's main one: a rehearsal, a delivery, a site visit.
+model ProjectDate {
+  id           String       @id @default(cuid())
+  title        String
+  startAt      DateTime?
+  endAt        DateTime?
+  allDay       Boolean      @default(false)
+  availability Availability @default(BUSY)
+  location     String?
+  /// The order they were added in, which is the order they are shown.
+  position     Int          @default(0)
+  createdAt    DateTime     @default(now())
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, position])
+  @@map("project_date")
+}
+
+enum FieldType {
+  TEXT
+  LONG_TEXT
+  DATE
+  NUMBER
+  LINK
+  SELECT
+}
+
+/// A field the workspace invented, asked of every project.
+model CustomField {
+  id        String    @id @default(cuid())
+  name      String
+  type      FieldType @default(TEXT)
+  /// The choices, for a single select. Empty for every other type.
+  options   String[]  @default([])
+  /// Whether the client sees it, or only the owner.
+  visibleToClient Boolean @default(true)
+  position  Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  values ProjectFieldValue[]
+
+  @@index([workspaceId, position])
+  @@map("custom_field")
+}
+
+/// What one project answered for one custom field.
+model ProjectFieldValue {
+  id    String @id @default(cuid())
+  value String
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fieldId   String
+  field     CustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, fieldId])
+  @@index([projectId])
+  @@map("project_field_value")
 }
