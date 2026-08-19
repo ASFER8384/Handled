@@ -9,7 +9,7 @@ type Params = { params: Promise<{ id: string }> };
 /** Stage moves from the pipeline board, and re-assignment to another contact. */
 export const PATCH = handler(async (ctx, request: Request, { params }: Params) => {
   const { id } = await params;
-  const { stageId, clientId } = await parseBody(request, projectPatchSchema);
+  const { stageId, clientId, type } = await parseBody(request, projectPatchSchema);
 
   // Scoped to the workspace so a foreign client id cannot be smuggled in.
   if (clientId) {
@@ -26,7 +26,11 @@ export const PATCH = handler(async (ctx, request: Request, { params }: Params) =
 
   const { count } = await prisma.project.updateMany({
     where: { id, workspaceId: ctx.workspaceId },
-    data: { ...(stageId ? { stageId } : {}), ...(clientId ? { clientId } : {}) },
+    data: {
+      ...(stageId ? { stageId } : {}),
+      ...(clientId ? { clientId } : {}),
+      ...(type === undefined ? {} : { type: type || null }),
+    },
   });
   if (count === 0) notFound('Project');
 

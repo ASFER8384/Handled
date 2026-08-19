@@ -27,6 +27,9 @@ export const POST = handler(async (ctx, request: Request) => {
       layout: source?.layout ?? 'BOARD',
       showGroups: source?.showGroups ?? true,
       hiddenProps: source?.hiddenProps ?? [],
+      sortField: source?.sortField ?? null,
+      sortDir: source?.sortDir ?? 'asc',
+      filters: source?.filters ?? [],
     },
   });
 

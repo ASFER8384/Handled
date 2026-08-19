@@ -13,10 +13,7 @@ export default async function ProjectsPage(props: PageProps<'/projects'>) {
   const params = await props.searchParams;
   const stageFilter = typeof params.stage === 'string' ? params.stage : null;
   const requestedView = typeof params.view === 'string' ? params.view : null;
-  const sort = typeof params.sort === 'string' ? params.sort : null;
-  const descending = params.dir === 'desc';
-  const filterKey = typeof params.filter === 'string' ? params.filter : null;
-  const filterValue = typeof params.value === 'string' ? params.value : null;
+
 
   const [allProjects, clientCount, stages, savedViews] = await Promise.all([
     prisma.project.findMany({
@@ -54,12 +51,27 @@ export default async function ProjectsPage(props: PageProps<'/projects'>) {
         ];
 
   const active = views.find((item) => item.id === requestedView) ?? views[0];
+  // Filters are stored as JSON, so they are read back defensively.
+  const viewFilters = Array.isArray(active.filters)
+    ? (active.filters as { field?: unknown; value?: unknown }[])
+        .filter((entry) => typeof entry?.field === 'string' && typeof entry?.value === 'string')
+        .map((entry) => ({ field: entry.field as string, value: entry.value as string }))
+    : [];
+
   const viewPrefs = {
     id: active.id,
     layout: active.layout,
     showGroups: active.showGroups,
     hiddenProps: active.hiddenProps,
+    sortField: active.sortField,
+    sortDir: active.sortDir === 'desc' ? ('desc' as const) : ('asc' as const),
+    filters: viewFilters,
   };
+
+  // The view carries how it is sorted and filtered, so the tab you pick
+  // decides what this page shows.
+  const sort = active.sortField;
+  const descending = active.sortDir === 'desc';
 
   // The values the toolbar can offer are the ones the projects actually hold.
   const unique = (values: (string | null)[]) =>
@@ -80,18 +92,19 @@ export default async function ProjectsPage(props: PageProps<'/projects'>) {
     },
   ];
 
-  if (filterKey && filterValue) {
-    const stageId = stages.find((stage) => stage.name === filterValue)?.id ?? null;
+  // Every filter the view carries has to match.
+  for (const { field, value } of viewFilters) {
+    const stageId = stages.find((stage) => stage.name === value)?.id ?? null;
     projects = projects.filter((project) => {
-      switch (filterKey) {
+      switch (field) {
         case 'stage':
           return project.stageId === stageId;
         case 'type':
-          return project.type === filterValue;
+          return project.type === value;
         case 'leadSource':
-          return project.leadSource === filterValue;
+          return project.leadSource === value;
         case 'contact':
-          return project.client.name === filterValue;
+          return project.client.name === value;
         default:
           return true;
       }

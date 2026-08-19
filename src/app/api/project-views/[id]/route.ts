@@ -26,6 +26,9 @@ export const PATCH = handler(async (ctx, request: Request, { params }: Params) =
       ...(data.layout === undefined ? {} : { layout: data.layout }),
       ...(data.showGroups === undefined ? {} : { showGroups: data.showGroups }),
       ...(data.hiddenProps === undefined ? {} : { hiddenProps: data.hiddenProps }),
+      ...(data.sortField === undefined ? {} : { sortField: data.sortField }),
+      ...(data.sortDir === undefined ? {} : { sortDir: data.sortDir }),
+      ...(data.filters === undefined ? {} : { filters: data.filters }),
     },
   });
 

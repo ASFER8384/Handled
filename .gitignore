@@ -51,3 +51,6 @@ next-env.d.ts
 # playwright
 /test-results
 /playwright-report
+
+# uploaded files
+/.uploads

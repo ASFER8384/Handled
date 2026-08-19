@@ -28,6 +28,8 @@ export const POST = handler(async (ctx, request: Request) => {
       projectId: data.projectId ?? null,
       title: data.title,
       dueAt: data.dueAt ?? null,
+      dueHasTime: data.dueHasTime,
+      assigneeId: data.assigneeId ?? null,
     },
   });
   return NextResponse.json({ task }, { status: 201 });

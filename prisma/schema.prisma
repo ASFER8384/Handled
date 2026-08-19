@@ -26,6 +26,7 @@ model User {
   sessions    Session[]
   accounts    Account[]
   memberships Membership[]
+  tasks       Task[]
 
   @@map("user")
 }
@@ -151,6 +152,7 @@ model Client {
   projects Project[]
   invoices Invoice[]
   automationRuns AutomationRun[]
+  projectContacts ProjectContact[]
 
   @@index([workspaceId])
   @@index([workspaceId, name])
@@ -176,6 +178,11 @@ model ProjectView {
   showGroups Boolean  @default(true)
   /// Card properties this view leaves off. Names come from CARD_PROPERTIES.
   hiddenProps String[] @default([])
+  /// How this view orders the board. Null means the pipeline's own order.
+  sortField   String?
+  sortDir     String   @default("asc")
+  /// The filters this view narrows by, as [{ field, value }]. All must match.
+  filters     Json     @default("[]")
   /// The first view a workspace gets. It cannot be renamed or deleted.
   isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -246,10 +253,95 @@ model Project {
   invoices Invoice[]
   tasks    Task[]
   automationRuns AutomationRun[]
+  notes          ProjectNote[]
+  files          ProjectFile[]
+  messages       ProjectMessage[]
+  contacts       ProjectContact[]
 
   @@index([workspaceId, stageId])
   @@index([clientId])
   @@map("project")
+}
+
+/// A dated note against a project. Free text, kept in order of writing.
+model ProjectNote {
+  id String @id @default(cuid())
+  /// Empty until it is given one; the card falls back to "Untitled note".
+  title String?
+  /// Plain text, kept for the card preview and for searching.
+  body String
+  /// The note as written, with its formatting.
+  bodyHtml String?
+  /// Notes are private to the workspace unless this is turned on.
+  sharedWithClient Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@map("project_note")
+}
+
+/// An uploaded file, or a link to one that lives somewhere else.
+model ProjectFile {
+  id        String   @id @default(cuid())
+  name      String
+  /// Set for a linked file. Uploads carry storageKey instead.
+  url       String?
+  /// Where the bytes are, relative to the upload root.
+  storageKey String?
+  mimeType   String?
+  sizeBytes  Int?
+  createdAt DateTime @default(now())
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@map("project_file")
+}
+
+enum MessageStatus {
+  /// Written but deliberately not sent yet.
+  DRAFT
+  /// Written and stored, but no provider was configured to deliver it.
+  QUEUED
+  SENT
+  FAILED
+}
+
+/// An email written from a project. Kept whether or not it could be delivered,
+/// so the activity trail is the same before and after a provider is wired up.
+model ProjectMessage {
+  id String @id @default(cuid())
+  /// Every recipient, comma separated, in the order they were added.
+  to        String
+  subject   String
+  /// Plain text, kept for previews, search and text-only mail clients.
+  body      String
+  /// The formatted message as written. Null for one typed in plain text.
+  bodyHtml  String?
+  /// [{ id, name }] of the project files sent along with it.
+  attachments Json          @default("[]")
+  status      MessageStatus @default(QUEUED)
+  /// Why it sits where it does: provider response, or what is missing.
+  detail    String?
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  /// Set when this was written as a reply to an earlier message.
+  replyToId String?
+  replyTo   ProjectMessage?  @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   ProjectMessage[] @relation("MessageReply")
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@map("project_message")
 }
 
 // ---------------------------------------------------------------------------
@@ -336,8 +428,14 @@ model Task {
   title       String
   done        Boolean   @default(false)
   dueAt       DateTime?
+  /// Whether the due time was set, or only the date.
+  dueHasTime  Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  /// Who is meant to do it. Always someone in this workspace.
+  assigneeId  String?
+  assignee    User?     @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
 
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -345,6 +443,7 @@ model Task {
   project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, done])
+  @@index([projectId])
   @@map("task")
 }
 
@@ -481,4 +580,20 @@ model AutomationRunStep {
   @@index([status, dueAt])
   @@index([runId, position])
   @@map("automation_run_step")
+}
+
+/// Everyone else on a project besides the client it belongs to.
+model ProjectContact {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, clientId])
+  @@index([projectId])
+  @@map("project_contact")
 }

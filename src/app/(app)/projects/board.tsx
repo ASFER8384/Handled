@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
 import { STAGE_GROUPS } from '@/lib/stages';
@@ -39,6 +40,19 @@ export function Board({
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
   const [menu, setMenu] = useState<string | null>(null);
+  const board = useRef<HTMLDivElement>(null);
+
+  // A click anywhere off the card menu puts it away.
+  useEffect(() => {
+    if (!menu) return;
+    function onPointerDown(event: MouseEvent) {
+      const target = event.target as HTMLElement;
+      if (target.closest('[data-card-menu]')) return;
+      setMenu(null);
+    }
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [menu]);
   // Moves show immediately; the refresh behind them makes it real.
   const [moved, setMoved] = useState<Record<string, string>>({});
 
@@ -71,7 +85,7 @@ export function Board({
   })).filter((group) => group.columns.length > 0);
 
   return (
-    <div className="-mx-8 mt-6 overflow-x-auto px-8 pb-4">
+    <div ref={board} className="-mx-8 mt-6 overflow-x-auto px-8 pb-4">
       <div className="flex min-w-max gap-4">
         {groupSpans.map((group) => (
           <div key={group.group} className="flex flex-col gap-2">
@@ -111,7 +125,7 @@ export function Board({
                         const id = event.dataTransfer.getData('text/plain');
                         if (id) void move(id, column.id);
                       }}
-                      className={`min-h-[280px] space-y-3 rounded-xl p-3 transition-colors ${
+                      className={`min-h-[280px] space-y-1.5 rounded-xl p-1.5 transition-colors ${
                         isOver
                           ? 'border-accent bg-accent-soft/60 border-2 border-dashed'
                           : 'border-2 border-transparent bg-black/[0.06]'
@@ -135,11 +149,16 @@ export function Board({
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="min-w-0 truncate font-semibold">{card.name}</h3>
+                            <h3 className="min-w-0 truncate font-semibold">
+                              <Link href={`/projects/${card.id}`} className="hover:underline">
+                                {card.name}
+                              </Link>
+                            </h3>
                             <button
                               type="button"
                               aria-label={`Move ${card.name}`}
                               aria-expanded={menu === card.id}
+                              data-card-menu
                               onClick={() => setMenu(menu === card.id ? null : card.id)}
                               className="text-muted hover:text-foreground -mt-1 shrink-0 px-1 text-lg leading-none"
                             >
@@ -147,7 +166,7 @@ export function Board({
                             </button>
                           </div>
 
-                          <dl className="mt-2 space-y-1 text-sm">
+                          <dl className="mt-4 space-y-3 text-sm">
                             {CARD_PROPERTIES.filter(
                               (property) => !hiddenProps.includes(property.key),
                             ).map((property) => (
@@ -159,8 +178,30 @@ export function Board({
                             ))}
                           </dl>
 
+                          <Link
+                            href={`/projects/${card.id}`}
+                            className="text-accent mt-3 inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
+                          >
+                            <svg
+                              aria-hidden
+                              viewBox="0 0 24 24"
+                              className="h-4 w-4"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.7"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M4 5h16v14H4zM8 9h8M8 13h5" />
+                            </svg>
+                            Detail view
+                          </Link>
+
                           {menu === card.id && (
-                            <div className="border-line bg-surface absolute top-10 right-3 z-20 max-h-60 w-48 overflow-y-auto rounded-lg border shadow-xl">
+                            <div
+                              data-card-menu
+                              className="border-line bg-surface absolute top-10 right-3 z-20 max-h-60 w-48 overflow-y-auto rounded-lg border shadow-xl"
+                            >
                               <p className="text-muted px-3 pt-2 pb-1 text-xs">Move to</p>
                               {columns.map((target) => (
                                 <button
@@ -191,7 +232,7 @@ export function Board({
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex gap-1.5">
+    <div className="flex gap-2">
       <dt className="text-muted shrink-0">{label}:</dt>
       <dd className="min-w-0 truncate">{value}</dd>
     </div>

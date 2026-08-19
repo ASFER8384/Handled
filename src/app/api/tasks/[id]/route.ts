@@ -1,19 +1,37 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handler, notFound, parseBody } from '@/lib/api';
-import { taskToggleSchema } from '@/lib/validation';
+import { taskPatchSchema } from '@/lib/validation';
 
 type Params = { params: Promise<{ id: string }> };
 
 export const PATCH = handler(async (ctx, request: Request, { params }: Params) => {
   const { id } = await params;
-  const { done } = await parseBody(request, taskToggleSchema);
+  const data = await parseBody(request, taskPatchSchema);
+
+  // Only a member of this workspace can be handed a task in it.
+  if (data.assigneeId) {
+    const member = await prisma.membership.findFirst({
+      where: { userId: data.assigneeId, workspaceId: ctx.workspaceId },
+      select: { id: true },
+    });
+    if (!member) notFound('That person');
+  }
+
   const { count } = await prisma.task.updateMany({
     where: { id, workspaceId: ctx.workspaceId },
-    data: { done },
+    data: {
+      ...(data.done === undefined ? {} : { done: data.done }),
+      ...(data.title === undefined ? {} : { title: data.title }),
+      ...(data.dueAt === undefined ? {} : { dueAt: data.dueAt ? new Date(data.dueAt) : null }),
+      ...(data.dueHasTime === undefined ? {} : { dueHasTime: data.dueHasTime }),
+      ...(data.assigneeId === undefined ? {} : { assigneeId: data.assigneeId }),
+    },
   });
   if (count === 0) notFound('Task');
-  return NextResponse.json({ ok: true, done });
+
+  const task = await prisma.task.findUnique({ where: { id } });
+  return NextResponse.json({ ok: true, task });
 });
 
 export const DELETE = handler(async (ctx, _request: Request, { params }: Params) => {

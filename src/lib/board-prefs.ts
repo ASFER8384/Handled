@@ -26,4 +26,11 @@ export type ViewPrefs = {
   layout: 'BOARD' | 'LIST';
   showGroups: boolean;
   hiddenProps: string[];
+  /** Sort and filters belong to the view, so every tab is its own lens. */
+  sortField: string | null;
+  sortDir: 'asc' | 'desc';
+  filters: ViewFilter[];
 };
+
+/** One narrowing rule. A view's filters all have to match. */
+export type ViewFilter = { field: string; value: string };

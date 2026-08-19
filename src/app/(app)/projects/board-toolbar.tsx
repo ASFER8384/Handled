@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
-import type { ViewPrefs } from '@/lib/board-prefs';
+import type { ViewFilter, ViewPrefs } from '@/lib/board-prefs';
 import { CustomizeMenu } from './customize-menu';
 import type { StageDraft } from './stages-dialog';
 
@@ -34,10 +34,10 @@ export function BoardToolbar({
   filters: FilterField[];
 }) {
   const router = useRouter();
-  const pathname = usePathname();
-  const params = useSearchParams();
   const [panel, setPanel] = useState(false);
   const [list, setList] = useState(false);
+  // The Filter button opens the row below and its menu with it.
+  const [filterMenu, setFilterMenu] = useState(false);
   const sortBar = useRef<HTMLDivElement>(null);
 
   // A click anywhere else puts the sort panel away.
@@ -52,44 +52,45 @@ export function BoardToolbar({
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [panel]);
 
-  const sort = params.get('sort');
-  const filterKey = params.get('filter');
-  const filterValue = params.get('value');
-  const filter = filters.find((item) => item.key === filterKey);
-  const dir = params.get('dir') === 'desc' ? 'desc' : 'asc';
-  const field = SORT_FIELDS.find((item) => item.key === sort);
+  const dir = view.sortDir === 'desc' ? 'desc' : 'asc';
+  const field = SORT_FIELDS.find((item) => item.key === view.sortField);
+  const applied = view.filters
+    .map((entry) => ({ ...entry, label: filters.find((item) => item.key === entry.field)?.label }))
+    .filter((entry) => entry.label !== undefined);
 
-  function apply(next: { sort?: string | null; dir?: string }) {
-    const search = new URLSearchParams(params);
-    if (next.sort === null) {
-      search.delete('sort');
-      search.delete('dir');
-    } else if (next.sort) {
-      search.set('sort', next.sort);
-    }
-    if (next.dir) search.set('dir', next.dir);
-    const query = search.toString();
-    router.push(query ? `${pathname}?${query}` : pathname);
+  // Sort, filter and layout all live on the view, so each tab keeps its own.
+  async function save(body: Record<string, unknown>) {
+    await api(`/api/project-views/${view.id}`, { method: 'PATCH', body });
+    router.refresh();
   }
 
-  function applyFilter(key: string | null, value?: string) {
-    const search = new URLSearchParams(params);
-    if (key === null) {
-      search.delete('filter');
-      search.delete('value');
-    } else {
-      search.set('filter', key);
-      search.set('value', value ?? '');
-    }
-    const query = search.toString();
-    router.push(query ? `${pathname}?${query}` : pathname);
+  function apply(next: { sort?: string | null; dir?: 'asc' | 'desc' }) {
+    void save({
+      ...(next.sort === undefined ? {} : { sortField: next.sort }),
+      ...(next.dir === undefined ? {} : { sortDir: next.dir }),
+    });
   }
 
-  // The layout belongs to the view, so switching it is a save, not a query.
+  function addFilter(field: string, value: string) {
+    // The same field twice would fight itself, so a repeat replaces the old.
+    const next: ViewFilter[] = [
+      ...view.filters.filter((entry) => entry.field !== field),
+      { field, value },
+    ];
+    void save({ filters: next });
+  }
+
+  function dropFilter(field: string) {
+    void save({ filters: view.filters.filter((entry) => entry.field !== field) });
+  }
+
+  function clearFilters() {
+    void save({ filters: [] });
+  }
+
   async function setLayout(layout: 'BOARD' | 'LIST') {
     if (layout === view.layout) return;
-    await api(`/api/project-views/${view.id}`, { method: 'PATCH', body: { layout } });
-    router.refresh();
+    await save({ layout });
   }
 
   return (
@@ -110,9 +111,6 @@ export function BoardToolbar({
             }}
           >
             <path d="M7 20V4m0 16-3-3m3 3 3-3M17 4v16m0-16-3 3m3-3 3 3" />
-          </IconButton>
-          <IconButton label="Filter">
-            <path d="M4 6h16M7 12h10M10 18h4" />
           </IconButton>
         </div>
 
@@ -158,7 +156,7 @@ export function BoardToolbar({
         </div>
       </div>
 
-      {(field || filter) && (
+      {(field || applied.length > 0 || filterMenu) && (
         <div ref={sortBar} className="relative mt-4 flex items-center gap-3">
           {field && (
             <button
@@ -175,14 +173,15 @@ export function BoardToolbar({
             </button>
           )}
 
-          {filter && (
+          {applied.map((entry) => (
             <button
+              key={entry.field}
               type="button"
-              onClick={() => applyFilter(null)}
+              onClick={() => dropFilter(entry.field)}
               title="Remove this filter"
               className="border-accent bg-accent-soft text-accent flex h-[26px] items-center gap-1.5 rounded-full border px-2.5 text-sm font-medium select-none"
             >
-              {filter.label}: {filterValue}
+              {entry.label}: {entry.value}
               <svg
                 aria-hidden
                 viewBox="0 0 24 24"
@@ -195,11 +194,26 @@ export function BoardToolbar({
                 <path d="m6 6 12 12M18 6 6 18" />
               </svg>
             </button>
+          ))}
+
+          {applied.length > 0 && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-accent h-[26px] text-sm font-medium hover:underline"
+            >
+              Clear all
+            </button>
           )}
 
           <span aria-hidden className="bg-line h-6 w-px" />
 
-          <AddFilter fields={filters} onPick={(key, value) => applyFilter(key, value)} />
+          <AddFilter
+            fields={filters}
+            open={filterMenu}
+            onOpenChange={setFilterMenu}
+            onPick={addFilter}
+          />
 
           {panel && field && (
             <div className="absolute top-full left-0 z-40 mt-1.5 w-[248px] rounded-lg bg-white p-3 shadow-xl ring-1 ring-black/10">
@@ -316,25 +330,29 @@ function FieldSelect({
  */
 function AddFilter({
   fields,
+  open,
+  onOpenChange,
   onPick,
 }: {
   fields: FilterField[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onPick: (key: string, value: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [field, setField] = useState<FilterField | null>(null);
+  const setOpen = onOpenChange;
   const wrapper = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     function onPointerDown(event: MouseEvent) {
       if (wrapper.current?.contains(event.target as Node)) return;
-      setOpen(false);
+      onOpenChange(false);
       setField(null);
     }
     document.addEventListener('mousedown', onPointerDown);
     return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [open]);
+  }, [open, onOpenChange]);
 
   return (
     <div ref={wrapper} className="relative">
@@ -342,7 +360,7 @@ function AddFilter({
         type="button"
         onClick={() => {
           setField(null);
-          setOpen((value) => !value);
+          setOpen(!open);
         }}
         aria-haspopup="menu"
         aria-expanded={open}

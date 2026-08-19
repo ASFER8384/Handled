@@ -64,8 +64,59 @@ export const projectViewPatchSchema = z
     layout: z.enum(['BOARD', 'LIST']).optional(),
     showGroups: z.boolean().optional(),
     hiddenProps: z.array(z.string().max(40)).max(20).optional(),
+    sortField: z.string().max(40).nullable().optional(),
+    sortDir: z.enum(['asc', 'desc']).optional(),
+    filters: z
+      .array(z.object({ field: z.string().max(40), value: z.string().max(120) }))
+      .max(10)
+      .optional(),
   })
   .strict();
+
+export const projectNoteSchema = z.object({
+  /** A note starts empty and is written into, so nothing here is required. */
+  title: z.string().trim().max(200).optional(),
+  body: z.string().max(20000).default(''),
+  bodyHtml: z.string().max(200000).optional(),
+  sharedWithClient: z.coerce.boolean().default(false),
+});
+
+export const projectNotePatchSchema = z.object({
+  title: z.string().trim().max(200).optional(),
+  body: z.string().max(20000).optional(),
+  bodyHtml: z.string().max(200000).optional(),
+  sharedWithClient: z.boolean().optional(),
+});
+
+export const projectFileSchema = z.object({
+  name: z.string().trim().min(1, 'Name this file').max(120),
+  url: z.string().trim().url('Give the link to the file').max(500),
+});
+
+export const projectContactSchema = z.object({
+  /** Set when picking someone the workspace already knows. */
+  clientId: z.string().optional(),
+  name: z.string().trim().min(1).max(100).optional(),
+  email: z.union([z.email('That is not an email address'), z.literal('')]).optional(),
+  phone: optionalText(40),
+  lastInteractionAt: optionalDate,
+});
+
+export const projectMessageSchema = z.object({
+  /** One or more recipients. Every one of them has to be a real address. */
+  to: z
+    .array(z.string().trim().email('That is not an email address').max(200))
+    .min(1, 'Add someone to send it to')
+    .max(20, 'That is more recipients than we send to at once'),
+  subject: z.string().trim().min(1, 'Add a subject').max(200),
+  body: z.string().trim().min(1, 'Write the message').max(20000),
+  /** The formatted version. Plain text alone is still a valid message. */
+  bodyHtml: z.string().max(200000).optional(),
+  attachmentIds: z.array(z.string()).max(20).default([]),
+  replyToId: z.string().optional(),
+  /** Parked rather than sent. */
+  draft: z.coerce.boolean().default(false),
+});
 
 export const pipelineStageSchema = z.object({
   /** Existing stages keep their id; new ones arrive without one. */
@@ -101,10 +152,13 @@ export const projectPatchSchema = z
   .object({
     stageId: z.string().min(1).optional(),
     clientId: z.string().min(1).optional(),
+    type: z.string().trim().max(80).optional(),
   })
-  .refine((value) => value.stageId !== undefined || value.clientId !== undefined, {
-    message: 'Nothing to update',
-  });
+  .refine(
+    (value) =>
+      value.stageId !== undefined || value.clientId !== undefined || value.type !== undefined,
+    { message: 'Nothing to update' },
+  );
 
 // --- Invoices ---------------------------------------------------------------
 
@@ -141,6 +195,19 @@ export const taskSchema = z.object({
   title: z.string().trim().min(1, 'What needs doing?').max(200),
   projectId: optionalText(40),
   dueAt: optionalDate,
+  dueHasTime: z.coerce.boolean().default(false),
+  assigneeId: optionalText(40),
+});
+
+/** Every field a row can edit in place. Anything left out stays as it was. */
+export const taskPatchSchema = z.object({
+  done: z.boolean().optional(),
+  title: z.string().trim().min(1, 'What needs doing?').max(200).optional(),
+  /** Null clears the date. */
+  dueAt: z.union([z.iso.datetime(), z.iso.date(), z.null()]).optional(),
+  dueHasTime: z.boolean().optional(),
+  /** Null takes it off whoever had it. */
+  assigneeId: z.union([z.string().max(40), z.null()]).optional(),
 });
 
 export const taskToggleSchema = z.object({ done: z.boolean() });
