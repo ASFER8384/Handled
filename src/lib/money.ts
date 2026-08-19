@@ -11,6 +11,22 @@ export function formatMoney(cents: number, currency = 'AED'): string {
   }).format(cents / 100);
 }
 
+/**
+ * Headline figures go compact — "AED 12K", "AED 1.2K". Minor units read as an
+ * invoice line, not a number, and blow out the column they sit in.
+ */
+export function formatMoneyCompact(cents: number, currency = 'AED'): string {
+  return new Intl.NumberFormat('en-AE', {
+    style: 'currency',
+    currency,
+    notation: 'compact',
+    compactDisplay: 'short',
+    maximumFractionDigits: 1,
+    // Otherwise 12,000 renders as "AED 12.0K".
+    trailingZeroDisplay: 'stripIfInteger',
+  }).format(cents / 100);
+}
+
 /** Parses user input like "1,250.50" into 125050. Returns null if unparseable. */
 export function parseMoneyToCents(input: string): number | null {
   const cleaned = input.replace(/[^0-9.-]/g, '');

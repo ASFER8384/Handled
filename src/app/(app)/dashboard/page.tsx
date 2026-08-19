@@ -1,316 +1,249 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
-import { formatMoney, paidCents, subtotalCents } from '@/lib/money';
-import { EmptyState, Stat, StatusBadge, STAGE_LABELS, formatDate } from '@/components/ui';
+import { formatMoneyCompact } from '@/lib/money';
+import { InfoHint, formatDate } from '@/components/ui';
+import Image from 'next/image';
+import { BoltMark, LeadsMark } from '@/components/marks';
+import { CreateNew, type CreateItem } from '@/components/create-new';
+
+// Rows without an href open a dialog instead of navigating — the invoice
+// builder and the automation editor are too big to live in a modal.
+const CREATE: CreateItem[] = [
+  {
+    key: 'contact',
+    label: 'Contact',
+    icon: 'M4 20c0-3.3 3.6-5 8-5s8 1.7 8 5M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8',
+  },
+  { key: 'project', label: 'Project', icon: 'M3 7.5h18v12H3zM8 7.5V5.5h8v2' },
+  {
+    key: 'invoice',
+    label: 'Invoice',
+    href: '/invoices/new',
+    icon: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',
+  },
+  {
+    key: 'task',
+    label: 'Task',
+    icon: 'M4 7l2.5 2.5L11 5M4 17l2.5 2.5L11 15M14 7.5h6M14 17.5h6',
+  },
+  {
+    key: 'automation',
+    label: 'Automation',
+    href: '/automations',
+    icon: 'M4 7h6l4 10h6M4 17h4M16 7h4',
+  },
+];
+
+function greeting(hour: number) {
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  if (hour < 21) return 'Good evening';
+  return 'Good night';
+}
 
 export default async function DashboardPage() {
   const ctx = await requireWorkspace();
 
-  const [openProjects, invoices, openTasks, clientCount, projectCount, automations, paymentCount] =
-    await Promise.all([
-      prisma.project.findMany({
-        where: { workspaceId: ctx.workspaceId, stage: { notIn: ['COMPLETED', 'ARCHIVED'] } },
-        include: { client: { select: { name: true } } },
-        orderBy: [{ eventDate: 'asc' }, { updatedAt: 'desc' }],
-        take: 6,
-      }),
-      prisma.invoice.findMany({
-        where: { workspaceId: ctx.workspaceId, status: { not: 'VOID' } },
-        include: { items: true, payments: true, client: { select: { name: true } } },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.task.findMany({
-        where: { workspaceId: ctx.workspaceId, done: false },
-        orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }],
-        take: 6,
-      }),
-      prisma.client.count({ where: { workspaceId: ctx.workspaceId } }),
-      prisma.project.count({ where: { workspaceId: ctx.workspaceId } }),
-      prisma.automation.findMany({
-        where: { workspaceId: ctx.workspaceId },
-        select: { id: true, status: true },
-      }),
-      prisma.payment.count({ where: { invoice: { workspaceId: ctx.workspaceId } } }),
-    ]);
+  const now = new Date();
+  const yearStart = new Date(now.getFullYear(), 0, 1);
+  const yearEnd = new Date(now.getFullYear() + 1, 0, 1);
 
-  const collected = invoices.reduce((sum, invoice) => sum + paidCents(invoice.payments), 0);
-  const outstanding = invoices
-    .filter((invoice) => invoice.status !== 'DRAFT')
-    .reduce((sum, invoice) => sum + subtotalCents(invoice.items) - paidCents(invoice.payments), 0);
+  const [leadCount, openTaskCount, activeCount, booked, leads, automations] = await Promise.all([
+    // Opportunities are still being won; projects are being delivered.
+    prisma.project.count({
+      where: { workspaceId: ctx.workspaceId, stage: { group: 'OPPORTUNITY' } },
+    }),
+    prisma.task.count({ where: { workspaceId: ctx.workspaceId, done: false } }),
+    prisma.project.count({
+      where: { workspaceId: ctx.workspaceId, stage: { group: 'PROJECT', hidden: false } },
+    }),
+    prisma.project.aggregate({
+      _sum: { valueCents: true },
+      where: {
+        workspaceId: ctx.workspaceId,
+        stage: { group: 'PROJECT' },
+        createdAt: { gte: yearStart, lt: yearEnd },
+      },
+    }),
+    prisma.project.findMany({
+      where: { workspaceId: ctx.workspaceId, stage: { group: 'OPPORTUNITY' } },
+      include: { client: { select: { name: true } }, stage: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    }),
+    prisma.automation.findMany({
+      where: { workspaceId: ctx.workspaceId },
+      select: { id: true, name: true, status: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 5,
+    }),
+  ]);
 
-  // The checklist reads real state rather than storing "dismissed" flags —
-  // a step is done because the thing exists, so it can never drift.
-  const steps = [
+  const stats = [
     {
-      title: 'Add your first client',
-      body: 'Everything else hangs off a client — projects, invoices, payments.',
-      href: '/clients',
-      minutes: 1,
-      done: clientCount > 0,
+      label: 'New leads',
+      value: String(leadCount),
+      hint: 'Projects still sitting at Enquiry — nobody has sent them a proposal yet.',
     },
     {
-      title: 'Open a project',
-      body: 'Track an enquiry from first hello through to delivery.',
-      href: '/projects',
-      minutes: 2,
-      done: projectCount > 0,
+      label: 'Open tasks',
+      value: String(openTaskCount),
+      hint: 'Tasks across every project that are not ticked off.',
     },
     {
-      title: 'Raise an invoice',
-      body: 'Line items, totals and due date. Money stays in exact minor units.',
-      href: '/invoices/new',
-      minutes: 3,
-      done: invoices.length > 0,
+      label: 'Active projects',
+      value: String(activeCount),
+      hint: 'Projects that are booked or in progress, so work is owed on them.',
     },
     {
-      title: 'Send it',
-      body: 'Sending is what dates an invoice and starts the clock.',
-      href: '/invoices',
-      minutes: 1,
-      done: invoices.some((invoice) => invoice.status !== 'DRAFT'),
-    },
-    {
-      title: 'Record a payment',
-      body: 'Status settles itself — part paid and paid are derived, never typed.',
-      href: '/invoices',
-      minutes: 1,
-      done: paymentCount > 0,
-    },
-    {
-      title: 'Build an automation',
-      body: 'A trigger, then the steps that follow it on their own clock.',
-      href: '/automations',
-      minutes: 3,
-      done: automations.length > 0,
-    },
-    {
-      title: 'Turn it on',
-      body: 'An inactive automation never fires. Flip it to active when ready.',
-      href: '/automations',
-      minutes: 1,
-      done: automations.some((automation) => automation.status === 'ACTIVE'),
+      label: `${now.getFullYear()} bookings`,
+      value: formatMoneyCompact(booked._sum?.valueCents ?? 0, ctx.currency),
+      hint: `Value of every project booked this calendar year, whether or not it has been invoiced.`,
     },
   ];
 
-  const completed = steps.filter((step) => step.done).length;
-  const nextStep = steps.find((step) => !step.done);
-  const setupDone = completed === steps.length;
-
   return (
     <>
-      <h1 className="text-4xl font-semibold tracking-tight">
-        Welcome to Handled, {ctx.userName.split(' ')[0]}!
-      </h1>
+      <header className="flex items-start gap-4">
+        <Image
+          src="/head-with-match.png"
+          alt=""
+          width={84}
+          height={84}
+          priority
+          className="shrink-0"
+        />
+        <div className="min-w-0">
+          <p className="text-muted text-sm">
+            {now.toLocaleDateString('en-GB', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}
+          </p>
+          <h1 className="mt-3 text-[32px] leading-[34px] font-bold tracking-tight">
+            {greeting(now.getHours())}, {ctx.userName.split(' ')[0]}
+          </h1>
+          <p className="text-base leading-[22px]">
+            Everything your business owes you, and owes its clients, in one place.
+          </p>
+        </div>
+      </header>
 
-      <div className="mt-8 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="space-y-6">
-          {/* --- setup checklist -------------------------------------- */}
-          <section className="card p-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <h2 className="text-xl font-semibold">
-                {setupDone ? 'You are all set up' : "Let's start step-by-step"}
-              </h2>
-              <div className="flex items-center gap-3">
-                <span className="text-muted text-sm whitespace-nowrap">
-                  {completed}/{steps.length} completed
+      {/* --- the four numbers ------------------------------------------- */}
+      <section className="card mt-6 grid grid-cols-2 lg:grid-cols-4">
+        {stats.map((stat, index) => (
+          <div
+            key={stat.label}
+            className={`hover:bg-accent-soft/25 min-w-0 px-8 py-7 transition-colors ${
+              index > 0 ? 'lg:border-line lg:border-l' : ''
+            }`}
+          >
+            <p className="flex items-center gap-1.5 text-base">
+              {stat.label}
+              <InfoHint text={stat.hint} />
+            </p>
+            <p className="mt-2 truncate text-[40px] leading-none font-light tracking-tight tabular-nums">
+              {stat.value}
+            </p>
+          </div>
+        ))}
+      </section>
+      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+        {/* --- create new ------------------------------------------------ */}
+        <section className="card flex flex-col p-6">
+          <h2 className="text-lg font-semibold">Create new</h2>
+          <CreateNew items={CREATE} />
+        </section>
+
+        {/* --- automations ----------------------------------------------- */}
+        <section className="card flex flex-col p-6">
+          <h2 className="text-lg font-semibold">Automations</h2>
+          {automations.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center px-4 py-10 text-center">
+              <BoltMark className="h-16 w-16" />
+              <p className="mt-6 max-w-xs text-[15px] leading-6">
+                Save time by automating tasks, emails and stage changes. Start from scratch, or
+                copy one you already run.
+              </p>
+              <Link
+                href="/automations"
+                className="text-accent mt-6 inline-flex items-center gap-2 font-semibold hover:underline"
+              >
+                <span aria-hidden className="text-lg leading-none">
+                  +
                 </span>
-                <div
-                  role="progressbar"
-                  aria-valuenow={completed}
-                  aria-valuemin={0}
-                  aria-valuemax={steps.length}
-                  className="bg-accent-soft h-1.5 w-40 overflow-hidden rounded-full"
-                >
-                  <div
-                    className="bg-accent h-full rounded-full transition-all"
-                    style={{ width: `${(completed / steps.length) * 100}%` }}
-                  />
-                </div>
-              </div>
+                Start automating
+              </Link>
             </div>
-
-            <ul className="mt-5 space-y-3">
-              {steps.map((step) => (
-                <li key={step.title}>
+          ) : (
+            <ul className="divide-line mt-5 divide-y">
+              {automations.map((automation) => (
+                <li
+                  key={automation.id}
+                  className="flex items-center justify-between gap-3 py-3"
+                >
                   <Link
-                    href={step.href}
-                    className={`border-line hover:border-accent/50 flex items-start gap-4 rounded-xl border p-4 transition-colors ${
-                      step.done ? 'bg-accent-soft/30' : 'hover:bg-accent-soft/20'
+                    href={`/automations/${automation.id}`}
+                    className="min-w-0 truncate text-sm font-medium hover:underline"
+                  >
+                    {automation.name}
+                  </Link>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${
+                      automation.status === 'ACTIVE'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-accent-soft text-muted'
                     }`}
                   >
-                    <span
-                      aria-hidden
-                      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] ${
-                        step.done
-                          ? 'border-transparent bg-emerald-600 text-white'
-                          : 'border-line text-transparent'
-                      }`}
-                    >
-                      ✓
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className={`font-medium ${step.done ? 'text-muted line-through' : ''}`}>
-                          {step.title}
-                        </span>
-                        <span className="bg-accent-soft text-muted rounded px-1.5 py-0.5 text-[11px]">
-                          {step.minutes} min
-                        </span>
-                      </span>
-                      <span className="text-muted mt-1 block text-sm">{step.body}</span>
-                    </span>
-                    <span aria-hidden className="text-muted mt-0.5 shrink-0">
-                      ›
-                    </span>
-                  </Link>
+                    {automation.status === 'ACTIVE' ? 'Active' : 'Off'}
+                  </span>
                 </li>
               ))}
             </ul>
-          </section>
+          )}
+        </section>
 
-          {/* --- the numbers ------------------------------------------ */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Stat label="Collected" value={formatMoney(collected, ctx.currency)} hint="All time" />
-            <Stat
-              label="Outstanding"
-              value={formatMoney(outstanding, ctx.currency)}
-              hint="Sent, not yet paid"
-            />
-            <Stat label="Active projects" value={String(openProjects.length)} />
-            <Stat label="Clients" value={String(clientCount)} />
+        {/* --- leads ------------------------------------------------------ */}
+        <section className="card flex flex-col overflow-hidden">
+          <div className="border-line flex items-center gap-1.5 border-b px-6 py-5">
+            <h2 className="text-lg font-semibold">Leads</h2>
+            <InfoHint text="Projects at Enquiry or Proposal sent — the ones still deciding." />
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <section>
-              <h2 className="mb-3 font-medium">Projects in flight</h2>
-              {openProjects.length === 0 ? (
-                <EmptyState
-                  title="Nothing in the pipeline"
-                  body="Add a client, then open a project for their enquiry."
-                />
-              ) : (
-                <ul className="card divide-line divide-y">
-                  {openProjects.map((project) => (
-                    <li
-                      key={project.id}
-                      className="flex items-center justify-between gap-4 px-5 py-3"
-                    >
-                      <div className="min-w-0">
-                        <Link href="/projects" className="truncate font-medium hover:underline">
-                          {project.name}
-                        </Link>
-                        <p className="text-muted truncate text-sm">
-                          {project.client.name} · {STAGE_LABELS[project.stage]}
-                        </p>
-                      </div>
-                      <span className="text-muted shrink-0 text-sm">
-                        {formatDate(project.eventDate)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section>
-              <h2 className="mb-3 font-medium">Recent invoices</h2>
-              {invoices.length === 0 ? (
-                <EmptyState title="No invoices yet" body="Raise one from the Invoices tab." />
-              ) : (
-                <ul className="card divide-line divide-y">
-                  {invoices.slice(0, 6).map((invoice) => (
-                    <li
-                      key={invoice.id}
-                      className="flex items-center justify-between gap-4 px-5 py-3"
-                    >
-                      <div className="min-w-0">
-                        <Link
-                          href={`/invoices/${invoice.id}`}
-                          className="truncate font-medium hover:underline"
-                        >
-                          {invoice.number}
-                        </Link>
-                        <p className="text-muted truncate text-sm">{invoice.client.name}</p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-sm tabular-nums">
-                          {formatMoney(subtotalCents(invoice.items), ctx.currency)}
-                        </p>
-                        <StatusBadge status={invoice.status} />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          </div>
-        </div>
-
-        {/* --- right column ------------------------------------------- */}
-        <aside className="space-y-6">
-          <section className="card overflow-hidden">
-            <div className="border-line flex items-center justify-between border-b px-5 py-4">
-              <h2 className="font-semibold">Up next</h2>
+          {leads.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
+              <LeadsMark className="h-20 w-28" />
+              <p className="mt-6 max-w-xs text-[15px] leading-6">
+                Nothing waiting on you. New enquiries land here the moment a project is opened.
+              </p>
+              <Link href="/projects" className="text-accent mt-6 font-semibold hover:underline">
+                Add a lead
+              </Link>
             </div>
-            <div className="px-5 py-4">
-              {nextStep ? (
-                <>
-                  <p className="font-medium">{nextStep.title}</p>
-                  <p className="text-muted mt-1 text-sm">{nextStep.body}</p>
-                  <Link href={nextStep.href} className="btn-primary mt-4 w-full">
-                    Do it now
-                  </Link>
-                </>
-              ) : (
-                <p className="text-muted text-sm">
-                  Setup is complete. Everything below is your live business.
-                </p>
-              )}
-            </div>
-          </section>
-
-          <section className="card overflow-hidden">
-            <Link
-              href="/tasks"
-              className="border-line hover:bg-accent-soft/30 flex items-center justify-between border-b px-5 py-4"
-            >
-              <h2 className="font-semibold">Open tasks</h2>
-              <span aria-hidden className="text-muted">
-                ›
-              </span>
-            </Link>
-            {openTasks.length === 0 ? (
-              <p className="text-muted px-5 py-4 text-sm">Nothing outstanding.</p>
-            ) : (
-              <ul className="divide-line divide-y">
-                {openTasks.map((task) => (
-                  <li key={task.id} className="flex items-center justify-between gap-3 px-5 py-3">
-                    <span className="min-w-0 truncate text-sm">{task.title}</span>
-                    <span className="text-muted shrink-0 text-xs">{formatDate(task.dueAt)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section className="card overflow-hidden">
-            <Link
-              href="/automations"
-              className="border-line hover:bg-accent-soft/30 flex items-center justify-between border-b px-5 py-4"
-            >
-              <h2 className="font-semibold">Automations</h2>
-              <span aria-hidden className="text-muted">
-                ›
-              </span>
-            </Link>
-            <p className="text-muted px-5 py-4 text-sm">
-              {automations.length === 0
-                ? 'None yet — build one and it runs whether you are here or not.'
-                : `${automations.filter((a) => a.status === 'ACTIVE').length} active of ${automations.length}.`}
-            </p>
-          </section>
-        </aside>
+          ) : (
+            <ul className="divide-line divide-y">
+              {leads.map((lead) => (
+                <li key={lead.id} className="flex items-center justify-between gap-3 px-6 py-3.5">
+                  <div className="min-w-0">
+                    <Link
+                      href="/projects"
+                      className="block truncate text-sm font-medium hover:underline"
+                    >
+                      {lead.name}
+                    </Link>
+                    <p className="text-muted truncate text-xs">
+                      {lead.client.name} · {lead.stage?.name ?? 'No stage'}
+                    </p>
+                  </div>
+                  <span className="text-muted shrink-0 text-xs">{formatDate(lead.createdAt)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </>
   );

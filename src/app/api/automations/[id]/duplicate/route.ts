@@ -19,7 +19,7 @@ export const POST = handler(async (ctx, _request: Request, { params }: Params) =
       workspaceId: ctx.workspaceId,
       name: `${source.name} (copy)`.slice(0, 140),
       trigger: source.trigger,
-      triggerStage: source.triggerStage,
+      triggerStageId: source.triggerStageId,
       status: 'INACTIVE',
       steps: {
         create: source.steps.map((step) => ({
@@ -28,7 +28,7 @@ export const POST = handler(async (ctx, _request: Request, { params }: Params) =
           delayMinutes: step.delayMinutes,
           subject: step.subject,
           body: step.body,
-          targetStage: step.targetStage,
+          targetStageId: step.targetStageId,
         })),
       },
     },

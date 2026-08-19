@@ -3,9 +3,17 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { clientSchema, type ClientInput } from '@/lib/validation';
 import { api } from '@/lib/client-fetch';
+
+// The schema coerces a date, so its output type is not what the form holds —
+// this form carries its own shape and lets the route do the validating.
+type ClientInput = {
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  notes: string;
+};
 
 export function ClientForm() {
   const router = useRouter();
@@ -15,7 +23,7 @@ export function ClientForm() {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<ClientInput>({ resolver: zodResolver(clientSchema) });
+  } = useForm<ClientInput>();
 
   async function onSubmit(values: ClientInput) {
     setFormError(null);
@@ -34,7 +42,11 @@ export function ClientForm() {
         <label className="label" htmlFor="client-name">
           Name
         </label>
-        <input id="client-name" className="input" {...register('name')} />
+        <input
+          id="client-name"
+          className="input"
+          {...register('name', { required: 'A client needs a name' })}
+        />
         {errors.name && <p className="field-error">{errors.name.message}</p>}
       </div>
 
@@ -49,7 +61,12 @@ export function ClientForm() {
         <label className="label" htmlFor="client-email">
           Email
         </label>
-        <input id="client-email" type="email" className="input" {...register('email')} />
+        <input
+          id="client-email"
+          type="email"
+          className="input"
+          {...register('email', { pattern: /.+@.+\..+/ })}
+        />
         {errors.email && <p className="field-error">Enter a valid email</p>}
       </div>
 

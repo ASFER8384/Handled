@@ -4,13 +4,16 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { api } from '@/lib/client-fetch';
-import { STAGE_LABELS } from '@/components/ui';
-import { automationTriggers, projectStages } from '@/lib/validation';
+import { automationTriggers } from '@/lib/validation';
 import { TRIGGER_LABELS } from '@/lib/automation-labels';
 
-type Values = { name: string; trigger: (typeof automationTriggers)[number]; triggerStage: string };
+type Values = {
+  name: string;
+  trigger: (typeof automationTriggers)[number];
+  triggerStageId: string;
+};
 
-export function NewAutomationForm() {
+export function NewAutomationForm({ stages }: { stages: { id: string; name: string }[] }) {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
   // Tracked in local state rather than react-hook-form's watch(), which the
@@ -20,7 +23,9 @@ export function NewAutomationForm() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<Values>({ defaultValues: { trigger: 'PROJECT_CREATED', triggerStage: 'BOOKED' } });
+  } = useForm<Values>({
+    defaultValues: { trigger: 'PROJECT_CREATED', triggerStageId: stages[0]?.id ?? '' },
+  });
 
   async function onSubmit(values: Values) {
     setFormError(null);
@@ -29,7 +34,8 @@ export function NewAutomationForm() {
       body: {
         name: values.name,
         trigger: values.trigger,
-        triggerStage: values.trigger === 'PROJECT_STAGE_CHANGED' ? values.triggerStage : undefined,
+        triggerStageId:
+          values.trigger === 'PROJECT_STAGE_CHANGED' ? values.triggerStageId : undefined,
         steps: [],
       },
     });
@@ -80,10 +86,10 @@ export function NewAutomationForm() {
           <label className="label" htmlFor="automation-stage">
             Stage
           </label>
-          <select id="automation-stage" className="input" {...register('triggerStage')}>
-            {projectStages.map((stage) => (
-              <option key={stage} value={stage}>
-                {STAGE_LABELS[stage]}
+          <select id="automation-stage" className="input" {...register('triggerStageId')}>
+            {stages.map((stage) => (
+              <option key={stage.id} value={stage.id}>
+                {stage.name}
               </option>
             ))}
           </select>

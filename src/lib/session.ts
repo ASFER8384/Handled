@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { DEFAULT_STAGES } from '@/lib/stages';
 import { slugify } from '@/lib/slug';
 
 export const getSession = cache(async () => {
@@ -41,6 +42,9 @@ export const getWorkspaceContext = cache(async (): Promise<WorkspaceContext | nu
         name: `${user.name || user.email.split('@')[0]}'s Studio`,
         slug: await uniqueSlug(user.name || user.email.split('@')[0]),
         memberships: { create: { userId: user.id, role: 'OWNER' } },
+        // A workspace without a pipeline has nowhere to put a project.
+        stages: { create: DEFAULT_STAGES },
+        views: { create: { name: 'Main view', position: 0, isDefault: true } },
       },
     }));
 

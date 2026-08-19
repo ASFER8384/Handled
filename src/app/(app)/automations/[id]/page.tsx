@@ -16,7 +16,14 @@ export default async function AutomationPage({ params }: PageProps<'/automations
   });
   if (!automation) notFound();
 
-  const locked = await hasLiveRun(automation.id, ctx.workspaceId);
+  const [locked, stages] = await Promise.all([
+    hasLiveRun(automation.id, ctx.workspaceId),
+    prisma.pipelineStage.findMany({
+      where: { workspaceId: ctx.workspaceId },
+      orderBy: { position: 'asc' },
+      select: { id: true, name: true },
+    }),
+  ]);
 
   return (
     <>
@@ -43,17 +50,18 @@ export default async function AutomationPage({ params }: PageProps<'/automations
       <AutomationBuilder
         id={automation.id}
         locked={locked}
+        stages={stages}
         initial={{
           name: automation.name,
           trigger: automation.trigger,
-          triggerStage: automation.triggerStage ?? 'BOOKED',
+          triggerStageId: automation.triggerStageId ?? stages[0]?.id ?? '',
           status: automation.status,
           steps: automation.steps.map((step) => ({
             action: step.action,
             delayMinutes: step.delayMinutes,
             subject: step.subject ?? '',
             body: step.body ?? '',
-            targetStage: step.targetStage ?? 'BOOKED',
+            targetStageId: step.targetStageId ?? stages[0]?.id ?? '',
           })),
         }}
       />

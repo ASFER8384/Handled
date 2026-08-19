@@ -100,6 +100,8 @@ model Workspace {
 
   memberships Membership[]
   clients     Client[]
+  stages      PipelineStage[]
+  views       ProjectView[]
   projects    Project[]
   invoices    Invoice[]
   tasks       Task[]
@@ -134,7 +136,12 @@ model Client {
   email     String?
   phone     String?
   company   String?
+  jobTitle  String?
+  website   String?
+  address   String?
   notes     String?
+  /// Last time this contact was spoken to — typed in, not derived.
+  lastInteractionAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -154,21 +161,76 @@ model Client {
 // Projects — the "clientflow" pipeline
 // ---------------------------------------------------------------------------
 
-enum ProjectStage {
-  INQUIRY
-  PROPOSAL_SENT
-  BOOKED
-  IN_PROGRESS
-  COMPLETED
-  ARCHIVED
+enum ViewLayout {
+  BOARD
+  LIST
+}
+
+/// A saved way of looking at the pipeline: layout, and what the cards show.
+model ProjectView {
+  id       String     @id @default(cuid())
+  name     String
+  position Int
+  layout   ViewLayout @default(BOARD)
+  /// The Opportunities / Projects chips above the columns.
+  showGroups Boolean  @default(true)
+  /// Card properties this view leaves off. Names come from CARD_PROPERTIES.
+  hiddenProps String[] @default([])
+  /// The first view a workspace gets. It cannot be renamed or deleted.
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, position])
+  @@map("project_view")
+}
+
+/// Opportunities are work you might win; Projects are work you are doing.
+enum StageGroup {
+  OPPORTUNITY
+  PROJECT
+}
+
+/// The pipeline columns, owned by the workspace rather than baked into an enum,
+/// so a business can name and order its own process.
+model PipelineStage {
+  id       String     @id @default(cuid())
+  name     String
+  group    StageGroup @default(OPPORTUNITY)
+  position Int
+  /// Kept out of the board without losing the projects sitting in it.
+  hidden    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  projects        Project[]
+  triggers        Automation[]
+  stepTargets     AutomationStep[]
+  runStepTargets  AutomationRunStep[]
+
+  @@index([workspaceId, position])
+  @@map("pipeline_stage")
 }
 
 model Project {
   id          String       @id @default(cuid())
   name        String
-  stage       ProjectStage @default(INQUIRY)
   description String?
+  /// What kind of work this is — free text so a workspace can name its own.
+  type        String?
+  leadSource  String?
+  location    String?
+  /// eventDate is the start; endsAt closes the range when there is one.
   eventDate   DateTime?
+  endsAt      DateTime?
+  allDay      Boolean      @default(true)
+  timezone    String?
   valueCents  Int          @default(0)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -177,12 +239,15 @@ model Project {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   clientId    String
   client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  /// Null only while a stage is being deleted out from under it.
+  stageId     String?
+  stage       PipelineStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
 
   invoices Invoice[]
   tasks    Task[]
   automationRuns AutomationRun[]
 
-  @@index([workspaceId, stage])
+  @@index([workspaceId, stageId])
   @@index([clientId])
   @@map("project")
 }
@@ -329,7 +394,8 @@ model Automation {
   status AutomationStatus  @default(INACTIVE)
   trigger AutomationTrigger
   /// PROJECT_STAGE_CHANGED only: fires when a project enters this stage.
-  triggerStage ProjectStage?
+  triggerStageId String?
+  triggerStage   PipelineStage? @relation(fields: [triggerStageId], references: [id], onDelete: SetNull)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -353,7 +419,8 @@ model AutomationStep {
   subject     String?
   body        String?
   /// MOVE_STAGE: the stage to move the project into.
-  targetStage ProjectStage?
+  targetStageId String?
+  targetStage   PipelineStage? @relation(fields: [targetStageId], references: [id], onDelete: SetNull)
 
   automationId String
   automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
@@ -398,10 +465,13 @@ model AutomationRunStep {
   /// Snapshot of the step as it stood when the run started. Editing an
   /// automation must not rewrite history, so the run carries its own copy and
   /// the link back to the live step is allowed to go null.
-  action      AutomationAction
-  subject     String?
-  body        String?
-  targetStage ProjectStage?
+  action        AutomationAction
+  subject       String?
+  body          String?
+  /// The name is part of the snapshot; the link may go null if the stage dies.
+  targetStageName String?
+  targetStageId   String?
+  targetStage     PipelineStage? @relation(fields: [targetStageId], references: [id], onDelete: SetNull)
 
   runId  String
   run    AutomationRun   @relation(fields: [runId], references: [id], onDelete: Cascade)

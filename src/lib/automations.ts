@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import type { AutomationAction, AutomationTrigger, ProjectStage } from '@/generated/prisma/client';
+import type { AutomationAction, AutomationTrigger } from '@/generated/prisma/client';
 
 /**
  * Automations run on a due-time sweep rather than a background worker: every
@@ -13,7 +13,7 @@ export type TriggerContext = {
   projectId?: string | null;
   clientId?: string | null;
   /** For PROJECT_STAGE_CHANGED — the stage the project just entered. */
-  stage?: ProjectStage | null;
+  stageId?: string | null;
 };
 
 /**
@@ -31,11 +31,16 @@ export async function fireTrigger(
         workspaceId: context.workspaceId,
         status: 'ACTIVE',
         trigger,
-        ...(trigger === 'PROJECT_STAGE_CHANGED' && context.stage
-          ? { triggerStage: context.stage }
+        ...(trigger === 'PROJECT_STAGE_CHANGED' && context.stageId
+          ? { triggerStageId: context.stageId }
           : {}),
       },
-      include: { steps: { orderBy: { position: 'asc' } } },
+      include: {
+        steps: {
+          orderBy: { position: 'asc' },
+          include: { targetStage: { select: { name: true } } },
+        },
+      },
     });
 
     let started = 0;
@@ -55,7 +60,8 @@ export async function fireTrigger(
           action: step.action,
           subject: step.subject,
           body: step.body,
-          targetStage: step.targetStage,
+          targetStageId: step.targetStageId,
+          targetStageName: step.targetStage?.name ?? null,
         };
       });
 
@@ -110,7 +116,8 @@ export async function sweepDueSteps(workspaceId: string): Promise<number> {
         projectId: runStep.run.projectId,
         subject: runStep.subject,
         body: runStep.body,
-        targetStage: runStep.targetStage,
+        targetStageId: runStep.targetStageId,
+        targetStageName: runStep.targetStageName,
       });
 
       await prisma.automationRunStep.update({
@@ -133,7 +140,8 @@ type ActionContext = {
   projectId: string | null;
   subject: string | null;
   body: string | null;
-  targetStage: ProjectStage | null;
+  targetStageId: string | null;
+  targetStageName: string | null;
 };
 
 async function runAction(
@@ -158,15 +166,15 @@ async function runAction(
     }
 
     case 'MOVE_STAGE': {
-      if (!ctx.targetStage) return { ok: false, detail: 'Step has no target stage' };
+      if (!ctx.targetStageId) return { ok: false, detail: 'Step has no target stage' };
       if (!ctx.projectId) return { ok: false, detail: 'Run is not attached to a project' };
       // Workspace-scoped, so an id from another tenant misses rather than leaks.
       const moved = await prisma.project.updateMany({
         where: { id: ctx.projectId, workspaceId: ctx.workspaceId },
-        data: { stage: ctx.targetStage },
+        data: { stageId: ctx.targetStageId },
       });
       if (moved.count === 0) return { ok: false, detail: 'Project no longer exists' };
-      return { ok: true, detail: `Stage moved to ${ctx.targetStage.replace(/_/g, ' ').toLowerCase()}` };
+      return { ok: true, detail: `Stage moved to ${ctx.targetStageName ?? 'another stage'}` };
     }
 
     default:

@@ -46,6 +46,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Tailwind v4's preflight sets buttons to the default arrow, which reads as
+   "not clickable" on every icon button in the app. */
+button:not(:disabled),
+summary,
+select:not(:disabled),
+[role='button'],
+[role='menuitem'],
+[role='option'],
+label:has(input[type='checkbox']) {
+  cursor: pointer;
+}
+
 @layer components {
   .card {
     @apply rounded-xl border border-line bg-surface;
@@ -53,6 +65,13 @@ body {
 
   .label {
     @apply mb-1.5 block text-sm font-medium text-foreground;
+  }
+
+  /* Dialog fields are filled rather than outlined — on a white modal a border
+     reads as a second edge next to the modal's own. */
+  .input-soft {
+    @apply h-9 w-full rounded-md bg-black/[0.035] px-3 text-sm outline-none
+      placeholder:text-muted/80 focus:bg-black/[0.05] focus:ring-2 focus:ring-accent/25;
   }
 
   .input {

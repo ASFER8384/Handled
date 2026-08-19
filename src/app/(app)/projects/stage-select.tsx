@@ -2,16 +2,21 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import type { ProjectStage } from '@/generated/prisma/enums';
-import { projectStages } from '@/lib/validation';
-import { STAGE_LABELS } from '@/components/ui';
 import { api } from '@/lib/client-fetch';
 
-export function StageSelect({ id, stage }: { id: string; stage: ProjectStage }) {
+export function StageSelect({
+  id,
+  stageId,
+  stages,
+}: {
+  id: string;
+  stageId: string | null;
+  stages: { id: string; name: string }[];
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  // Optimistic so the board doesn't flicker back while the round trip runs.
-  const [value, setValue] = useState<ProjectStage>(stage);
+  // Optimistic so the row doesn't flicker back while the round trip runs.
+  const [value, setValue] = useState(stageId ?? '');
 
   return (
     <select
@@ -20,22 +25,23 @@ export function StageSelect({ id, stage }: { id: string; stage: ProjectStage }) 
       value={value}
       disabled={pending}
       onChange={(event) => {
-        const next = event.target.value as ProjectStage;
+        const next = event.target.value;
         const previous = value;
         setValue(next);
         startTransition(async () => {
           const { error } = await api(`/api/projects/${id}`, {
             method: 'PATCH',
-            body: { stage: next },
+            body: { stageId: next },
           });
           if (error) setValue(previous);
           else router.refresh();
         });
       }}
     >
-      {projectStages.map((option) => (
-        <option key={option} value={option}>
-          {STAGE_LABELS[option]}
+      {value === '' && <option value="">No stage</option>}
+      {stages.map((option) => (
+        <option key={option.id} value={option.id}>
+          {option.name}
         </option>
       ))}
     </select>

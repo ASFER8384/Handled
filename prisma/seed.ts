@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { DEFAULT_STAGES } from '../src/lib/stages';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { hashPassword } from '../src/lib/password';
@@ -40,8 +41,13 @@ async function main() {
       slug: 'demo-studio',
       currency: 'AED',
       memberships: { create: { userId: user.id, role: 'OWNER' } },
+      stages: { create: DEFAULT_STAGES },
+      views: { create: { name: 'Main view', position: 0, isDefault: true } },
     },
+    include: { stages: true },
   });
+
+  const stage = (name: string) => workspace.stages.find((item) => item.name === name)?.id ?? null;
 
   const marina = await prisma.client.create({
     data: {
@@ -66,7 +72,7 @@ async function main() {
       workspaceId: workspace.id,
       clientId: marina.id,
       name: 'Autumn gala film',
-      stage: 'BOOKED',
+      stageId: stage('Contract signed'),
       valueCents: 1_200_000,
       eventDate: new Date('2026-10-04'),
       description: 'Two-camera coverage plus a 90-second highlight edit.',
@@ -78,7 +84,7 @@ async function main() {
       workspaceId: workspace.id,
       clientId: orchard.id,
       name: 'Spring lookbook',
-      stage: 'PROPOSAL_SENT',
+      stageId: stage('Proposal'),
       valueCents: 480_000,
     },
   });

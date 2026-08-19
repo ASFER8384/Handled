@@ -35,7 +35,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* --- top bar ------------------------------------------------- */}
-        <header className="border-line bg-surface sticky top-0 z-30 flex items-center gap-4 border-b px-6 py-2.5">
+        <header className="border-line bg-surface sticky top-0 z-30 flex h-14 items-center gap-4 border-b px-6">
           <div className="bg-accent-soft/60 text-muted flex items-center gap-2 rounded-full px-4 py-1.5 text-sm">
             <svg
               aria-hidden
@@ -52,8 +52,22 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
           </div>
 
           <div className="ml-auto flex items-center gap-3">
-            <Link href="/invoices/new" className="btn-primary px-3 py-1.5 text-sm">
-              + New
+            <Link
+              href="/invoices/new"
+              className="text-accent bg-accent/12 hover:bg-accent/20 inline-flex h-[26px] items-center justify-center gap-1 rounded-[3px] px-2 pt-px text-sm font-semibold transition-colors duration-300"
+            >
+              <svg
+                aria-hidden
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              New
             </Link>
           </div>
         </header>

@@ -38,30 +38,73 @@ export const clientSchema = z.object({
   email: z.union([z.email(), z.literal('')]).optional(),
   phone: optionalText(40),
   company: optionalText(120),
-  notes: optionalText(2000),
+  jobTitle: optionalText(120),
+  website: optionalText(200),
+  address: optionalText(400),
+  lastInteractionAt: optionalDate,
+  notes: optionalText(1000),
 });
 
 // --- Projects ---------------------------------------------------------------
 
-export const projectStages = [
-  'INQUIRY',
-  'PROPOSAL_SENT',
-  'BOOKED',
-  'IN_PROGRESS',
-  'COMPLETED',
-  'ARCHIVED',
-] as const;
+export const stageGroups = ['OPPORTUNITY', 'PROJECT'] as const;
+
+// --- Project views ----------------------------------------------------------
+
+const viewName = z.string().trim().min(1, 'Name this view').max(60);
+
+export const projectViewCreateSchema = z.object({
+  name: viewName.optional(),
+  duplicateOf: optionalText(40),
+});
+
+export const projectViewPatchSchema = z
+  .object({
+    name: viewName.optional(),
+    layout: z.enum(['BOARD', 'LIST']).optional(),
+    showGroups: z.boolean().optional(),
+    hiddenProps: z.array(z.string().max(40)).max(20).optional(),
+  })
+  .strict();
+
+export const pipelineStageSchema = z.object({
+  /** Existing stages keep their id; new ones arrive without one. */
+  id: z.string().optional(),
+  name: z.string().trim().min(1, 'Name this stage').max(60),
+  group: z.enum(stageGroups),
+  hidden: z.coerce.boolean().default(false),
+});
+
+export const pipelineStagesSchema = z.object({
+  stages: z.array(pipelineStageSchema).min(1, 'Keep at least one stage'),
+});
 
 export const projectSchema = z.object({
   name: z.string().trim().min(1, 'Name this project').max(140),
   clientId: z.string().min(1, 'Pick a client'),
-  stage: z.enum(projectStages).default('INQUIRY'),
+  stageId: optionalText(40),
   description: optionalText(2000),
+  type: optionalText(80),
+  leadSource: optionalText(80),
+  location: optionalText(200),
   eventDate: optionalDate,
+  endsAt: optionalDate,
+  allDay: z.coerce.boolean().default(true),
+  timezone: optionalText(60),
   valueCents: z.coerce.number().int().min(0).max(1_000_000_000).default(0),
 });
 
-export const projectStageSchema = z.object({ stage: z.enum(projectStages) });
+export const projectStageSchema = z.object({ stageId: z.string().min(1, 'Pick a stage') });
+
+/** Stage moves and re-assignment are the two edits the app makes to a project. */
+export const projectPatchSchema = z
+  .object({
+    stageId: z.string().min(1).optional(),
+    clientId: z.string().min(1).optional(),
+  })
+  .refine((value) => value.stageId !== undefined || value.clientId !== undefined, {
+    message: 'Nothing to update',
+  });
 
 // --- Invoices ---------------------------------------------------------------
 
@@ -119,22 +162,22 @@ export const automationStepSchema = z.object({
   delayMinutes: z.coerce.number().int().min(0).max(525_600).default(0),
   subject: optionalText(200),
   body: optionalText(4000),
-  targetStage: z.enum(projectStages).optional(),
+  targetStageId: optionalText(40),
 });
 
 export const automationSchema = z
   .object({
     name: z.string().trim().min(1, 'Name this automation').max(140),
     trigger: z.enum(automationTriggers),
-    triggerStage: z.enum(projectStages).optional(),
+    triggerStageId: optionalText(40),
     status: z.enum(['ACTIVE', 'INACTIVE']).default('INACTIVE'),
     steps: z.array(automationStepSchema).max(40).default([]),
   })
   .refine(
-    (value) => value.trigger !== 'PROJECT_STAGE_CHANGED' || Boolean(value.triggerStage),
-    { message: 'Pick the stage that should set this off', path: ['triggerStage'] },
+    (value) => value.trigger !== 'PROJECT_STAGE_CHANGED' || Boolean(value.triggerStageId),
+    { message: 'Pick the stage that should set this off', path: ['triggerStageId'] },
   )
-  .refine((value) => value.steps.every((step) => step.action !== 'MOVE_STAGE' || step.targetStage), {
+  .refine((value) => value.steps.every((step) => step.action !== 'MOVE_STAGE' || step.targetStageId), {
     message: 'A move-stage step needs a target stage',
     path: ['steps'],
   })

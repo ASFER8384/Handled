@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
 import { sweepDueSteps } from '@/lib/automations';
 import { TRIGGER_LABELS } from '@/lib/automation-labels';
-import { EmptyState, PageHeader, STAGE_LABELS } from '@/components/ui';
+import { EmptyState, PageHeader } from '@/components/ui';
 import { AutomationMenu } from './automation-menu';
 import { AutomationToggle } from './automation-toggle';
 import { NewAutomationForm } from './new-automation-form';
@@ -15,12 +15,19 @@ export default async function AutomationsPage() {
   // /api/automations/tick does the same job when nobody is looking.
   await sweepDueSteps(ctx.workspaceId);
 
+  const stages = await prisma.pipelineStage.findMany({
+    where: { workspaceId: ctx.workspaceId },
+    orderBy: { position: 'asc' },
+    select: { id: true, name: true },
+  });
+
   const automations = await prisma.automation.findMany({
     where: { workspaceId: ctx.workspaceId },
     orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
     include: {
       _count: { select: { steps: true, runs: true } },
       runs: { where: { status: 'RUNNING' }, select: { id: true } },
+      triggerStage: { select: { name: true } },
     },
   });
 
@@ -60,7 +67,7 @@ export default async function AutomationsPage() {
                         <p className="text-muted mt-1 text-sm">
                           {TRIGGER_LABELS[automation.trigger]}
                           {automation.triggerStage
-                            ? ` · ${STAGE_LABELS[automation.triggerStage]}`
+                            ? ` · ${automation.triggerStage.name}`
                             : ''}
                         </p>
                         <p className="text-muted mt-2 text-xs">
@@ -86,7 +93,7 @@ export default async function AutomationsPage() {
         <aside>
           <div className="card p-5">
             <h2 className="font-medium">New automation</h2>
-            <NewAutomationForm />
+            <NewAutomationForm stages={stages} />
           </div>
         </aside>
       </div>

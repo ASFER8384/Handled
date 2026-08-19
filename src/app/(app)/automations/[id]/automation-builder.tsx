@@ -3,23 +3,23 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
-import { STAGE_LABELS } from '@/components/ui';
 import { ACTION_LABELS, TRIGGER_LABELS } from '@/lib/automation-labels';
-import { automationActions, automationTriggers, projectStages } from '@/lib/validation';
-import type { ProjectStage } from '@/generated/prisma/enums';
+import { automationActions, automationTriggers } from '@/lib/validation';
+
+export type StageOption = { id: string; name: string };
 
 type Step = {
   action: (typeof automationActions)[number];
   delayMinutes: number;
   subject: string;
   body: string;
-  targetStage: ProjectStage;
+  targetStageId: string;
 };
 
 type Draft = {
   name: string;
   trigger: (typeof automationTriggers)[number];
-  triggerStage: ProjectStage;
+  triggerStageId: string;
   status: 'ACTIVE' | 'INACTIVE';
   steps: Step[];
 };
@@ -29,7 +29,7 @@ const BLANK_STEP: Step = {
   delayMinutes: 0,
   subject: '',
   body: '',
-  targetStage: 'BOOKED',
+  targetStageId: '',
 };
 
 /** Delays are entered in days but stored in minutes, so a 0 is testable. */
@@ -46,10 +46,12 @@ export function AutomationBuilder({
   id,
   initial,
   locked,
+  stages,
 }: {
   id: string;
   initial: Draft;
   locked: boolean;
+  stages: StageOption[];
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState<Draft>(initial);
@@ -86,14 +88,15 @@ export function AutomationBuilder({
       body: {
         name: draft.name,
         trigger: draft.trigger,
-        triggerStage: draft.trigger === 'PROJECT_STAGE_CHANGED' ? draft.triggerStage : undefined,
+        triggerStageId:
+          draft.trigger === 'PROJECT_STAGE_CHANGED' ? draft.triggerStageId : undefined,
         status: draft.status,
         steps: draft.steps.map((step) => ({
           action: step.action,
           delayMinutes: step.delayMinutes,
           subject: step.action === 'MOVE_STAGE' ? undefined : step.subject,
           body: step.action === 'SEND_EMAIL' ? step.body : undefined,
-          targetStage: step.action === 'MOVE_STAGE' ? step.targetStage : undefined,
+          targetStageId: step.action === 'MOVE_STAGE' ? step.targetStageId : undefined,
         })),
       },
     });
@@ -130,12 +133,12 @@ export function AutomationBuilder({
               <select
                 aria-label="Trigger stage"
                 className="input"
-                value={draft.triggerStage}
-                onChange={(event) => update({ triggerStage: event.target.value as ProjectStage })}
+                value={draft.triggerStageId}
+                onChange={(event) => update({ triggerStageId: event.target.value })}
               >
-                {projectStages.map((stage) => (
-                  <option key={stage} value={stage}>
-                    {STAGE_LABELS[stage]}
+                {stages.map((stage) => (
+                  <option key={stage.id} value={stage.id}>
+                    {stage.name}
                   </option>
                 ))}
               </select>
@@ -216,14 +219,12 @@ export function AutomationBuilder({
               <select
                 aria-label={`Step ${index + 1} target stage`}
                 className="input mt-3"
-                value={step.targetStage}
-                onChange={(event) =>
-                  updateStep(index, { targetStage: event.target.value as ProjectStage })
-                }
+                value={step.targetStageId}
+                onChange={(event) => updateStep(index, { targetStageId: event.target.value })}
               >
-                {projectStages.map((stage) => (
-                  <option key={stage} value={stage}>
-                    {STAGE_LABELS[stage]}
+                {stages.map((stage) => (
+                  <option key={stage.id} value={stage.id}>
+                    {stage.name}
                   </option>
                 ))}
               </select>

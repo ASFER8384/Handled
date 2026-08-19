@@ -47,7 +47,8 @@ export const PATCH = handler(async (ctx, request: Request, { params }: Params) =
       data: {
         name: data.name,
         trigger: data.trigger,
-        triggerStage: data.trigger === 'PROJECT_STAGE_CHANGED' ? (data.triggerStage ?? null) : null,
+        triggerStageId:
+          data.trigger === 'PROJECT_STAGE_CHANGED' ? (data.triggerStageId ?? null) : null,
         status: data.status,
         steps: {
           create: data.steps.map((step, index) => ({
@@ -56,7 +57,7 @@ export const PATCH = handler(async (ctx, request: Request, { params }: Params) =
             delayMinutes: step.delayMinutes,
             subject: step.subject ?? null,
             body: step.body ?? null,
-            targetStage: step.action === 'MOVE_STAGE' ? (step.targetStage ?? null) : null,
+            targetStageId: step.action === 'MOVE_STAGE' ? (step.targetStageId ?? null) : null,
           })),
         },
       },

@@ -8,7 +8,7 @@ export type ApiFailure = { error: string; fields?: Record<string, string> };
  */
 export async function api<T>(
   url: string,
-  init: { method: 'POST' | 'PATCH' | 'DELETE'; body?: unknown },
+  init: { method: 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown },
 ): Promise<{ data: T; error: null } | { data: null; error: ApiFailure }> {
   const response = await fetch(url, {
     method: init.method,

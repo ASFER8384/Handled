@@ -21,6 +21,10 @@ export const POST = handler(async (ctx, request: Request) => {
       email: data.email || null,
       phone: data.phone ?? null,
       company: data.company ?? null,
+      jobTitle: data.jobTitle ?? null,
+      website: data.website ?? null,
+      address: data.address ?? null,
+      lastInteractionAt: data.lastInteractionAt ?? null,
       notes: data.notes ?? null,
     },
   });

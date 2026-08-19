@@ -14,7 +14,7 @@ export default async function TasksPage() {
       orderBy: [{ done: 'asc' }, { dueAt: 'asc' }, { createdAt: 'desc' }],
     }),
     prisma.project.findMany({
-      where: { workspaceId: ctx.workspaceId, stage: { notIn: ['COMPLETED', 'ARCHIVED'] } },
+      where: { workspaceId: ctx.workspaceId, stage: { hidden: false } },
       select: { id: true, name: true },
       orderBy: { updatedAt: 'desc' },
     }),

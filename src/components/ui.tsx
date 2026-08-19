@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { InvoiceStatus, ProjectStage } from '@/generated/prisma/enums';
+import type { InvoiceStatus } from '@/generated/prisma/enums';
 
 export function PageHeader({
   title,
@@ -30,6 +30,38 @@ export function EmptyState({ title, body }: { title: string; body: string }) {
   );
 }
 
+/**
+ * The ⓘ beside a figure, explaining what it counts. CSS-only: hover and
+ * keyboard focus both reveal it, so it needs no client bundle.
+ */
+export function InfoHint({ text }: { text: string }) {
+  return (
+    <span className="group/hint relative inline-flex align-middle">
+      <button
+        type="button"
+        aria-label={text}
+        className="text-muted/60 hover:text-foreground focus-visible:text-foreground flex h-4 w-4 items-center justify-center rounded-full transition-colors"
+      >
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 11v5" strokeLinecap="round" />
+          <circle cx="12" cy="7.75" r="0.9" fill="currentColor" stroke="none" />
+        </svg>
+      </button>
+      <span
+        role="tooltip"
+        className="bg-brand-ink pointer-events-none absolute bottom-full left-1/2 z-30 mb-2.5 w-56 -translate-x-1/2 rounded-lg px-3.5 py-2.5 text-sm leading-snug text-white opacity-0 transition-opacity duration-150 group-hover/hint:opacity-100 group-focus-within/hint:opacity-100"
+      >
+        {text}
+        <span
+          aria-hidden
+          className="bg-brand-ink absolute top-full left-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45"
+        />
+      </span>
+    </span>
+  );
+}
+
 export function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="card p-5">
@@ -39,15 +71,6 @@ export function Stat({ label, value, hint }: { label: string; value: string; hin
     </div>
   );
 }
-
-export const STAGE_LABELS: Record<ProjectStage, string> = {
-  INQUIRY: 'Enquiry',
-  PROPOSAL_SENT: 'Proposal sent',
-  BOOKED: 'Booked',
-  IN_PROGRESS: 'In progress',
-  COMPLETED: 'Completed',
-  ARCHIVED: 'Archived',
-};
 
 export const STATUS_LABELS: Record<InvoiceStatus, string> = {
   DRAFT: 'Draft',
