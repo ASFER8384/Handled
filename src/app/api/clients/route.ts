@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { handler, parseBody, refuseDuplicateEmail } from '@/lib/api';
+import { handler, parseBody, refuseDuplicateContact } from '@/lib/api';
 import { clientSchema } from '@/lib/validation';
 import { fireTrigger } from '@/lib/automations';
 
@@ -14,7 +14,7 @@ export const GET = handler(async (ctx) => {
 
 export const POST = handler(async (ctx, request: Request) => {
   const data = await parseBody(request, clientSchema);
-  await refuseDuplicateEmail(ctx.workspaceId, data.email);
+  await refuseDuplicateContact(ctx.workspaceId, { email: data.email, phone: data.phone });
   const client = await prisma.client.create({
     data: {
       workspaceId: ctx.workspaceId,

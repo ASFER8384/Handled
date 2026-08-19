@@ -7,6 +7,8 @@ export class HttpError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** Which inputs are at fault, so a form can mark them rather than the page. */
+    readonly fields?: Record<string, string>,
   ) {
     super(message);
   }
@@ -33,7 +35,10 @@ export function handler<T extends unknown[]>(
         );
       }
       if (error instanceof HttpError) {
-        return NextResponse.json({ error: error.message }, { status: error.status });
+        return NextResponse.json(
+          { error: error.message, ...(error.fields ? { fields: error.fields } : {}) },
+          { status: error.status },
+        );
       }
       console.error('[api]', error);
       return NextResponse.json({ error: 'Something went wrong' }, { status: 500 });
@@ -65,31 +70,53 @@ export function notFound(what: string): never {
   throw new HttpError(404, `${what} not found`);
 }
 
+/** Digits only, so +971 50 123 4567 and 00971501234567 are seen as one number. */
+function sameNumber(value: string): string {
+  const digits = value.replace(/\D/g, '').replace(/^00/, '');
+  // The last nine are the part that identifies the line; the rest is country
+  // and trunk prefixes people write inconsistently.
+  return digits.slice(-9);
+}
+
 /**
- * Refuses a second contact on an address already in use. One person, one
- * record: two rows sharing an address would split their email history in
- * two and make "who did I write to" unanswerable.
+ * Refuses a contact that is really one you already have. Two rows for one
+ * person split their email history in two and make "who did I write to"
+ * unanswerable, so an address or a number already in use is turned away and
+ * the field holding it is named.
  */
-export async function refuseDuplicateEmail(
+export async function refuseDuplicateContact(
   workspaceId: string,
-  email: string | null | undefined,
+  contact: { email?: string | null; phone?: string | null },
   ignoreId?: string,
 ): Promise<void> {
-  if (!email?.trim()) return;
+  const email = contact.email?.trim();
+  const phone = contact.phone?.trim();
+  if (!email && !phone) return;
 
-  const taken = await prisma.client.findFirst({
-    where: {
-      workspaceId,
-      email: { equals: email.trim(), mode: 'insensitive' },
-      ...(ignoreId ? { id: { not: ignoreId } } : {}),
-    },
-    select: { name: true },
+  const others = await prisma.client.findMany({
+    where: { workspaceId, ...(ignoreId ? { id: { not: ignoreId } } : {}) },
+    select: { name: true, email: true, phone: true },
   });
 
-  if (taken) {
-    throw new HttpError(
-      409,
-      `${email.trim()} is already saved as ${taken.name}. Pick them under Existing contact instead.`,
+  if (email) {
+    const taken = others.find(
+      (other) => other.email?.trim().toLowerCase() === email.toLowerCase(),
     );
+    if (taken) {
+      throw new HttpError(409, `${email} is already saved as ${taken.name}.`, {
+        email: `Already used by ${taken.name}. Pick them under Existing contact instead.`,
+      });
+    }
+  }
+
+  if (phone && sameNumber(phone).length >= 7) {
+    const taken = others.find(
+      (other) => other.phone && sameNumber(other.phone) === sameNumber(phone),
+    );
+    if (taken) {
+      throw new HttpError(409, `${phone} is already saved as ${taken.name}.`, {
+        phone: `Already used by ${taken.name}.`,
+      });
+    }
   }
 }

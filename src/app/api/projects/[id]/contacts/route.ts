@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { handler, HttpError, notFound, parseBody, refuseDuplicateEmail } from '@/lib/api';
+import { handler, HttpError, notFound, parseBody, refuseDuplicateContact } from '@/lib/api';
 import { projectContactSchema } from '@/lib/validation';
 
 type Params = { params: Promise<{ id: string }> };
@@ -26,7 +26,7 @@ export const POST = handler(async (ctx, request: Request, { params }: Params) =>
     clientId = existing.id;
   } else {
     if (!data.name || !data.email) throw new HttpError(422, 'A name and email are both needed');
-    await refuseDuplicateEmail(ctx.workspaceId, data.email);
+    await refuseDuplicateContact(ctx.workspaceId, { email: data.email, phone: data.phone });
     const created = await prisma.client.create({
       data: {
         workspaceId: ctx.workspaceId,

@@ -39,6 +39,15 @@ export function AddContactDialog({
   const [picked, setPicked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Which input is at fault, so the complaint sits under it.
+  const [faults, setFaults] = useState<Record<string, string>>({});
+
+  /** A complaint stops the moment the input it is about is touched. */
+  function clearFault(field: string) {
+    setFaults((current) =>
+      Object.fromEntries(Object.entries(current).filter(([key]) => key !== field)),
+    );
+  }
 
   // Fetched the moment the dialog opens rather than when the tab is switched,
   // so by the time anyone reaches the search the names are already sitting
@@ -65,6 +74,8 @@ export function AddContactDialog({
 
   async function add() {
     setBusy(true);
+    setError(null);
+    setFaults({});
     const body =
       mode === 'existing'
         ? { clientId: picked }
@@ -80,7 +91,10 @@ export function AddContactDialog({
     );
     setBusy(false);
     if (failure || !data) {
-      setError(failure?.error ?? 'Could not add that contact');
+      // A named field carries its own message; only what has no home goes
+      // to the foot of the form.
+      setFaults(failure?.fields ?? {});
+      setError(failure?.fields ? null : (failure?.error ?? 'Could not add that contact'));
       return;
     }
     onAdded(data.contact);
@@ -151,10 +165,20 @@ export function AddContactDialog({
               id="contact-email"
               type="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                clearFault('email');
+              }}
+              aria-invalid={Boolean(faults.email)}
+              aria-describedby={faults.email ? 'contact-email-error' : undefined}
               placeholder="Add email address"
-              className="input-soft"
+              className={`input-soft ${faults.email ? 'ring-accent ring-1' : ''}`}
             />
+            {faults.email && (
+              <p id="contact-email-error" className="field-error">
+                {faults.email}
+              </p>
+            )}
           </div>
 
           <div>
@@ -166,11 +190,21 @@ export function AddContactDialog({
               <input
                 id="contact-phone"
                 value={phone}
-                onChange={(event) => setPhone(event.target.value)}
+                onChange={(event) => {
+                  setPhone(event.target.value);
+                  clearFault('phone');
+                }}
+                aria-invalid={Boolean(faults.phone)}
+                aria-describedby={faults.phone ? 'contact-phone-error' : undefined}
                 placeholder="50 123 4567"
-                className="input-soft"
+                className={`input-soft ${faults.phone ? 'ring-accent ring-1' : ''}`}
               />
             </div>
+            {faults.phone && (
+              <p id="contact-phone-error" className="field-error">
+                {faults.phone}
+              </p>
+            )}
           </div>
 
           <div>
