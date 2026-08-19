@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { handler, notFound, parseBody } from '@/lib/api';
+import { handler, notFound, parseBody, refuseDuplicateEmail } from '@/lib/api';
 import { clientSchema } from '@/lib/validation';
 
 type Params = { params: Promise<{ id: string }> };
@@ -8,6 +8,7 @@ type Params = { params: Promise<{ id: string }> };
 export const PATCH = handler(async (ctx, request: Request, { params }: Params) => {
   const { id } = await params;
   const data = await parseBody(request, clientSchema);
+  await refuseDuplicateEmail(ctx.workspaceId, data.email, id);
 
   // Scope the update by workspace so an id from another tenant simply misses.
   const { count } = await prisma.client.updateMany({

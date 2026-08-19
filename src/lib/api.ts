@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ZodError, type ZodType } from 'zod';
 import { getWorkspaceContext, type WorkspaceContext } from '@/lib/session';
+import { prisma } from '@/lib/prisma';
 
 export class HttpError extends Error {
   constructor(
@@ -62,4 +63,33 @@ export async function parseBody<S extends ZodType>(request: Request, schema: S) 
 
 export function notFound(what: string): never {
   throw new HttpError(404, `${what} not found`);
+}
+
+/**
+ * Refuses a second contact on an address already in use. One person, one
+ * record: two rows sharing an address would split their email history in
+ * two and make "who did I write to" unanswerable.
+ */
+export async function refuseDuplicateEmail(
+  workspaceId: string,
+  email: string | null | undefined,
+  ignoreId?: string,
+): Promise<void> {
+  if (!email?.trim()) return;
+
+  const taken = await prisma.client.findFirst({
+    where: {
+      workspaceId,
+      email: { equals: email.trim(), mode: 'insensitive' },
+      ...(ignoreId ? { id: { not: ignoreId } } : {}),
+    },
+    select: { name: true },
+  });
+
+  if (taken) {
+    throw new HttpError(
+      409,
+      `${email.trim()} is already saved as ${taken.name}. Pick them under Existing contact instead.`,
+    );
+  }
 }
