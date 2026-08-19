@@ -10,6 +10,7 @@ import { TypeSelect } from './type-select';
 import { NotesTab } from './notes-tab';
 import { FilesTab } from './files-tab';
 import { ActivityTab } from './activity-tab';
+import { AddPersonButton } from './add-person-button';
 import { TasksTab } from './tasks-tab';
 import { AboutPanel } from './about-panel';
 import { DetailsTab } from './details-tab';
@@ -131,16 +132,13 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
               content scrolls under them --------------------------------- */}
       <div data-tab-header className="bg-background sticky top-14 z-20 -mx-8 px-8">
         <div className="border-line flex flex-wrap items-center justify-between gap-4 border-b py-5">
-          {/* Everyone on the project, the client first. */}
+          {/* Everyone on the project. They are all the same kind of thing —
+              people this job involves — so they all read the same way. */}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
             {[project.client, ...project.contacts.map((entry) => entry.client)].map(
-              (person, index) => (
+              (person) => (
                 <div key={person.id} className="flex items-center gap-3">
-                  <span
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-semibold ${
-                      index === 0 ? 'bg-accent-soft text-accent' : 'bg-black/[0.07]'
-                    }`}
-                  >
+                  <span className="bg-accent-soft text-accent flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-semibold">
                     {person.name.slice(0, 1).toUpperCase()}
                   </span>
                   <div className="min-w-0">
@@ -157,6 +155,11 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
                 </div>
               ),
             )}
+
+            <AddPersonButton
+              projectId={project.id}
+              exclude={[project.client.id, ...project.contacts.map((entry) => entry.clientId)]}
+            />
           </div>
 
           <div className="flex items-center gap-4">

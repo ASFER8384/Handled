@@ -1,11 +1,16 @@
 'use client';
 
 import { useEffect, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * Centred modal with a titled header. Escape and a click on the backdrop both
  * close it; the page behind is frozen so a long form does not scroll two
  * things at once.
+ *
+ * It is mounted on the body rather than where it is written. A modal opened
+ * from inside anything that stacks — the sticky tab header, a dropdown — would
+ * otherwise be trapped in that layer and painted over by the app header.
  */
 export function Dialog({
   title,
@@ -35,7 +40,10 @@ export function Dialog({
     };
   }, [onClose]);
 
-  return (
+  // Nothing to portal into while this is being rendered on the server.
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
       onMouseDown={(event) => {
@@ -76,6 +84,7 @@ export function Dialog({
           <div className="border-line flex shrink-0 justify-end border-t px-8 py-4">{footer}</div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
