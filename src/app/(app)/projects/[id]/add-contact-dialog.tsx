@@ -258,10 +258,9 @@ export function AddContactDialog({
               </li>
             )}
             {matches.map((contact) => {
-              // Already here, in either sense: the client the project is for,
-              // or somebody added to it since.
-              const already =
-                contact.relation !== 'other' || exclude.includes(contact.id);
+              // The only thing that rules a row out is being on the email
+              // already. Anyone taken off it can always be put back.
+              const already = exclude.includes(contact.id);
               return (
                 <li key={contact.id}>
                   <button
@@ -300,13 +299,15 @@ export function AddContactDialog({
   );
 }
 
-/** What the right-hand side of a row says: whose contact this is. */
+/**
+ * Said only when it tells you something: that they are on the email already,
+ * or that they came from somewhere else. This project's own people need no
+ * caption — you are looking at their project.
+ */
 function belonging(contact: Option, exclude: string[]): string {
-  if (contact.relation === 'client') return 'Client of this project';
-  if (contact.relation === 'linked' || exclude.includes(contact.id)) return 'On this project';
-  if (contact.projects.length === 0) return 'Not on a project';
-  const [first, ...rest] = contact.projects;
-  return rest.length > 0 ? `${first} +${rest.length}` : first;
+  if (exclude.includes(contact.id)) return 'Added';
+  if (contact.relation !== 'other') return '';
+  return contact.projects[0] ?? '';
 }
 
 function initials(name: string): string {
