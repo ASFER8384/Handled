@@ -1,12 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Select } from '@/components/select';
 import { StatusBadge, formatDate } from '@/components/ui';
 import { formatMoney } from '@/lib/money';
 import { api } from '@/lib/client-fetch';
+import { placeUnder, type Placement } from '@/lib/place-under';
 import type { InvoiceStatus } from '@/generated/prisma/enums';
 
 export type InvoiceRow = {
@@ -31,6 +33,9 @@ const STATUSES = [
   { value: 'VOID', label: 'Void' },
 ];
 
+/** Three rows and the padding around them: which way the panel opens. */
+const MENU_HEIGHT = 3 * 36 + 12;
+
 const WHENS = [
   { value: 'all', label: 'Any time' },
   { value: 'month', label: 'This month' },
@@ -52,6 +57,7 @@ export function InvoicesTable({ rows, currency }: { rows: InvoiceRow[]; currency
   const [when, setWhen] = useState('all');
   const [gone, setGone] = useState<string[]>([]);
   const [menu, setMenu] = useState<string | null>(null);
+  const [menuAt, setMenuAt] = useState<Placement | null>(null);
 
   const shown = useMemo(() => {
     const now = new Date();
@@ -69,6 +75,32 @@ export function InvoicesTable({ rows, currency }: { rows: InvoiceRow[]; currency
       .filter((row) => status === 'all' || row.status === status)
       .filter((row) => !since || new Date(row.updatedAt) >= since);
   }, [rows, status, when, gone]);
+
+  // A menu drawn inside the table is clipped by it: a box that scrolls one way
+  // scrolls both, so the panel gets cut off and the table grows a scrollbar to
+  // reach the rest of it. Portalled to the body, it is over the page instead.
+  //
+  // Anchored to where the button was, so it closes rather than drifts when the
+  // page moves under it.
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [menu]);
+
+  useEffect(() => {
+    if (!menu) return;
+    function away(event: MouseEvent) {
+      if (!(event.target as HTMLElement).closest('[data-menu]')) setMenu(null);
+    }
+    document.addEventListener('mousedown', away);
+    return () => document.removeEventListener('mousedown', away);
+  }, [menu]);
 
   const openAt = (row: InvoiceRow) =>
     row.status === 'DRAFT' ? `/invoices/${row.id}/edit` : `/invoices/${row.id}`;
@@ -136,46 +168,68 @@ export function InvoicesTable({ rows, currency }: { rows: InvoiceRow[]; currency
                 <td className="px-5 py-3 text-right tabular-nums">
                   {formatMoney(row.totalCents, currency)}
                 </td>
-                <td className="relative px-5 py-3 text-right">
+                <td className="px-5 py-3 text-right">
                   <button
                     type="button"
+                    data-menu
                     aria-label={`More for ${row.number}`}
-                    onClick={() => setMenu(menu === row.id ? null : row.id)}
-                    className="text-muted hover:text-foreground px-1"
+                    aria-expanded={menu === row.id}
+                    onClick={(event) => {
+                      setMenuAt(
+                        placeUnder(event.currentTarget.getBoundingClientRect(), MENU_HEIGHT),
+                      );
+                      setMenu(menu === row.id ? null : row.id);
+                    }}
+                    className="text-muted hover:text-foreground flex h-8 w-8 items-center justify-center rounded transition-colors hover:bg-black/[0.05]"
                   >
-                    ⋮
+                    <svg
+                      aria-hidden
+                      viewBox="0 0 24 24"
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    >
+                      <path d="M12 6h.01M12 12h.01M12 18h.01" />
+                    </svg>
                   </button>
 
-                  {menu === row.id && (
-                    <div
-                      className="bg-surface absolute top-10 right-4 z-30 w-44 rounded-xl py-1.5 text-left shadow-2xl ring-1 ring-black/10"
-                      onMouseLeave={() => setMenu(null)}
-                    >
-                      <Link
-                        href={`/invoices/${row.id}`}
-                        className="hover:bg-accent-soft/60 block px-4 py-2"
+                  {menu === row.id &&
+                    menuAt &&
+                    typeof document !== 'undefined' &&
+                    createPortal(
+                      <div
+                        data-menu
+                        style={menuAt.style}
+                        className="bg-surface fixed z-50 w-44 overflow-y-auto rounded-xl py-1.5 text-left text-sm shadow-2xl ring-1 ring-black/10"
                       >
-                        Open
-                      </Link>
-                      {row.status === 'DRAFT' && (
                         <Link
-                          href={`/invoices/${row.id}/edit`}
+                          href={`/invoices/${row.id}`}
                           className="hover:bg-accent-soft/60 block px-4 py-2"
                         >
-                          Edit
+                          Open
                         </Link>
-                      )}
-                      {!row.hasPayments && (
-                        <button
-                          type="button"
-                          onClick={() => remove(row)}
-                          className="hover:bg-accent-soft/60 block w-full px-4 py-2 text-left text-red-700"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  )}
+                        {row.status === 'DRAFT' && (
+                          <Link
+                            href={`/invoices/${row.id}/edit`}
+                            className="hover:bg-accent-soft/60 block px-4 py-2"
+                          >
+                            Edit
+                          </Link>
+                        )}
+                        {!row.hasPayments && (
+                          <button
+                            type="button"
+                            onClick={() => remove(row)}
+                            className="hover:bg-accent-soft/60 block w-full px-4 py-2 text-left text-red-700"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>,
+                      document.body,
+                    )}
                 </td>
               </tr>
             ))}

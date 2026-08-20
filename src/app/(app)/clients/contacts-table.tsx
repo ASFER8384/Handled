@@ -11,6 +11,7 @@ import { NewContactDialog } from '@/components/new-contact-dialog';
 import { EditContactDialog } from './edit-contact-dialog';
 import { AddToProjectDialog } from './add-to-project-dialog';
 import { DeleteContactDialog } from './delete-contact-dialog';
+import { placeUnder, type Placement } from '@/lib/place-under';
 import { CONTACT_COLUMNS, type ContactSort } from '@/lib/contact-columns';
 
 /** How long a chip stays asking before it goes back to being a chip. */
@@ -872,36 +873,9 @@ function TablePrefsButton({
   );
 }
 
-type Placement = { style: React.CSSProperties };
-
 /** Roughly how tall each panel wants to be: three rows, and one per column. */
 const ROW_MENU_HEIGHT = 3 * 36 + 8;
 const COLUMNS_PANEL_HEIGHT = (CONTACT_COLUMNS.length + 1) * 40 + 46;
-
-/**
- * Puts the panel under the button, or over it when what it wants does not fit
- * below and there is more room above. `wanted` is roughly how tall the panel
- * would like to be — it decides which way round, not how tall it ends up.
- * Either way it is capped at the room it has and scrolls inside that, so the
- * last row of it stays reachable on a short window.
- */
-function placeUnder(button: DOMRect, wanted: number): Placement {
-  const gap = 8;
-  const margin = 12;
-  // Measured off the document element, not the window: `window.innerWidth`
-  // counts the scrollbar, which a fixed panel does not sit under, and the
-  // difference is exactly how far off the button it would land.
-  const view = document.documentElement;
-  const right = Math.max(margin, view.clientWidth - button.right);
-  const below = view.clientHeight - button.bottom - gap - margin;
-  const above = button.top - gap - margin;
-
-  // Only go up when what is wanted does not fit below and up is the better half.
-  if (below < wanted && above > below) {
-    return { style: { bottom: view.clientHeight - button.top + gap, right, maxHeight: above } };
-  }
-  return { style: { top: button.bottom + gap, right, maxHeight: below } };
-}
 
 /** What one column of one contact reads as, before it is drawn. */
 function cellText(contact: ContactRow, key: string): string | null {
