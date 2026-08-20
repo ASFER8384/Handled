@@ -46,6 +46,15 @@ export const POST = handler(async (ctx, request: Request, { params }: Params) =>
     },
   });
 
+  // An invoice that has gone out to the client is no longer a draft. Held
+  // back or parked, it has not gone anywhere, so nothing changes yet.
+  if (data.invoiceId && !held) {
+    await prisma.invoice.updateMany({
+      where: { id: data.invoiceId, workspaceId: ctx.workspaceId, status: 'DRAFT' },
+      data: { status: 'SENT', issuedAt: new Date() },
+    });
+  }
+
   if (held) {
     const waiting = await prisma.projectMessage.findUnique({ where: { id: message.id } });
     return NextResponse.json({ message: waiting }, { status: 201 });

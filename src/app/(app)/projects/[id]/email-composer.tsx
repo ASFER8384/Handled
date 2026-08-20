@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ActivityMessage } from './activity-tab';
 import { AddContactDialog } from './add-contact-dialog';
 import { Tip } from '@/components/ui';
@@ -79,6 +79,16 @@ const TEMPLATES = [
   },
 ];
 
+/** A message opened already written: what it says, and what it is about. */
+export type Prefill = {
+  /** Who is being billed, so the invoice goes to them rather than everyone. */
+  to: string | null;
+  subject: string;
+  bodyHtml: string;
+  /** Sending marks this invoice sent. */
+  invoiceId: string;
+};
+
 /** Everything the email bar in HoneyBook offers, wired to real behaviour. */
 export function EmailComposer({
   projectId,
@@ -86,6 +96,7 @@ export function EmailComposer({
   variables,
   previous,
   signature,
+  prefill,
   onClose,
   onSaved,
 }: {
@@ -94,6 +105,8 @@ export function EmailComposer({
   variables: Variable[];
   previous: PreviousEmail | null;
   signature: string;
+  /** An invoice to write about, when the composer was opened from one. */
+  prefill?: Prefill | null;
   onClose: () => void;
   onSaved: (message: ActivityMessage) => void;
 }) {
@@ -113,9 +126,16 @@ export function EmailComposer({
   const { menu, toggle, close: closeMenu } = useMenu();
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const [people, setPeople] = useState(initialRecipients.filter((person) => person.email));
+  const [people, setPeople] = useState(() => {
+    const withEmail = initialRecipients.filter((person) => person.email);
+    if (!prefill?.to) return withEmail;
+    // Opened from an invoice: it goes to whoever is being billed, not to
+    // everyone who happens to be on the project.
+    const billed = withEmail.filter((person) => person.email === prefill.to);
+    return billed.length > 0 ? billed : withEmail;
+  });
   const [adding, setAdding] = useState(false);
-  const [subject, setSubject] = useState('');
+  const [subject, setSubject] = useState(prefill?.subject ?? '');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [replyTo, setReplyTo] = useState<PreviousEmail | null>(null);
   const [showFormat, setShowFormat] = useState(true);
@@ -123,6 +143,15 @@ export function EmailComposer({
   const [sendTime, setSendTime] = useState('09:00');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The editor is a live element, so its contents are set after it mounts
+  // rather than passed in as a value.
+  const written = useRef(false);
+  useEffect(() => {
+    if (written.current || !prefill?.bodyHtml) return;
+    written.current = true;
+    setHtml(prefill.bodyHtml);
+  }, [prefill, setHtml]);
 
   async function attach(list: FileList | null) {
     if (!list?.length) return;
@@ -199,6 +228,7 @@ export function EmailComposer({
         bodyHtml: fill(html),
         attachmentIds: attachments.map((file) => file.id),
         replyToId: replyTo?.id,
+        invoiceId: prefill?.invoiceId,
         draft,
         scheduledFor,
       }),

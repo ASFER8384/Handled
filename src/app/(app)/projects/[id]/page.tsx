@@ -9,6 +9,8 @@ import { LEAD_SOURCES, PROJECT_TYPES } from '@/lib/stages';
 import { TypeSelect } from './type-select';
 import { ProjectInvoices } from './project-invoices';
 import { MoneySummary } from './money-summary';
+import { companyBrand } from '@/lib/company';
+import { invoiceEmailHtml, invoiceEmailSubject } from '@/lib/invoice-email';
 import { NotesTab } from './notes-tab';
 import { FilesTab } from './files-tab';
 import { ActivityTab } from './activity-tab';
@@ -98,6 +100,42 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
   const types = [
     ...new Set([...PROJECT_TYPES, ...usedTypes.map((row) => row.type as string)]),
   ].sort();
+
+  // Opened from an invoice: the Email tab starts with a covering note for it
+  // already written. Anything else in the parameter is simply ignored.
+  const asked = String(params.compose ?? '');
+  const composing = asked.startsWith('invoice:')
+    ? project.invoices.find((invoice) => invoice.id === asked.slice('invoice:'.length))
+    : undefined;
+
+  const brand = composing ? await companyBrand(ctx.workspaceId, ctx.userEmail) : null;
+  const prefill =
+    composing && brand
+      ? {
+          to: project.client.email,
+          invoiceId: composing.id,
+          subject: invoiceEmailSubject({
+            number: composing.number,
+            business: brand.name,
+            clientName: project.client.name,
+            balanceCents: balanceCents(composing.items, composing.payments, composing.taxRateBp),
+            currency: ctx.currency,
+            dueAt: composing.dueAt,
+            pay: brand.pay,
+            payNotes: brand.payNotes,
+          }),
+          bodyHtml: invoiceEmailHtml({
+            number: composing.number,
+            business: brand.name,
+            clientName: project.client.name,
+            balanceCents: balanceCents(composing.items, composing.payments, composing.taxRateBp),
+            currency: ctx.currency,
+            dueAt: composing.dueAt,
+            pay: brand.pay,
+            payNotes: brand.payNotes,
+          }),
+        }
+      : null;
 
   const invoiced = project.invoices.reduce(
     (sum, invoice) => sum + totalCents(invoice.items, invoice.taxRateBp),
@@ -346,6 +384,7 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
 
           {tab === 'Email' && (
             <ActivityTab
+              prefill={prefill}
               projectId={project.id}
               recipients={[project.client, ...project.contacts.map((entry) => entry.client)]
                 .filter((person) => person.email)

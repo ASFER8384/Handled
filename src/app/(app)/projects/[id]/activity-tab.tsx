@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
-import { EmailComposer, type PreviousEmail, type Variable } from './email-composer';
+import { EmailComposer, type Prefill, type PreviousEmail, type Variable } from './email-composer';
 
 export type ActivityMessage = {
   id: string;
@@ -119,6 +119,7 @@ export function ActivityTab({
   signature,
   messages,
   runs,
+  prefill,
 }: {
   projectId: string;
   recipients: { id: string; name: string; email: string }[];
@@ -126,11 +127,14 @@ export function ActivityTab({
   signature: string;
   messages: ActivityMessage[];
   runs: ActivityRun[];
+  /** Arrives when the tab was opened from an invoice, to write about it. */
+  prefill?: Prefill | null;
 }) {
   const router = useRouter();
   // Held locally too, so a written email joins the trail straight away.
   const [sent, setSent] = useState(messages);
-  const [open, setOpen] = useState(false);
+  // Open from the start when there is already something to send.
+  const [open, setOpen] = useState(Boolean(prefill));
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -177,6 +181,7 @@ export function ActivityTab({
           variables={variables}
           previous={previous}
           signature={signature}
+          prefill={prefill}
           onClose={() => setOpen(false)}
           onSaved={(message) => {
             setSent((current) => [message, ...current]);

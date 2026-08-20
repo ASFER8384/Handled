@@ -118,6 +118,8 @@ export const projectMessageSchema = z.object({
   /** Set to hold it back until then, instead of sending it now. */
   scheduledFor: z.union([z.iso.datetime(), z.iso.date()]).optional(),
   replyToId: z.string().optional(),
+  /** The invoice this email carries, so sending it marks that invoice sent. */
+  invoiceId: z.string().optional(),
   /** Parked rather than sent. */
   draft: z.coerce.boolean().default(false),
 });

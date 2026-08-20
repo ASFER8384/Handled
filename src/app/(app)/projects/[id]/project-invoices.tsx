@@ -23,8 +23,8 @@ export type ProjectInvoice = {
   hasPayments: boolean;
 };
 
-/** Four rows and the padding around them: which way the panel opens. */
-const MENU_HEIGHT = 4 * 36 + 12;
+/** Five rows and the padding around them: which way the panel opens. */
+const MENU_HEIGHT = 5 * 36 + 12;
 
 /**
  * The invoices raised against this project, newest first.
@@ -179,6 +179,12 @@ export function ProjectInvoices({
                             className="hover:bg-accent-soft/60 block px-4 py-2"
                           >
                             Edit
+                          </Link>
+                          <Link
+                            href={`?tab=Email&compose=invoice:${invoice.id}`}
+                            className="hover:bg-accent-soft/60 block px-4 py-2"
+                          >
+                            Email to client
                           </Link>
                           <button
                             type="button"
