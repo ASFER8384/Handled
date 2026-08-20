@@ -93,6 +93,27 @@ export function CreateProjectButton() {
   );
 }
 
+/** The project dialog, opened on a day the calendar was clicked. */
+export function NewProjectOnDay({
+  startDate,
+  onClose,
+}: {
+  startDate: string;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  return (
+    <ProjectDialog
+      startDate={startDate}
+      onClose={onClose}
+      onDone={() => {
+        onClose();
+        router.refresh();
+      }}
+    />
+  );
+}
+
 export function CreateTaskButton() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -215,7 +236,16 @@ function joinDateTime(date: string, time: string, allDay: boolean) {
   return allDay || !time ? date : `${date}T${time}`;
 }
 
-function ProjectDialog({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+function ProjectDialog({
+  startDate,
+  onClose,
+  onDone,
+}: {
+  /** The day it opens on, when it was opened from one. */
+  startDate?: string;
+  onClose: () => void;
+  onDone: () => void;
+}) {
   const [clients, setClients] = useState<ClientOption[] | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -226,7 +256,7 @@ function ProjectDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
     watch,
     formState: { errors, isSubmitting },
   } = useForm<ProjectValues>({
-    defaultValues: { stage: 'INQUIRY', allDay: true, timezone: 'Asia/Dubai' },
+    defaultValues: { stage: 'INQUIRY', allDay: true, timezone: 'Asia/Dubai', startDate },
   });
 
   const allDay = watch('allDay');

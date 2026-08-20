@@ -8,6 +8,7 @@ const RAIL = [
   { href: '/dashboard', label: 'Home', icon: 'home' },
   { href: '/projects', label: 'Projects', icon: 'projects' },
   { href: '/clients', label: 'Contacts', icon: 'clients' },
+  { href: '/calendar', label: 'Calendar', icon: 'calendar' },
   { href: '/invoices', label: 'Invoices', icon: 'invoices' },
   { href: '/tasks', label: 'Tasks', icon: 'tasks' },
   { href: '/automations', label: 'Automations', icon: 'automations' },
