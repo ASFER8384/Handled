@@ -19,12 +19,24 @@ type Values = {
 
 const BLANK_ITEM = { description: '', quantity: 1, unitPrice: '' };
 
+/** What the form opens with, when it was opened from somewhere in particular. */
+export type InvoiceStart = {
+  clientId: string | null;
+  projectId: string | null;
+  dueAt: string;
+  notes: string;
+  /** The template's lines, priced by whoever is filling this in. */
+  items: { description: string; quantity: number }[] | null;
+};
+
 export function InvoiceForm({
   clients,
   currency,
+  start,
 }: {
   clients: ClientOption[];
   currency: string;
+  start?: InvoiceStart;
 }) {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
@@ -36,11 +48,13 @@ export function InvoiceForm({
     formState: { errors, isSubmitting },
   } = useForm<Values>({
     defaultValues: {
-      clientId: clients[0]?.id ?? '',
-      projectId: '',
-      dueAt: '',
-      notes: '',
-      items: [{ ...BLANK_ITEM }],
+      clientId: start?.clientId ?? clients[0]?.id ?? '',
+      projectId: start?.projectId ?? '',
+      dueAt: start?.dueAt ?? '',
+      notes: start?.notes ?? '',
+      items: start?.items?.length
+        ? start.items.map((item) => ({ ...BLANK_ITEM, ...item }))
+        : [{ ...BLANK_ITEM }],
     },
   });
 
