@@ -271,13 +271,20 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
         </aside>
 
         {/* --- the month, or the hours of a week or a day -------------- */}
-        {/* The sidebar stays put and the grid scrolls sideways inside its own
-            pane: seven columns squeezed into a narrow window are unreadable,
-            and a page that scrolls sideways as a whole is worse. */}
-        <div className="border-line min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden border-l">
+        {/* The sidebar stays put and the grid scrolls inside its own pane —
+            sideways when seven columns will not fit, and down when the weeks
+            will not. A week squeezed to fit the window is a week with its
+            evening cut off, which is worse than scrolling for it. The hour
+            views bring their own vertical scroller, so only the month asks
+            this pane for one. */}
+        <div
+          className={`border-line min-h-0 min-w-0 flex-1 border-l ${
+            span === 'month' ? 'overflow-auto' : 'overflow-x-auto overflow-y-hidden'
+          }`}
+        >
           {span === 'month' ? (
-            <div className="flex h-full min-w-[900px] flex-col">
-              <div className="border-line text-muted grid grid-cols-7 border-b text-sm">
+            <div className="flex min-h-full min-w-[1040px] flex-col">
+              <div className="border-line bg-surface text-muted sticky top-0 z-20 grid grid-cols-7 border-b text-sm">
                 {WEEKDAYS.map((name) => (
                   <span key={name} className="px-3 py-2.5 text-center font-medium">
                     {name}
@@ -285,7 +292,7 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
                 ))}
               </div>
 
-              <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6">
+              <div className="grid flex-1 grid-cols-7 grid-rows-[repeat(6,minmax(140px,1fr))]">
                 {days.map((day, index) => (
                   <MonthCell
                     key={day.key}
