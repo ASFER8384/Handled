@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
 import { StagesDialog, type StageDraft } from './stages-dialog';
-import { CARD_PROPERTIES, TABLE_COLUMNS, type ViewPrefs } from '@/lib/board-prefs';
+import { PROJECT_PROPERTIES, type ViewPrefs } from '@/lib/board-prefs';
 
 export function CustomizeMenu({ stages, view }: { stages: StageDraft[]; view: ViewPrefs }) {
   const [open, setOpen] = useState(false);
@@ -83,7 +83,7 @@ export function CustomizeMenu({ stages, view }: { stages: StageDraft[]; view: Vi
       {panel === 'stages' && (
         <StagesDialog initial={stages} view={view} onClose={() => setPanel(null)} />
       )}
-      {panel === 'properties' && <PropertiesPanel view={view} />}
+      {panel === 'properties' && <PropertiesPanel key={view.hiddenProps.join(',')} view={view} />}
     </div>
   );
 }
@@ -128,7 +128,6 @@ function MenuItem({
 function PropertiesPanel({ view }: { view: ViewPrefs }) {
   const router = useRouter();
   const list = view.layout === 'LIST';
-  const properties = list ? TABLE_COLUMNS : CARD_PROPERTIES;
   const [hidden, setHidden] = useState<string[]>(view.hiddenProps);
   const [showGroups, setShowGroups] = useState(view.showGroups);
 
@@ -151,7 +150,7 @@ function PropertiesPanel({ view }: { view: ViewPrefs }) {
 
       {list && <Toggle label="Name" checked locked onChange={() => {}} />}
 
-      {properties.map((property) => (
+      {PROJECT_PROPERTIES.map((property) => (
         <Toggle
           key={property.key}
           label={property.label}
@@ -160,16 +159,14 @@ function PropertiesPanel({ view }: { view: ViewPrefs }) {
         />
       ))}
 
-      {!list && (
-        <Toggle
-          label="Group chips"
-          checked={showGroups}
-          onChange={(next) => {
-            setShowGroups(next);
-            void persist({ showGroups: next });
-          }}
-        />
-      )}
+      <Toggle
+        label="Group chips"
+        checked={showGroups}
+        onChange={(next) => {
+          setShowGroups(next);
+          void persist({ showGroups: next });
+        }}
+      />
     </div>
   );
 }

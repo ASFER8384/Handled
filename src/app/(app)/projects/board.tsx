@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
 import { STAGE_GROUPS } from '@/lib/stages';
 import type { StageGroup } from '@/generated/prisma/enums';
-import { CARD_PROPERTIES } from '@/lib/board-prefs';
+import { PROJECT_PROPERTIES } from '@/lib/board-prefs';
 import { Tip } from '@/components/ui';
 
 export type BoardCard = {
@@ -158,41 +158,41 @@ export function Board({
                               </Link>
                             </h3>
                             <span className="flex shrink-0 items-center gap-0.5">
-                            <Tip label="Detail view">
-                              <Link
-                                href={`/projects/${card.id}`}
-                                aria-label={`Open ${card.name}`}
-                                className="text-muted hover:text-foreground -mt-1 block p-1"
-                              >
-                                <svg
-                                  aria-hidden
-                                  viewBox="0 0 24 24"
-                                  className="h-4 w-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="1.7"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
+                              <Tip label="Detail view">
+                                <Link
+                                  href={`/projects/${card.id}`}
+                                  aria-label={`Open ${card.name}`}
+                                  className="text-muted hover:text-foreground -mt-1 block p-1"
                                 >
-                                  <path d="M4 5h16v14H4zM8 9h8M8 13h5" />
-                                </svg>
-                              </Link>
-                            </Tip>
-                            <button
-                              type="button"
-                              aria-label={`Move ${card.name}`}
-                              aria-expanded={menu === card.id}
-                              data-card-menu
-                              onClick={() => setMenu(menu === card.id ? null : card.id)}
-                              className="text-muted hover:text-foreground -mt-1 px-1 text-lg leading-none"
-                            >
-                              ⋮
-                            </button>
+                                  <svg
+                                    aria-hidden
+                                    viewBox="0 0 24 24"
+                                    className="h-4 w-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.7"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <path d="M4 5h16v14H4zM8 9h8M8 13h5" />
+                                  </svg>
+                                </Link>
+                              </Tip>
+                              <button
+                                type="button"
+                                aria-label={`Move ${card.name}`}
+                                aria-expanded={menu === card.id}
+                                data-card-menu
+                                onClick={() => setMenu(menu === card.id ? null : card.id)}
+                                className="text-muted hover:text-foreground -mt-1 px-1 text-lg leading-none"
+                              >
+                                ⋮
+                              </button>
                             </span>
                           </div>
 
                           <dl className="mt-4 space-y-3 text-sm empty:mt-0">
-                            {CARD_PROPERTIES.filter(
+                            {PROJECT_PROPERTIES.filter(
                               (property) => !hiddenProps.includes(property.key),
                             ).map((property) => (
                               <Row

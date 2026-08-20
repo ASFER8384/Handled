@@ -14,7 +14,6 @@ export default async function ProjectsPage(props: PageProps<'/projects'>) {
   const stageFilter = typeof params.stage === 'string' ? params.stage : null;
   const requestedView = typeof params.view === 'string' ? params.view : null;
 
-
   const [allProjects, clientCount, stages, savedViews] = await Promise.all([
     prisma.project.findMany({
       where: { workspaceId: ctx.workspaceId },
@@ -185,16 +184,19 @@ export default async function ProjectsPage(props: PageProps<'/projects'>) {
         <TableView
           columns={columns}
           stageId={stageFilter}
+          showGroups={active.showGroups}
           hiddenProps={active.hiddenProps}
           rows={projects.map((project) => ({
             id: project.id,
             name: project.name,
             stageId: project.stageId,
-            contact: project.client.name,
+            serviceDate: formatDate(project.eventDate),
+            endDate: project.endsAt ? formatDate(project.endsAt) : '—',
             type: project.type ?? '—',
-            date: formatDate(project.eventDate),
+            contact: project.client.name,
+            leadSource: project.leadSource ?? '—',
             location: project.location ?? '—',
-            description: project.description ?? '',
+            description: project.description ?? '—',
           }))}
         />
       ) : (

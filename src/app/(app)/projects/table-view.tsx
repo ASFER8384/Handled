@@ -5,16 +5,18 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
 import { Select } from '@/components/select';
 import { STAGE_GROUPS } from '@/lib/stages';
-import { TABLE_COLUMNS } from '@/lib/board-prefs';
+import { PROJECT_PROPERTIES } from '@/lib/board-prefs';
 import type { StageGroup } from '@/generated/prisma/enums';
 
 export type TableRow = {
   id: string;
   name: string;
   stageId: string | null;
-  contact: string;
+  serviceDate: string;
+  endDate: string;
   type: string;
-  date: string;
+  contact: string;
+  leadSource: string;
   location: string;
   description: string;
 };
@@ -29,11 +31,13 @@ export function TableView({
   columns,
   rows,
   stageId,
+  showGroups,
   hiddenProps,
 }: {
   columns: TableColumn[];
   rows: TableRow[];
   stageId: string | null;
+  showGroups: boolean;
   hiddenProps: string[];
 }) {
   const router = useRouter();
@@ -41,7 +45,7 @@ export function TableView({
   const [busy, setBusy] = useState(false);
 
   // Name is the row's handle, so only the rest can be switched off.
-  const fields = TABLE_COLUMNS.filter((column) => !hiddenProps.includes(column.key));
+  const fields = PROJECT_PROPERTIES.filter((column) => !hiddenProps.includes(column.key));
 
   const shown = stageId ? rows.filter((row) => row.stageId === stageId) : rows;
   const allShown = shown.length > 0 && shown.every((row) => selected.includes(row.id));
@@ -99,11 +103,13 @@ export function TableView({
 
           {groupSpans.map((group) => (
             <div key={group.group} className="flex flex-col gap-1.5">
-              <span
-                className={`sticky left-0 z-10 w-fit rounded-md px-2 py-0.5 text-xs font-medium ${group.chip}`}
-              >
-                {group.label}
-              </span>
+              {showGroups && (
+                <span
+                  className={`sticky left-0 z-10 w-fit rounded-md px-2 py-0.5 text-xs font-medium ${group.chip}`}
+                >
+                  {group.label}
+                </span>
+              )}
               <div className="flex">
                 {group.columns.map((column) => (
                   <FunnelTile
@@ -189,7 +195,9 @@ export function TableView({
                     <td
                       key={field.key}
                       className={`py-3.5 pr-4 ${
-                        field.key === 'date' ? 'whitespace-nowrap' : ''
+                        field.key === 'serviceDate' || field.key === 'endDate'
+                          ? 'whitespace-nowrap'
+                          : ''
                       } ${field.key === 'description' ? 'text-muted max-w-xs truncate' : ''}`}
                     >
                       {row[field.key]}
