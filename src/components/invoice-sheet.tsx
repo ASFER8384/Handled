@@ -21,6 +21,7 @@ export function InvoiceSheet({
   from,
   fromEmail,
   fromAddress,
+  logo,
   billTo,
   issuedAt,
   dueAt,
@@ -38,6 +39,8 @@ export function InvoiceSheet({
   /** Email, phone and site on one line, as a client reads them. */
   fromEmail: string;
   fromAddress?: string | null;
+  /** Where the workspace's mark is served from, when it has one. */
+  logo?: string | null;
   billTo: { name: string; company: string | null; address: string | null; email: string | null };
   issuedAt: Date | null;
   dueAt: Date | null;
@@ -57,6 +60,10 @@ export function InvoiceSheet({
     <article className="invoice-sheet card p-8 sm:p-10" style={{ fontFamily: theme.stack }}>
       {/* who it is from */}
       <header>
+        {/* Plain img: served by a route that checks the workspace, not a
+            static asset, so next/image would only add a resizer in front. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {logo && <img src={logo} alt="" className="mb-3 max-h-16 max-w-[220px] object-contain" />}
         <p className="text-lg font-semibold">{from}</p>
         <p className="text-muted mt-0.5 text-sm">{fromEmail}</p>
         {fromAddress && (

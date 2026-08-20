@@ -78,6 +78,7 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
             from={brand.name || ctx.workspaceName}
             fromEmail={brand.contact}
             fromAddress={brand.address}
+            logo={brand.logo}
             billTo={{
               name: invoice.client.name,
               company: invoice.client.company,

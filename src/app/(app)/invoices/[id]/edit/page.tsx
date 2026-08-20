@@ -57,6 +57,7 @@ export default async function EditInvoicePage({ params }: PageProps<'/invoices/[
           from={brand.name || ctx.workspaceName}
           fromEmail={brand.contact}
           fromAddress={brand.address}
+          logo={brand.logo}
           invoiceId={invoice.id}
           number={invoice.number}
           start={{

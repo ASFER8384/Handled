@@ -101,8 +101,31 @@ model Workspace {
   phone     String?
   website   String?
   address   String?
-  /// What kind of business this is, in its own words.
+  /// What kind of business this is.
   trade     String?
+  /// The dialling code kept apart from the number, as it is written.
+  phoneCode String?
+  /// Where a client is written to and where the business stands.
+  street    String?
+  city      String?
+  postcode  String?
+  region    String?
+  country   String?
+  timezone  String?
+  /// How the business describes itself, short and long.
+  oneLiner  String?
+  about     String?
+  /// { blog, twitter, facebook, instagram, linkedin, pinterest, behance,
+  /// dribbble, tiktok, other } — only the ones filled in.
+  socials   Json     @default("{}")
+  /// The one colour that is theirs, used wherever a client sees them.
+  brandColor String  @default("#c25a3a")
+  /// Uploaded marks. The bytes live outside public/, served by a route that
+  /// checks the workspace first.
+  logoKey         String?
+  logoMime        String?
+  logoAltKey      String?
+  logoAltMime     String?
   /// What a file starts out looking like, before it is changed on the file.
   themeColor String  @default("ink")
   themeFont  String  @default("sans")

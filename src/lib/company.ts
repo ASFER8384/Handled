@@ -14,22 +14,41 @@ export async function companyBrand(workspaceId: string, fallbackEmail: string) {
     select: {
       name: true,
       email: true,
+      phoneCode: true,
       phone: true,
       website: true,
       address: true,
+      street: true,
+      city: true,
+      postcode: true,
+      region: true,
+      country: true,
+      logoKey: true,
       themeColor: true,
       themeFont: true,
     },
   });
 
-  const contact = [workspace?.email || fallbackEmail, workspace?.phone, workspace?.website]
+  const phone = [workspace?.phoneCode, workspace?.phone].filter(Boolean).join(' ').trim();
+  const contact = [workspace?.email || fallbackEmail, phone, workspace?.website]
     .filter(Boolean)
     .join('  |  ');
+
+  // The parts, if they were filled in; the single free-text line otherwise, so
+  // an address typed before this page existed still prints.
+  const parts = [
+    workspace?.street,
+    [workspace?.city, workspace?.region].filter(Boolean).join(', '),
+    [workspace?.postcode, workspace?.country].filter(Boolean).join(' '),
+  ]
+    .map((line) => (line ?? '').trim())
+    .filter(Boolean);
 
   return {
     name: workspace?.name ?? '',
     contact,
-    address: workspace?.address ?? null,
+    address: parts.length > 0 ? parts.join('\n') : (workspace?.address ?? null),
+    logo: workspace?.logoKey ? '/api/settings/company/logo/main' : null,
     themeColor: workspace?.themeColor ?? DEFAULT_COLOUR,
     themeFont: workspace?.themeFont ?? DEFAULT_FONT,
   };

@@ -67,6 +67,7 @@ export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) 
           from={brand.name || ctx.workspaceName}
           fromEmail={brand.contact}
           fromAddress={brand.address}
+          logo={brand.logo}
           start={{
             clientId: owner?.id ?? null,
             projectId: owner ? projectId : null,

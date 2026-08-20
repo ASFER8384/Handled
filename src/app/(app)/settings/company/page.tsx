@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
 import { DEFAULT_COLOUR, DEFAULT_FONT, type ColourKey, type FontKey } from '@/lib/invoice-theme';
+import type { Socials } from '@/lib/company-fields';
 import { CompanyForm } from './company-form';
 
 /**
@@ -55,6 +56,19 @@ export default async function CompanySettingsPage(props: PageProps<'/settings/co
       currency: true,
       themeColor: true,
       themeFont: true,
+      phoneCode: true,
+      street: true,
+      city: true,
+      postcode: true,
+      region: true,
+      country: true,
+      timezone: true,
+      oneLiner: true,
+      about: true,
+      socials: true,
+      brandColor: true,
+      logoKey: true,
+      logoAltKey: true,
     },
   });
 
@@ -84,11 +98,23 @@ export default async function CompanySettingsPage(props: PageProps<'/settings/co
               name: workspace?.name ?? ctx.workspaceName,
               trade: workspace?.trade ?? '',
               email: workspace?.email ?? '',
+              phoneCode: workspace?.phoneCode ?? '',
               phone: workspace?.phone ?? '',
               website: workspace?.website ?? '',
-              address: workspace?.address ?? '',
+              oneLiner: workspace?.oneLiner ?? '',
+              about: workspace?.about ?? '',
+              street: workspace?.street ?? '',
+              city: workspace?.city ?? '',
+              postcode: workspace?.postcode ?? '',
+              region: workspace?.region ?? '',
+              country: workspace?.country ?? '',
+              timezone: workspace?.timezone ?? '',
               currency: workspace?.currency ?? ctx.currency,
             }}
+            socials={(workspace?.socials as Socials) ?? {}}
+            brandColor={workspace?.brandColor ?? '#c25a3a'}
+            hasLogo={Boolean(workspace?.logoKey)}
+            hasAltLogo={Boolean(workspace?.logoAltKey)}
             themeColor={(workspace?.themeColor as ColourKey) ?? DEFAULT_COLOUR}
             themeFont={(workspace?.themeFont as FontKey) ?? DEFAULT_FONT}
           />

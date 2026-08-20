@@ -60,6 +60,7 @@ export function InvoiceForm({
   from,
   fromEmail,
   fromAddress,
+  logo,
   start,
   invoiceId,
   number,
@@ -70,6 +71,7 @@ export function InvoiceForm({
   from: string;
   fromEmail: string;
   fromAddress?: string | null;
+  logo?: string | null;
   start?: InvoiceStart;
   /** Set when an invoice that already exists is being rewritten. */
   invoiceId?: string;
@@ -169,6 +171,7 @@ export function InvoiceForm({
             from={from}
             fromEmail={fromEmail}
             fromAddress={fromAddress}
+            logo={logo}
             billTo={{
               name: client?.name ?? 'Nobody yet',
               company: null,
@@ -195,6 +198,10 @@ export function InvoiceForm({
           <article className="invoice-sheet card p-8 sm:p-10" style={{ fontFamily: theme.stack }}>
             {/* who it is from */}
             <header>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {logo && (
+                <img src={logo} alt="" className="mb-3 max-h-16 max-w-[220px] object-contain" />
+              )}
               <p className="text-lg font-semibold">{from}</p>
               <p className="text-muted mt-0.5 text-sm">{fromEmail}</p>
               {fromAddress && (

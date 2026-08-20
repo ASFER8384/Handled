@@ -369,13 +369,31 @@ export const accountSchema = z.object({
   name: z.string().trim().min(1, 'Your name cannot be blank').max(80),
 });
 
+const link = z.string().trim().max(200).optional();
+
 export const companySchema = z.object({
   name: z.string().trim().min(1, 'The business needs a name').max(80),
   trade: optionalText(60),
   email: z.union([z.email('That email does not look right'), z.literal('')]).optional(),
+  phoneCode: optionalText(8),
   phone: optionalText(40),
   website: optionalText(120),
+  /// Kept as one field as well as its parts: what prints on an invoice.
   address: optionalText(300),
+  street: optionalText(160),
+  city: optionalText(80),
+  postcode: optionalText(24),
+  region: optionalText(80),
+  country: optionalText(80),
+  timezone: optionalText(60),
+  oneLiner: optionalText(160),
+  about: optionalText(2000),
+  brandColor: z
+    .string()
+    .trim()
+    .regex(/^#[0-9a-fA-F]{6}$/, 'A colour looks like #1F6F8B')
+    .optional(),
+  socials: z.record(z.string().max(20), link).optional(),
   currency: z.string().trim().length(3, 'Three letters, like AED').optional(),
   themeColor: z.string().max(20).optional(),
   themeFont: z.string().max(20).optional(),
