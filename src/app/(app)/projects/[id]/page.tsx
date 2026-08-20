@@ -18,6 +18,7 @@ import { ProjectInvoices } from './project-invoices';
 import { MoneySummary } from './money-summary';
 import { companyBrand } from '@/lib/company';
 import { invoiceEmailHtml, invoiceEmailSubject } from '@/lib/invoice-email';
+import { shows } from '@/lib/invoice-parts';
 import { NotesTab } from './notes-tab';
 import { FilesTab } from './files-tab';
 import { ActivityTab } from './activity-tab';
@@ -148,8 +149,8 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
           currency: ctx.currency,
           notes: composing.notes,
           themeColor: composing.themeColor,
-          pay: brand.pay,
-          payNotes: brand.payNotes,
+          pay: shows(composing.hidden, 'pay') ? brand.pay : [],
+          payNotes: shows(composing.hidden, 'pay') ? brand.payNotes : null,
         }
       : null;
 

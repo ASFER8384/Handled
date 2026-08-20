@@ -125,7 +125,7 @@ function InvoiceDocument({ invoice }: { invoice: InvoiceView }) {
           </View>
         </View>
 
-        {invoice.pay.length > 0 ? (
+        {invoice.pay.length > 0 || invoice.taxNumber ? (
           <View style={styles.block}>
             <Text style={styles.headCell}>HOW TO PAY</Text>
             {invoice.pay.map(([label, value]) => (
@@ -136,6 +136,11 @@ function InvoiceDocument({ invoice }: { invoice: InvoiceView }) {
             ))}
             {invoice.payNotes ? (
               <Text style={[styles.quiet, { marginTop: 8 }]}>{invoice.payNotes}</Text>
+            ) : null}
+            {invoice.taxNumber ? (
+              <Text style={[styles.quiet, { marginTop: 8 }]}>
+                {invoice.taxLabel} registration {invoice.taxNumber}
+              </Text>
             ) : null}
           </View>
         ) : null}

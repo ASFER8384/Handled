@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { INVOICE_PART_KEYS } from '@/lib/invoice-parts';
 
 const optionalText = (max: number) =>
   z
@@ -231,6 +232,8 @@ export const invoiceSchema = z.object({
   /// not quietly restate an invoice that has already gone out.
   taxRateBp: z.coerce.number().int().min(0).max(10000).optional(),
   taxLabel: z.string().trim().max(20).optional(),
+  /// Parts of the letterhead this invoice leaves off.
+  hidden: z.array(z.enum(INVOICE_PART_KEYS as [string, ...string[]])).default([]),
   items: z.array(invoiceItemSchema).min(1, 'Add at least one line item'),
 });
 

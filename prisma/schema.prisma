@@ -468,6 +468,9 @@ model Invoice {
   /// changed next year must not rewrite what was already sent.
   taxRateBp Int          @default(0)
   taxLabel  String?
+  /// Parts of the letterhead left off this invoice: 'logo', 'pay', and so on.
+  /// Empty means the whole thing, which is what every older invoice has.
+  hidden    String[]     @default([])
   issuedAt  DateTime?
   dueAt     DateTime?
   notes     String?

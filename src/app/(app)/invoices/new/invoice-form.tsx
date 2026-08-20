@@ -10,6 +10,7 @@ import { InvoiceSheet } from '@/components/invoice-sheet';
 import { Select } from '@/components/select';
 import { ConfirmDialog } from '@/components/confirm';
 import { dueDateFromNow } from '@/lib/invoice-templates';
+import { INVOICE_PARTS, shows, type InvoicePart } from '@/lib/invoice-parts';
 import {
   DEFAULT_COLOUR,
   DEFAULT_FONT,
@@ -56,6 +57,8 @@ export type InvoiceStart = {
   items: ({ description: string; quantity: number } & { unitPrice?: string })[] | null;
   themeColor?: string | null;
   themeFont?: string | null;
+  /** Parts of the letterhead this invoice was written without. */
+  hidden?: string[];
 };
 
 /**
@@ -108,6 +111,15 @@ export function InvoiceForm({
   );
   const [font, setFont] = useState<FontKey>((start?.themeFont as FontKey) ?? DEFAULT_FONT);
   const [preview, setPreview] = useState(false);
+  // What this one invoice shows of your letterhead. Settings say what your
+  // business is; this says what belongs on this document.
+  const [hidden, setHidden] = useState<InvoicePart[]>((start?.hidden ?? []) as InvoicePart[]);
+
+  function toggle(part: InvoicePart) {
+    setHidden((current) =>
+      current.includes(part) ? current.filter((entry) => entry !== part) : [...current, part],
+    );
+  }
   const theme = invoiceTheme(colour, font);
 
   const {
@@ -201,6 +213,7 @@ export function InvoiceForm({
           dueAt: values.dueAt,
           notes: values.notes,
           themeColor: colour,
+          hidden,
           themeFont: font,
           taxRateBp: tax.rateBp,
           taxLabel: tax.label,
@@ -230,9 +243,9 @@ export function InvoiceForm({
           <InvoiceSheet
             number={number ?? 'Given when saved'}
             from={from}
-            fromEmail={fromEmail}
-            fromAddress={fromAddress}
-            logo={logo}
+            fromEmail={shows(hidden, 'contact') ? fromEmail : ''}
+            fromAddress={shows(hidden, 'address') ? fromAddress : null}
+            logo={shows(hidden, 'logo') ? logo : null}
             billTo={{
               name: client?.name ?? 'Nobody yet',
               company: null,
@@ -251,13 +264,13 @@ export function InvoiceForm({
             tax={taxDue}
             taxLabel={tax.label}
             taxRateBp={tax.rateBp}
-            taxNumber={tax.number}
-            pay={tax.pay}
-            payNotes={tax.payNotes}
+            taxNumber={shows(hidden, 'taxNumber') ? tax.number : null}
+            pay={shows(hidden, 'pay') ? tax.pay : []}
+            payNotes={shows(hidden, 'pay') ? tax.payNotes : null}
             paid={0}
             balance={total}
             currency={currency}
-            notes={notes || null}
+            notes={shows(hidden, 'notes') ? notes || null : null}
             themeColor={colour}
             themeFont={font}
           />
@@ -266,12 +279,12 @@ export function InvoiceForm({
             {/* who it is from */}
             <header>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              {logo && (
+              {logo && shows(hidden, 'logo') && (
                 <img src={logo} alt="" className="mb-3 max-h-16 max-w-[220px] object-contain" />
               )}
               <p className="text-lg font-semibold">{from}</p>
-              <p className="text-muted mt-0.5 text-sm">{fromEmail}</p>
-              {fromAddress && (
+              {shows(hidden, 'contact') && <p className="text-muted mt-0.5 text-sm">{fromEmail}</p>}
+              {fromAddress && shows(hidden, 'address') && (
                 <p className="text-muted mt-0.5 text-sm whitespace-pre-line">{fromAddress}</p>
               )}
             </header>
@@ -441,7 +454,9 @@ export function InvoiceForm({
               </dl>
             </div>
 
-            <footer className="border-line mt-10 border-t pt-5">
+            <footer
+              className={`border-line mt-10 border-t pt-5 ${shows(hidden, 'notes') ? '' : 'hidden'}`}
+            >
               <label
                 className="text-muted text-xs tracking-widest uppercase"
                 htmlFor="invoice-notes"
@@ -481,6 +496,30 @@ export function InvoiceForm({
             {preview ? 'Edit' : 'Preview'}
           </button>
         </div>
+
+        <p className="text-muted mt-5 text-xs tracking-widest uppercase">Shown on this invoice</p>
+        <div className="mt-2.5 space-y-1">
+          {INVOICE_PARTS.map((part) => (
+            <label
+              key={part.key}
+              className="hover:bg-accent-soft/30 flex cursor-pointer items-start gap-2.5 rounded-lg px-2 py-1.5"
+            >
+              <input
+                type="checkbox"
+                checked={shows(hidden, part.key)}
+                onChange={() => toggle(part.key)}
+                className="accent-accent mt-0.5 h-4 w-4"
+              />
+              <span className="min-w-0">
+                <span className="block text-sm">{part.label}</span>
+                <span className="text-muted block text-xs">{part.hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="text-muted mt-2 text-xs leading-relaxed">
+          Turning one off changes this invoice only. Your company settings stay as they are.
+        </p>
 
         {templates.length > 0 && (
           <>

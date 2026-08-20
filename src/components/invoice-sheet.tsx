@@ -193,7 +193,7 @@ export function InvoiceSheet({
         </dl>
       </div>
 
-      {(pay?.length || payNotes) && (
+      {(pay?.length || payNotes || taxNumber) && (
         <section className="border-line mt-10 border-t pt-5">
           <p className="text-muted text-xs tracking-widest uppercase">How to pay</p>
           <dl className="mt-2 grid gap-x-8 gap-y-1 text-sm @lg:grid-cols-2">

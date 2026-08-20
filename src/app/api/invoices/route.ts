@@ -41,6 +41,7 @@ export const POST = handler(async (ctx, request: Request) => {
         themeFont: data.themeFont ?? 'sans',
         taxRateBp: data.taxRateBp ?? 0,
         taxLabel: data.taxLabel ?? null,
+        hidden: data.hidden,
         dueAt: data.dueAt ?? null,
         notes: data.notes ?? null,
         items: {

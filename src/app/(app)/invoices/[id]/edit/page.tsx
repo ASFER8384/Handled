@@ -100,6 +100,7 @@ export default async function EditInvoicePage({ params }: PageProps<'/invoices/[
             projectId: invoice.projectId,
             dueAt: invoice.dueAt ? invoice.dueAt.toLocaleDateString('en-CA') : '',
             notes: invoice.notes ?? '',
+            hidden: invoice.hidden,
             themeColor: invoice.themeColor,
             themeFont: invoice.themeFont,
             items: invoice.items.map((item) => ({

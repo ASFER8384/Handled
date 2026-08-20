@@ -8,6 +8,7 @@ import { InvoiceActions } from './invoice-actions';
 import { SaveAsTemplate } from './save-as-template';
 import { InvoiceSheet } from '@/components/invoice-sheet';
 import { companyBrand } from '@/lib/company';
+import { shows } from '@/lib/invoice-parts';
 import { PrintButton } from './print-button';
 import { PaymentForm } from './payment-form';
 
@@ -77,9 +78,9 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
           <InvoiceSheet
             number={invoice.number}
             from={brand.name || ctx.workspaceName}
-            fromEmail={brand.contact}
-            fromAddress={brand.address}
-            logo={brand.logo}
+            fromEmail={shows(invoice.hidden, 'contact') ? brand.contact : ''}
+            fromAddress={shows(invoice.hidden, 'address') ? brand.address : null}
+            logo={shows(invoice.hidden, 'logo') ? brand.logo : null}
             billTo={{
               name: invoice.client.name,
               company: invoice.client.company,
@@ -93,13 +94,13 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
             tax={tax}
             taxLabel={invoice.taxLabel ?? brand.taxLabel}
             taxRateBp={invoice.taxRateBp}
-            taxNumber={brand.taxNumber}
-            pay={brand.pay}
-            payNotes={brand.payNotes}
+            taxNumber={shows(invoice.hidden, 'taxNumber') ? brand.taxNumber : null}
+            pay={shows(invoice.hidden, 'pay') ? brand.pay : []}
+            payNotes={shows(invoice.hidden, 'pay') ? brand.payNotes : null}
             paid={paid}
             balance={balance}
             currency={ctx.currency}
-            notes={invoice.notes}
+            notes={shows(invoice.hidden, 'notes') ? invoice.notes : null}
             themeColor={invoice.themeColor}
             themeFont={invoice.themeFont}
           />

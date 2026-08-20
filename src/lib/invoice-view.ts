@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { storagePath } from '@/lib/uploads';
 import { companyBrand } from '@/lib/company';
 import { balanceCents, paidCents, subtotalCents, taxCents } from '@/lib/money';
+import { shows } from '@/lib/invoice-parts';
 
 /**
  * One invoice, gathered into the shape anything outside the app needs it in.
@@ -40,6 +41,7 @@ export type InvoiceView = {
   /** Bank details from the company settings: label and value, in order. */
   pay: [string, string][];
   payNotes: string | null;
+  taxNumber: string | null;
 };
 
 export async function invoiceView(
@@ -60,14 +62,19 @@ export async function invoiceView(
     where: { id: workspaceId },
     select: { logoKey: true, logoMime: true },
   });
-  const logo = await logoBytes(workspace?.logoKey ?? null, workspace?.logoMime ?? null);
+  // Parts turned off on this invoice never reach the PDF or the email: they
+  // are dropped here rather than checked again at each place that draws one.
+  const off = invoice.hidden;
+  const logo = shows(off, 'logo')
+    ? await logoBytes(workspace?.logoKey ?? null, workspace?.logoMime ?? null)
+    : null;
 
   return {
     id: invoice.id,
     number: invoice.number,
     business: brand.name,
-    businessContact: brand.contact,
-    businessAddress: brand.address,
+    businessContact: shows(off, 'contact') ? brand.contact : '',
+    businessAddress: shows(off, 'address') ? brand.address : null,
     logo,
     clientName: invoice.client.name,
     clientCompany: invoice.client.company,
@@ -86,10 +93,11 @@ export async function invoiceView(
     paidCents: paidCents(invoice.payments),
     balanceCents: balanceCents(invoice.items, invoice.payments, invoice.taxRateBp),
     currency,
-    notes: invoice.notes,
+    notes: shows(off, 'notes') ? invoice.notes : null,
     themeColor: invoice.themeColor,
-    pay: brand.pay,
-    payNotes: brand.payNotes,
+    pay: shows(off, 'pay') ? brand.pay : [],
+    payNotes: shows(off, 'pay') ? brand.payNotes : null,
+    taxNumber: shows(off, 'taxNumber') ? brand.taxNumber : null,
   };
 }
 
