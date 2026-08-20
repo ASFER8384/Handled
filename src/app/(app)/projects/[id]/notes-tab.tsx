@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
 import { Select } from '@/components/select';
-import { EyeIcon, EyeOffIcon, FilterIcon } from './editor-kit';
+import { EyeIcon, EyeOffIcon, FilterIcon, TrashIcon } from './editor-kit';
 import { NoteEditor } from './note-editor';
 
 export type ProjectNote = {
@@ -65,6 +65,15 @@ export function NotesTab({ projectId, notes }: { projectId: string; notes: Proje
   }
 
   async function remove(id: string) {
+    // Notes are small and often empty; a confirm on every one is noise. This
+    // is the only door out, though, so an accidental click should not be the
+    // end of something written.
+    const note = cards.find((entry) => entry.id === id);
+    if (note && ((note.title ?? '').trim() || note.body.trim())) {
+      const named = (note.title ?? '').trim() || 'this note';
+      if (!confirm(`Delete ${named}? It cannot be brought back.`)) return;
+    }
+
     setCards((current) => current.filter((note) => note.id !== id));
     setOpenId(null);
     await api(`/api/project-notes/${id}`, { method: 'DELETE' });
@@ -103,15 +112,28 @@ export function NotesTab({ projectId, notes }: { projectId: string; notes: Proje
         </button>
 
         {ordered.map((note) => (
-          <button
+          // A div holding a stretched button, so the delete can sit on the
+          // card without being a button inside a button.
+          <div
             key={note.id}
-            type="button"
-            onClick={() => setOpenId(note.id)}
-            className="border-line bg-surface hover:border-accent flex h-[260px] flex-col rounded-lg border p-5 text-left transition-colors"
+            className="border-line bg-surface hover:border-accent group relative flex h-[260px] flex-col rounded-lg border p-5 text-left transition-colors"
           >
-            <p className={`font-medium ${note.title ? '' : 'text-muted'}`}>
+            <button
+              type="button"
+              onClick={() => remove(note.id)}
+              aria-label={`Delete ${note.title || 'this note'}`}
+              className="text-muted absolute top-3 right-3 z-10 rounded p-1.5 opacity-0 transition group-hover:opacity-100 hover:bg-black/[0.05] hover:text-red-700 focus-visible:opacity-100"
+            >
+              <TrashIcon className="h-4 w-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setOpenId(note.id)}
+              className={`font-medium after:absolute after:inset-0 ${note.title ? '' : 'text-muted'}`}
+            >
               {note.title || 'Untitled note'}
-            </p>
+            </button>
             <p
               className={`mt-3 line-clamp-5 flex-1 text-sm ${
                 note.body.trim() ? 'text-muted' : 'text-muted/70'
@@ -127,7 +149,7 @@ export function NotesTab({ projectId, notes }: { projectId: string; notes: Proje
                 <EyeOffIcon className="h-4 w-4" />
               )}
             </span>
-          </button>
+          </div>
         ))}
       </div>
 
