@@ -326,7 +326,12 @@ export function ContactsTable({
                       <button
                         type="button"
                         onClick={(event) => {
-                          setMenuAt(placeUnder(event.currentTarget.getBoundingClientRect()));
+                          setMenuAt(
+                            placeUnder(
+                              event.currentTarget.getBoundingClientRect(),
+                              ROW_MENU_HEIGHT,
+                            ),
+                          );
                           toggle(contact.id);
                         }}
                         aria-expanded={menu === contact.id}
@@ -554,7 +559,7 @@ function TablePrefsButton({
         <button
           type="button"
           onClick={(event) => {
-            setBox(placeUnder(event.currentTarget.getBoundingClientRect()));
+            setBox(placeUnder(event.currentTarget.getBoundingClientRect(), COLUMNS_PANEL_HEIGHT));
             onOpen();
           }}
           aria-expanded={open}
@@ -617,14 +622,20 @@ function TablePrefsButton({
 
 type Placement = { style: React.CSSProperties };
 
+/** Roughly how tall each panel wants to be: three rows, and one per column. */
+const ROW_MENU_HEIGHT = 3 * 36 + 8;
+const COLUMNS_PANEL_HEIGHT = (CONTACT_COLUMNS.length + 1) * 40 + 46;
+
 /**
- * Puts the panel under the button, or over it when the window runs out below.
- * Whichever way round, it is capped at the room it has and scrolls inside
- * that, so the last column on the list is always reachable.
+ * Puts the panel under the button, or over it when what it wants does not fit
+ * below and there is more room above. `wanted` is roughly how tall the panel
+ * would like to be — it decides which way round, not how tall it ends up.
+ * Either way it is capped at the room it has and scrolls inside that, so the
+ * last row of it stays reachable on a short window.
  */
-function placeUnder(button: DOMRect): Placement {
+function placeUnder(button: DOMRect, wanted: number): Placement {
   const gap = 8;
-  const margin = 16;
+  const margin = 12;
   // Measured off the document element, not the window: `window.innerWidth`
   // counts the scrollbar, which a fixed panel does not sit under, and the
   // difference is exactly how far off the button it would land.
@@ -633,8 +644,8 @@ function placeUnder(button: DOMRect): Placement {
   const below = view.clientHeight - button.bottom - gap - margin;
   const above = button.top - gap - margin;
 
-  // Only go up when below is genuinely too tight and up is the better half.
-  if (below < 240 && above > below) {
+  // Only go up when what is wanted does not fit below and up is the better half.
+  if (below < wanted && above > below) {
     return { style: { bottom: view.clientHeight - button.top + gap, right, maxHeight: above } };
   }
   return { style: { top: button.bottom + gap, right, maxHeight: below } };

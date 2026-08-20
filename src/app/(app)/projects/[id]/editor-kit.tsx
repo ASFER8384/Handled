@@ -199,8 +199,27 @@ export function useMenu() {
     function away(event: MouseEvent) {
       if (!(event.target as HTMLElement).closest('[data-menu]')) setMenu(null);
     }
+    // A menu is placed against the thing that opened it. Once the page moves
+    // under it — a scroll anywhere, a window resized — that place is no longer
+    // where the button is, so the menu goes rather than drifting off on its
+    // own. `true` catches a scrolling panel as well as the page itself.
+    //
+    // A menu scrolling inside itself is the exception: the list is long and
+    // the reader is working their way down it, which is the opposite of
+    // leaving.
+    function moved(event: Event) {
+      const scrolled = event.target;
+      if (scrolled instanceof HTMLElement && scrolled.closest('[data-menu]')) return;
+      setMenu(null);
+    }
     document.addEventListener('mousedown', away);
-    return () => document.removeEventListener('mousedown', away);
+    window.addEventListener('scroll', moved, true);
+    window.addEventListener('resize', moved);
+    return () => {
+      document.removeEventListener('mousedown', away);
+      window.removeEventListener('scroll', moved, true);
+      window.removeEventListener('resize', moved);
+    };
   }, [menu]);
 
   return {
