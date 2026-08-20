@@ -10,7 +10,7 @@ export default async function InvoicesPage() {
   const invoices = await prisma.invoice.findMany({
     where: { workspaceId: ctx.workspaceId },
     include: {
-      client: { select: { name: true } },
+      client: { select: { name: true, email: true } },
       project: { select: { name: true } },
       items: true,
       payments: true,
@@ -24,6 +24,8 @@ export default async function InvoicesPage() {
     status: invoice.status,
     client: invoice.client.name,
     project: invoice.project?.name ?? null,
+    projectId: invoice.projectId,
+    clientEmail: invoice.client.email,
     updatedAt: invoice.updatedAt.toISOString(),
     dueAt: invoice.dueAt ? invoice.dueAt.toISOString() : null,
     totalCents: totalCents(invoice.items, invoice.taxRateBp),

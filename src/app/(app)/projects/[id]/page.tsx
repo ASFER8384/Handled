@@ -389,6 +389,8 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
               ) : (
                 <ProjectInvoices
                   currency={ctx.currency}
+                  projectId={project.id}
+                  clientEmail={project.client.email}
                   invoices={project.invoices.map((invoice) => ({
                     id: invoice.id,
                     number: invoice.number,

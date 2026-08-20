@@ -10,6 +10,7 @@ import { StatusBadge, formatDate } from '@/components/ui';
 import { formatMoney, parseMoneyToCents } from '@/lib/money';
 import { api } from '@/lib/client-fetch';
 import { placeUnder, type Placement } from '@/lib/place-under';
+import { InvoiceMenuPanel, invoiceActions, menuHeight } from '@/components/invoice-menu';
 import type { InvoiceStatus } from '@/generated/prisma/enums';
 
 export type ProjectInvoice = {
@@ -23,9 +24,6 @@ export type ProjectInvoice = {
   hasPayments: boolean;
 };
 
-/** Six rows and the padding around them: which way the panel opens. */
-const MENU_HEIGHT = 6 * 36 + 12;
-
 /**
  * The invoices raised against this project, newest first.
  *
@@ -38,9 +36,14 @@ const MENU_HEIGHT = 6 * 36 + 12;
 export function ProjectInvoices({
   invoices,
   currency,
+  projectId,
+  clientEmail,
 }: {
   invoices: ProjectInvoice[];
   currency: string;
+  projectId: string;
+  /** Who the project bills. Without one, nothing can be emailed to them. */
+  clientEmail: string | null;
 }) {
   const router = useRouter();
   const [gone, setGone] = useState<string[]>([]);
@@ -132,103 +135,61 @@ export function ProjectInvoices({
                   {formatMoney(invoice.totalCents, currency)}
                 </span>
 
-                <button
-                  type="button"
-                  data-menu
-                  aria-label={`More for ${invoice.number}`}
-                  aria-expanded={menu === invoice.id}
-                  onClick={(event) => {
-                    setMenuAt(placeUnder(event.currentTarget.getBoundingClientRect(), MENU_HEIGHT));
-                    setMenu(menu === invoice.id ? null : invoice.id);
-                  }}
-                  className="text-muted hover:text-foreground flex h-8 w-8 shrink-0 items-center justify-center rounded transition-colors hover:bg-black/[0.05]"
-                >
-                  <svg
-                    aria-hidden
-                    viewBox="0 0 24 24"
-                    className="h-5 w-5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  >
-                    <path d="M12 6h.01M12 12h.01M12 18h.01" />
-                  </svg>
-                </button>
-
-                {menu === invoice.id &&
-                  menuAt &&
-                  typeof document !== 'undefined' &&
-                  createPortal(
-                    <div
-                      data-menu
-                      style={menuAt.style}
-                      className="bg-surface fixed z-50 w-48 overflow-y-auto rounded-xl py-1.5 text-left text-sm shadow-2xl ring-1 ring-black/10"
-                    >
-                      <Link
-                        href={`/invoices/${invoice.id}`}
-                        className="hover:bg-accent-soft/60 block px-4 py-2"
+                {(() => {
+                  // The same rules as the Invoices page, from the same place.
+                  const actions = invoiceActions(
+                    { ...invoice, projectId, clientEmail },
+                    {
+                      onSend: () => send(invoice),
+                      onRecordPayment: () => setPaying(invoice),
+                      onDelete: () => remove(invoice),
+                    },
+                  );
+                  return (
+                    <>
+                      <button
+                        type="button"
+                        data-menu
+                        aria-label={`More for ${invoice.number}`}
+                        aria-expanded={menu === invoice.id}
+                        onClick={(event) => {
+                          setMenuAt(
+                            placeUnder(
+                              event.currentTarget.getBoundingClientRect(),
+                              menuHeight(actions),
+                            ),
+                          );
+                          setMenu(menu === invoice.id ? null : invoice.id);
+                        }}
+                        className="text-muted hover:text-foreground flex h-8 w-8 shrink-0 items-center justify-center rounded transition-colors hover:bg-black/[0.05]"
                       >
-                        Open
-                      </Link>
-
-                      <a
-                        href={`/api/invoices/${invoice.id}/pdf?download`}
-                        className="hover:bg-accent-soft/60 block px-4 py-2"
-                        onClick={() => setMenu(null)}
-                      >
-                        Download PDF
-                      </a>
-
-                      {invoice.status === 'DRAFT' && (
-                        <>
-                          <Link
-                            href={`/invoices/${invoice.id}/edit`}
-                            className="hover:bg-accent-soft/60 block px-4 py-2"
-                          >
-                            Edit
-                          </Link>
-                          <Link
-                            href={`?tab=Email&compose=invoice:${invoice.id}`}
-                            className="hover:bg-accent-soft/60 block px-4 py-2"
-                          >
-                            Email to client
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => send(invoice)}
-                            className="hover:bg-accent-soft/60 block w-full px-4 py-2 text-left"
-                          >
-                            Mark as sent
-                          </button>
-                        </>
-                      )}
-
-                      {invoice.status !== 'DRAFT' && invoice.balanceCents > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMenu(null);
-                            setPaying(invoice);
-                          }}
-                          className="hover:bg-accent-soft/60 block w-full px-4 py-2 text-left"
+                        <svg
+                          aria-hidden
+                          viewBox="0 0 24 24"
+                          className="h-5 w-5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
                         >
-                          Record a payment
-                        </button>
-                      )}
+                          <path d="M12 6h.01M12 12h.01M12 18h.01" />
+                        </svg>
+                      </button>
 
-                      {!invoice.hasPayments && (
-                        <button
-                          type="button"
-                          onClick={() => remove(invoice)}
-                          className="hover:bg-accent-soft/60 block w-full px-4 py-2 text-left text-red-700"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>,
-                    document.body,
-                  )}
+                      {menu === invoice.id &&
+                        menuAt &&
+                        typeof document !== 'undefined' &&
+                        createPortal(
+                          <InvoiceMenuPanel
+                            actions={actions}
+                            style={menuAt.style}
+                            onPick={() => setMenu(null)}
+                          />,
+                          document.body,
+                        )}
+                    </>
+                  );
+                })()}
               </div>
             </li>
           ))}
