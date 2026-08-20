@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
+import { Select } from '@/components/select';
 import { InfoHint } from '@/components/ui';
 import { CalendarIcon, TrashIcon } from './editor-kit';
 import { ManageFieldsDialog, type CustomField } from './manage-fields-dialog';
@@ -140,19 +141,12 @@ export function DetailsTab({
               <label className="label" htmlFor="detail-type">
                 Project type <span aria-hidden>*</span>
               </label>
-              <select
+              <Select
                 id="detail-type"
-                value={form.type ?? ''}
-                onChange={(event) => void save({ type: event.target.value })}
-                className="input-soft"
-              >
-                <option value="">Select</option>
-                {types.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
+                value={form.type}
+                options={types.map((type) => ({ value: type, label: type }))}
+                onChange={(type) => void save({ type })}
+              />
             </div>
           </div>
 
@@ -182,19 +176,14 @@ export function DetailsTab({
           <h2 className="font-semibold">Date and location</h2>
           <label className="flex items-center gap-2 text-sm">
             <span className="text-muted">Timezone:</span>
-            <select
-              value={form.timezone ?? ''}
-              onChange={(event) => void save({ timezone: event.target.value })}
-              aria-label="Timezone"
-              className="input-soft w-[220px]"
-            >
-              <option value="">Not set</option>
-              {zones().map((zone) => (
-                <option key={zone} value={zone}>
-                  {zone}
-                </option>
-              ))}
-            </select>
+            <Select
+              className="w-[220px]"
+              ariaLabel="Timezone"
+              placeholder="Not set"
+              value={form.timezone}
+              options={zones().map((zone) => ({ value: zone, label: zone }))}
+              onChange={(timezone) => void save({ timezone })}
+            />
           </label>
         </div>
 
@@ -432,15 +421,16 @@ function DateBlock({
           Availability (after booking)
           <InfoHint text="How this date shows on your calendar once the work is booked. Busy blocks the time; free leaves it open." />
         </label>
-        <select
+        <Select
           id={`availability-${key}`}
+          className="sm:w-[260px]"
           value={availability}
-          onChange={(event) => onChange({ availability: event.target.value as 'BUSY' | 'FREE' })}
-          className="input-soft sm:w-[260px]"
-        >
-          <option value="BUSY">Busy</option>
-          <option value="FREE">Free</option>
-        </select>
+          options={[
+            { value: 'BUSY', label: 'Busy' },
+            { value: 'FREE', label: 'Free' },
+          ]}
+          onChange={(picked) => onChange({ availability: picked as 'BUSY' | 'FREE' })}
+        />
       </div>
 
       <div className="mt-4">
@@ -535,19 +525,12 @@ function FieldInput({
           className="input-soft h-auto py-2.5"
         />
       ) : field.type === 'SELECT' ? (
-        <select
+        <Select
           id={id}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className="input-soft"
-        >
-          <option value="">Select</option>
-          {field.options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+          value={value || null}
+          options={field.options.map((option) => ({ value: option, label: option }))}
+          onChange={onChange}
+        />
       ) : (
         <input
           id={id}

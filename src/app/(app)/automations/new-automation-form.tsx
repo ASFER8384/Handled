@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
+import { FormSelect } from '@/components/form-select';
+import { Select } from '@/components/select';
 import { api } from '@/lib/client-fetch';
 import { automationTriggers } from '@/lib/validation';
 import { TRIGGER_LABELS } from '@/lib/automation-labels';
@@ -21,6 +23,7 @@ export function NewAutomationForm({ stages }: { stages: { id: string; name: stri
   const [trigger, setTrigger] = useState<Values['trigger']>('PROJECT_CREATED');
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<Values>({
@@ -66,19 +69,24 @@ export function NewAutomationForm({ stages }: { stages: { id: string; name: stri
         <label className="label" htmlFor="automation-trigger">
           When
         </label>
-        <select
-          id="automation-trigger"
-          className="input"
-          {...register('trigger', {
-            onChange: (event) => setTrigger(event.target.value as Values['trigger']),
-          })}
-        >
-          {automationTriggers.map((value) => (
-            <option key={value} value={value}>
-              {TRIGGER_LABELS[value]}
-            </option>
-          ))}
-        </select>
+        <Controller
+          control={control}
+          name="trigger"
+          render={({ field }) => (
+            <Select
+              id="automation-trigger"
+              value={field.value}
+              options={automationTriggers.map((value) => ({
+                value,
+                label: TRIGGER_LABELS[value],
+              }))}
+              onChange={(picked) => {
+                field.onChange(picked);
+                setTrigger(picked as Values['trigger']);
+              }}
+            />
+          )}
+        />
       </div>
 
       {trigger === 'PROJECT_STAGE_CHANGED' && (
@@ -86,13 +94,12 @@ export function NewAutomationForm({ stages }: { stages: { id: string; name: stri
           <label className="label" htmlFor="automation-stage">
             Stage
           </label>
-          <select id="automation-stage" className="input" {...register('triggerStageId')}>
-            {stages.map((stage) => (
-              <option key={stage.id} value={stage.id}>
-                {stage.name}
-              </option>
-            ))}
-          </select>
+          <FormSelect
+            id="automation-stage"
+            control={control}
+            name="triggerStageId"
+            options={stages.map((stage) => ({ value: stage.id, label: stage.name }))}
+          />
         </div>
       )}
 

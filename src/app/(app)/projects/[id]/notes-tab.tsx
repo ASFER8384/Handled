@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
+import { Select } from '@/components/select';
 import { EyeIcon, EyeOffIcon, FilterIcon } from './editor-kit';
 import { NoteEditor } from './note-editor';
 
@@ -80,20 +81,13 @@ export function NotesTab({ projectId, notes }: { projectId: string; notes: Proje
           All notes <span className="text-foreground font-medium">({cards.length})</span>
         </p>
 
-        <label className="text-muted flex items-center gap-2 text-sm">
-          <span className="sr-only">Order the notes</span>
-          <select
-            value={sort}
-            onChange={(event) => setSort(event.target.value as typeof sort)}
-            className="h-9 rounded bg-transparent px-1 outline-none hover:bg-black/[0.05]"
-          >
-            {SORTS.map((option) => (
-              <option key={option.key} value={option.key}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          className="w-[190px]"
+          ariaLabel="Order the notes"
+          value={sort}
+          options={SORTS.map((option) => ({ value: option.key, label: option.label }))}
+          onChange={(key) => setSort(key as typeof sort)}
+        />
       </div>
 
       <div className="mt-5 grid gap-5 sm:grid-cols-3 lg:grid-cols-4">

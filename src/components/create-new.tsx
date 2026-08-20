@@ -8,6 +8,8 @@ import { InfoHint } from '@/components/ui';
 import { CountrySelect } from '@/components/country-select';
 import { DEFAULT_ISO, findCountry } from '@/lib/countries';
 import { api, showFailure } from '@/lib/client-fetch';
+import { ProjectPicker, type ProjectChoice, type ProjectOption } from '@/components/project-picker';
+import { FormSelect } from '@/components/form-select';
 
 // Schemas that coerce dates have an output type the form never holds, so these
 // forms carry their own shape and let the route do the validating.
@@ -135,7 +137,6 @@ type ContactValues = {
   email: string;
   countryIso: string;
   phone: string;
-  project: string;
   lastInteractionAt: string;
   website: string;
   company: string;
@@ -145,7 +146,9 @@ type ContactValues = {
 };
 
 function ContactDialog({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+  // Null while they are still coming, so nothing can be picked too early.
+  const [projects, setProjects] = useState<ProjectOption[] | null>(null);
+  const [choice, setChoice] = useState<ProjectChoice>({ kind: 'none' });
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
@@ -166,10 +169,12 @@ function ContactDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
     let live = true;
     fetch('/api/projects')
       .then((response) => response.json())
-      .then((payload: { projects: { id: string; name: string }[] }) => {
+      .then((payload: { projects: ProjectOption[] }) => {
         if (live) setProjects(payload.projects ?? []);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (live) setProjects([]);
+      });
     return () => {
       live = false;
     };
@@ -199,22 +204,19 @@ function ContactDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
       return;
     }
 
-    // A typed name that matches nothing becomes a new project; one that matches
-    // an existing project moves it onto this contact.
-    const wanted = values.project.trim();
-    if (wanted) {
-      const existing = projects.find(
-        (project) => project.name.toLowerCase() === wanted.toLowerCase(),
-      );
-      const result = existing
-        ? await api(`/api/projects/${existing.id}`, {
-            method: 'PATCH',
-            body: { clientId: data.client.id },
-          })
-        : await api('/api/projects', {
-            method: 'POST',
-            body: { name: wanted, clientId: data.client.id },
-          });
+    // An existing project takes them on as one of its people; a new name opens
+    // a project for them. Nothing at all is fine — a contact can stand alone.
+    if (choice.kind !== 'none') {
+      const result =
+        choice.kind === 'existing'
+          ? await api(`/api/projects/${choice.id}/contacts`, {
+              method: 'POST',
+              body: { clientId: data.client.id },
+            })
+          : await api('/api/projects', {
+              method: 'POST',
+              body: { name: choice.name, clientId: data.client.id },
+            });
       if (result.error) {
         setFormError(result.error.error);
         return;
@@ -288,20 +290,14 @@ function ContactDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
         <div>
           <label className="label flex items-center gap-1.5" htmlFor="contact-project">
             Select or create a project
-            <InfoHint text="Pick one of your projects to move it onto this contact, or type a new name to open one." />
+            <InfoHint text="Put them on one of your projects, or type a name that does not exist yet to open one for them. Leaving it empty just saves the contact." />
           </label>
-          <input
+          <ProjectPicker
             id="contact-project"
-            list="contact-project-options"
-            className="input-soft"
-            placeholder="Type to search"
-            {...register('project')}
+            value={choice}
+            projects={projects}
+            onChange={setChoice}
           />
-          <datalist id="contact-project-options">
-            {projects.map((project) => (
-              <option key={project.id} value={project.name} />
-            ))}
-          </datalist>
         </div>
 
         <div>
@@ -479,6 +475,7 @@ function ProjectDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
   const [detailsOpen, setDetailsOpen] = useState(false);
   const {
     register,
+    control,
     handleSubmit,
     watch,
     formState: { errors, isSubmitting },
@@ -554,21 +551,15 @@ function ProjectDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
           <label className="label" htmlFor="project-client">
             Assign contact <span aria-hidden>*</span>
           </label>
-          <select
+          <FormSelect
             id="project-client"
-            className="input-soft"
-            defaultValue=""
-            {...register('clientId', { required: 'Pick a contact' })}
-          >
-            <option value="" disabled>
-              {clients === null ? 'Loading…' : 'Search'}
-            </option>
-            {(clients ?? []).map((client) => (
-              <option key={client.id} value={client.id}>
-                {client.name}
-              </option>
-            ))}
-          </select>
+            control={control}
+            name="clientId"
+            required="Pick a contact"
+            searchable
+            placeholder={clients === null ? 'Loading…' : 'Search'}
+            options={(clients ?? []).map((client) => ({ value: client.id, label: client.name }))}
+          />
           {errors.clientId && <p className="field-error">{errors.clientId.message}</p>}
           {clients?.length === 0 && (
             <p className="text-muted mt-1 text-xs">Add a contact first. A project hangs off one.</p>
@@ -580,14 +571,12 @@ function ProjectDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
             Project type
             <InfoHint text="What kind of work this is. It groups the pipeline and gives automations something to match on." />
           </label>
-          <select id="project-type" className="input-soft" defaultValue="" {...register('type')}>
-            <option value="">Select</option>
-            {PROJECT_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
+          <FormSelect
+            id="project-type"
+            control={control}
+            name="type"
+            options={PROJECT_TYPES.map((type) => ({ value: type, label: type }))}
+          />
         </div>
 
         <div className="flex items-end gap-3">
@@ -655,13 +644,12 @@ function ProjectDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
           <label className="label" htmlFor="project-timezone">
             Timezone
           </label>
-          <select id="project-timezone" className="input-soft" {...register('timezone')}>
-            {TIMEZONES.map((zone) => (
-              <option key={zone.value} value={zone.value}>
-                {zone.label}
-              </option>
-            ))}
-          </select>
+          <FormSelect
+            id="project-timezone"
+            control={control}
+            name="timezone"
+            options={TIMEZONES.map((zone) => ({ value: zone.value, label: zone.label }))}
+          />
         </div>
 
         <div>
@@ -692,13 +680,15 @@ function ProjectDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
                 <label className="label" htmlFor="project-stage">
                   Stage
                 </label>
-                <select id="project-stage" className="input-soft" {...register('stage')}>
-                  {STAGE_OPTIONS.map((stage) => (
-                    <option key={stage.value} value={stage.value}>
-                      {stage.label}
-                    </option>
-                  ))}
-                </select>
+                <FormSelect
+                  id="project-stage"
+                  control={control}
+                  name="stage"
+                  options={STAGE_OPTIONS.map((stage) => ({
+                    value: stage.value,
+                    label: stage.label,
+                  }))}
+                />
               </div>
 
               <div>
@@ -717,19 +707,12 @@ function ProjectDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
                 <label className="label" htmlFor="project-source">
                   Lead source
                 </label>
-                <select
+                <FormSelect
                   id="project-source"
-                  className="input-soft"
-                  defaultValue=""
-                  {...register('leadSource')}
-                >
-                  <option value="">Select</option>
-                  {LEAD_SOURCES.map((source) => (
-                    <option key={source} value={source}>
-                      {source}
-                    </option>
-                  ))}
-                </select>
+                  control={control}
+                  name="leadSource"
+                  options={LEAD_SOURCES.map((source) => ({ value: source, label: source }))}
+                />
               </div>
 
               <div>

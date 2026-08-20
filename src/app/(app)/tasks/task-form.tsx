@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
+import { FormSelect } from '@/components/form-select';
 import { api } from '@/lib/client-fetch';
 
 type Values = { title: string; projectId: string; dueAt: string };
@@ -12,6 +13,7 @@ export function TaskForm({ projects }: { projects: { id: string; name: string }[
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
@@ -49,14 +51,13 @@ export function TaskForm({ projects }: { projects: { id: string; name: string }[
         <label className="label" htmlFor="task-project">
           Project
         </label>
-        <select id="task-project" className="input" {...register('projectId')}>
-          <option value="">No project</option>
-          {projects.map((project) => (
-            <option key={project.id} value={project.id}>
-              {project.name}
-            </option>
-          ))}
-        </select>
+        <FormSelect
+          id="task-project"
+          control={control}
+          name="projectId"
+          placeholder="No project"
+          options={projects.map((project) => ({ value: project.id, label: project.name }))}
+        />
       </div>
 
       <div>

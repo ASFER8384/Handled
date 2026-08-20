@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog } from '@/components/dialog';
 import { api } from '@/lib/client-fetch';
+import { Select } from '@/components/select';
 import { EyeIcon, EyeOffIcon, TrashIcon } from './editor-kit';
 
 export type FieldType = 'TEXT' | 'LONG_TEXT' | 'DATE' | 'NUMBER' | 'LINK' | 'SELECT';
@@ -298,18 +299,12 @@ function AddFieldDialog({
           <label className="label" htmlFor="field-type">
             Field type <span aria-hidden>*</span>
           </label>
-          <select
+          <Select
             id="field-type"
             value={type}
-            onChange={(event) => setType(event.target.value as FieldType)}
-            className="input-soft"
-          >
-            {TYPES.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            options={TYPES.map((option) => ({ value: option.value, label: option.label }))}
+            onChange={(picked) => setType(picked as FieldType)}
+          />
           <p className="text-muted mt-1.5 text-xs">
             The type is fixed once the field exists, so answers already given stay readable.
           </p>

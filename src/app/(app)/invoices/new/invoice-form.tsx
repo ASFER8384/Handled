@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
+import { FormSelect } from '@/components/form-select';
 import { formatMoney, parseMoneyToCents } from '@/lib/money';
 import { api } from '@/lib/client-fetch';
 
@@ -95,27 +96,26 @@ export function InvoiceForm({
           <label className="label" htmlFor="invoice-client">
             Client
           </label>
-          <select id="invoice-client" className="input" {...register('clientId')}>
-            {clients.map((client) => (
-              <option key={client.id} value={client.id}>
-                {client.name}
-              </option>
-            ))}
-          </select>
+          <FormSelect
+            id="invoice-client"
+            control={control}
+            name="clientId"
+            placeholder="Pick a contact"
+            options={clients.map((client) => ({ value: client.id, label: client.name }))}
+          />
         </div>
 
         <div>
           <label className="label" htmlFor="invoice-project">
             Project
           </label>
-          <select id="invoice-project" className="input" {...register('projectId')}>
-            <option value="">No project</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
+          <FormSelect
+            id="invoice-project"
+            control={control}
+            name="projectId"
+            placeholder="No project"
+            options={projects.map((project) => ({ value: project.id, label: project.name }))}
+          />
         </div>
 
         <div>

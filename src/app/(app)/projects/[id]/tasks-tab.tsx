@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
+import { Select } from '@/components/select';
 
 export type ProjectTask = {
   id: string;
@@ -302,19 +303,12 @@ function Choice({
       <label className="label" htmlFor={`filter-${label}`}>
         {label}
       </label>
-      <select
+      <Select
         id={`filter-${label}`}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="input-soft"
-      >
-        <option value="">Select</option>
-        {options.map(([key, text]) => (
-          <option key={key} value={key}>
-            {text}
-          </option>
-        ))}
-      </select>
+        value={value || null}
+        options={options.map(([key, text]) => ({ value: key, label: text }))}
+        onChange={onChange}
+      />
     </div>
   );
 }
@@ -496,19 +490,13 @@ function Row({
               .slice(0, 1)
               .toUpperCase()}
           </span>
-          <select
-            value={task.assigneeId ?? ''}
-            onChange={(event) => onPatch({ assigneeId: event.target.value || null })}
-            aria-label="Assigned to"
-            className="text-muted h-9 w-full rounded bg-transparent px-1 transition-colors outline-none hover:bg-black/[0.05]"
-          >
-            <option value="">Nobody yet</option>
-            {members.map((member) => (
-              <option key={member.id} value={member.id}>
-                {member.name}
-              </option>
-            ))}
-          </select>
+          <Select
+            ariaLabel="Assigned to"
+            placeholder="Nobody yet"
+            value={task.assigneeId}
+            options={members.map((member) => ({ value: member.id, label: member.name }))}
+            onChange={(assigneeId) => onPatch({ assigneeId: assigneeId || null })}
+          />
         </label>
       </td>
 

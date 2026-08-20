@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
+import { Select } from '@/components/select';
 import { STAGE_GROUPS } from '@/lib/stages';
 import { TABLE_COLUMNS } from '@/lib/board-prefs';
 import type { StageGroup } from '@/generated/prisma/enums';
@@ -129,20 +130,15 @@ export function TableView({
           {selected.length > 0 && (
             <div className="ml-auto flex items-center gap-3">
               <span className="text-muted text-sm">{selected.length} selected</span>
-              <select
-                aria-label="Move selected to stage"
-                className="input h-9 w-44 py-0 text-sm"
-                defaultValue=""
+              <Select
+                ariaLabel="Move selected to stage"
+                className="w-44"
+                placeholder="Move to…"
+                value={null}
                 disabled={busy}
-                onChange={(event) => void moveSelected(event.target.value)}
-              >
-                <option value="">Move to…</option>
-                {columns.map((column) => (
-                  <option key={column.id} value={column.id}>
-                    {column.name}
-                  </option>
-                ))}
-              </select>
+                options={columns.map((column) => ({ value: column.id, label: column.name }))}
+                onChange={(stageId) => void moveSelected(stageId)}
+              />
               <button
                 type="button"
                 onClick={() => void deleteSelected()}

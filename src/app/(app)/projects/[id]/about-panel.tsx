@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
+import { Select } from '@/components/select';
 import { Caret, Cross, DotsIcon, MenuItem, TrashIcon, useMenu } from './editor-kit';
 
 /**
@@ -98,37 +99,23 @@ export function AboutPanel({
 
       <div className="space-y-5 px-5 py-5">
         <Field label="Stage" htmlFor="about-stage">
-          <select
+          <Select
             id="about-stage"
-            value={current.stageId ?? ''}
-            onChange={(event) => void save({ stageId: event.target.value })}
-            className="input-soft"
-          >
-            <option value="" disabled>
-              Not set
-            </option>
-            {stages.map((stage) => (
-              <option key={stage.id} value={stage.id}>
-                {stage.name}
-              </option>
-            ))}
-          </select>
+            value={current.stageId}
+            placeholder="Not set"
+            options={stages.map((stage) => ({ value: stage.id, label: stage.name }))}
+            onChange={(stageId) => void save({ stageId })}
+          />
         </Field>
 
         <Field label="Lead source" htmlFor="about-source">
-          <select
+          <Select
             id="about-source"
-            value={current.leadSource ?? ''}
-            onChange={(event) => void save({ leadSource: event.target.value })}
-            className="input-soft"
-          >
-            <option value="">Unknown</option>
-            {leadSources.map((source) => (
-              <option key={source} value={source}>
-                {source}
-              </option>
-            ))}
-          </select>
+            value={current.leadSource}
+            placeholder="Unknown"
+            options={leadSources.map((source) => ({ value: source, label: source }))}
+            onChange={(leadSource) => void save({ leadSource })}
+          />
         </Field>
 
         <div>

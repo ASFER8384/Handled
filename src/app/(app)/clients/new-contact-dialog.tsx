@@ -6,8 +6,7 @@ import { Dialog } from '@/components/dialog';
 import { CountrySelect } from '@/components/country-select';
 import { api } from '@/lib/client-fetch';
 import { DEFAULT_ISO, findCountry } from '@/lib/countries';
-
-type ProjectOption = { id: string; name: string };
+import { ProjectPicker, type ProjectChoice, type ProjectOption } from '@/components/project-picker';
 
 /**
  * A contact, optionally landing on a project as it is made: an existing one,
@@ -25,8 +24,7 @@ export function NewContactDialog({ onClose }: { onClose: () => void }) {
   // here, so a new project is never opened by mistake in place of an existing
   // one that had simply not loaded yet.
   const [projects, setProjects] = useState<ProjectOption[] | null>(null);
-  const [projectId, setProjectId] = useState('');
-  const [newProject, setNewProject] = useState('');
+  const [choice, setChoice] = useState<ProjectChoice>({ kind: 'none' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [faults, setFaults] = useState<Record<string, string>>({});
@@ -69,30 +67,23 @@ export function NewContactDialog({ onClose }: { onClose: () => void }) {
     }
 
     // No project asked for: the contact is saved and that is the whole job.
-    if (projectId === '') {
+    if (choice.kind === 'none') {
       setBusy(false);
       router.refresh();
       onClose();
       return;
     }
 
-    // A chosen project takes them on; NEW opens one. A typed name that turns
-    // out to match an existing project joins that rather than making a second.
-    const wanted = newProject.trim();
-    const existing =
-      projectId === 'new'
-        ? (projects ?? []).find((entry) => entry.name.toLowerCase() === wanted.toLowerCase())
-        : (projects ?? []).find((entry) => entry.id === projectId);
-
-    const { error: projectFailure } = existing
-      ? await api(`/api/projects/${existing.id}/contacts`, {
-          method: 'POST',
-          body: { clientId: data.client.id },
-        })
-      : await api('/api/projects', {
-          method: 'POST',
-          body: { name: wanted, clientId: data.client.id },
-        });
+    const { error: projectFailure } =
+      choice.kind === 'existing'
+        ? await api(`/api/projects/${choice.id}/contacts`, {
+            method: 'POST',
+            body: { clientId: data.client.id },
+          })
+        : await api('/api/projects', {
+            method: 'POST',
+            body: { name: choice.name, clientId: data.client.id },
+          });
 
     setBusy(false);
     if (projectFailure) {
@@ -106,9 +97,7 @@ export function NewContactDialog({ onClose }: { onClose: () => void }) {
     onClose();
   }
 
-  // A project is optional, but a half-named new one is not a project yet.
-  const projectSettled = projectId !== 'new' || newProject.trim() !== '';
-  const ready = name.trim() !== '' && email.trim() !== '' && projectSettled;
+  const ready = name.trim() !== '' && email.trim() !== '';
 
   return (
     <Dialog
@@ -188,34 +177,12 @@ export function NewContactDialog({ onClose }: { onClose: () => void }) {
           <label className="label" htmlFor="new-contact-project">
             Project
           </label>
-          <select
+          <ProjectPicker
             id="new-contact-project"
-            value={projectId}
-            disabled={projects === null}
-            onChange={(event) => setProjectId(event.target.value)}
-            className="input-soft"
-          >
-            <option value="">
-              {projects === null ? 'Loading your projects…' : 'No project for now'}
-            </option>
-            {(projects ?? []).map((entry) => (
-              <option key={entry.id} value={entry.id}>
-                {entry.name}
-              </option>
-            ))}
-            <option value="new">＋ Open a new project</option>
-          </select>
-
-          {projectId === 'new' && (
-            <input
-              autoFocus
-              value={newProject}
-              onChange={(event) => setNewProject(event.target.value)}
-              aria-label="New project name"
-              placeholder="Name the new project"
-              className="input-soft mt-2"
-            />
-          )}
+            value={choice}
+            projects={projects}
+            onChange={setChoice}
+          />
 
           <p className="text-muted mt-1.5 text-xs">
             Leave this alone to just save them to your contacts; you can put them on a project

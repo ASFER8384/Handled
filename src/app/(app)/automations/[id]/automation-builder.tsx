@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
+import { Select } from '@/components/select';
 import { ACTION_LABELS, TRIGGER_LABELS } from '@/lib/automation-labels';
 import { automationActions, automationTriggers } from '@/lib/validation';
 
@@ -116,32 +117,23 @@ export function AutomationBuilder({
         <div className="card p-5">
           <p className="text-accent text-xs font-semibold tracking-widest uppercase">When</p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <select
-              aria-label="Trigger"
-              className="input"
+            <Select
+              ariaLabel="Trigger"
               value={draft.trigger}
-              onChange={(event) => update({ trigger: event.target.value as Draft['trigger'] })}
-            >
-              {automationTriggers.map((value) => (
-                <option key={value} value={value}>
-                  {TRIGGER_LABELS[value]}
-                </option>
-              ))}
-            </select>
+              options={automationTriggers.map((value) => ({
+                value,
+                label: TRIGGER_LABELS[value],
+              }))}
+              onChange={(picked) => update({ trigger: picked as Draft['trigger'] })}
+            />
 
             {draft.trigger === 'PROJECT_STAGE_CHANGED' && (
-              <select
-                aria-label="Trigger stage"
-                className="input"
+              <Select
+                ariaLabel="Trigger stage"
                 value={draft.triggerStageId}
-                onChange={(event) => update({ triggerStageId: event.target.value })}
-              >
-                {stages.map((stage) => (
-                  <option key={stage.id} value={stage.id}>
-                    {stage.name}
-                  </option>
-                ))}
-              </select>
+                options={stages.map((stage) => ({ value: stage.id, label: stage.name }))}
+                onChange={(triggerStageId) => update({ triggerStageId })}
+              />
             )}
           </div>
         </div>
@@ -184,50 +176,35 @@ export function AutomationBuilder({
             </div>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <select
-                aria-label={`Step ${index + 1} timing`}
-                className="input"
-                value={step.delayMinutes}
-                onChange={(event) =>
-                  updateStep(index, { delayMinutes: Number(event.target.value) })
-                }
-              >
-                {DELAY_CHOICES.map((choice) => (
-                  <option key={choice.minutes} value={choice.minutes}>
-                    {choice.label}
-                  </option>
-                ))}
-              </select>
+              <Select
+                ariaLabel={`Step ${index + 1} timing`}
+                value={String(step.delayMinutes)}
+                options={DELAY_CHOICES.map((choice) => ({
+                  value: String(choice.minutes),
+                  label: choice.label,
+                }))}
+                onChange={(minutes) => updateStep(index, { delayMinutes: Number(minutes) })}
+              />
 
-              <select
-                aria-label={`Step ${index + 1} action`}
-                className="input"
+              <Select
+                ariaLabel={`Step ${index + 1} action`}
                 value={step.action}
-                onChange={(event) =>
-                  updateStep(index, { action: event.target.value as Step['action'] })
-                }
-              >
-                {automationActions.map((action) => (
-                  <option key={action} value={action}>
-                    {ACTION_LABELS[action]}
-                  </option>
-                ))}
-              </select>
+                options={automationActions.map((action) => ({
+                  value: action,
+                  label: ACTION_LABELS[action],
+                }))}
+                onChange={(picked) => updateStep(index, { action: picked as Step['action'] })}
+              />
             </div>
 
             {step.action === 'MOVE_STAGE' ? (
-              <select
-                aria-label={`Step ${index + 1} target stage`}
-                className="input mt-3"
+              <Select
+                ariaLabel={`Step ${index + 1} target stage`}
+                className="mt-3"
                 value={step.targetStageId}
-                onChange={(event) => updateStep(index, { targetStageId: event.target.value })}
-              >
-                {stages.map((stage) => (
-                  <option key={stage.id} value={stage.id}>
-                    {stage.name}
-                  </option>
-                ))}
-              </select>
+                options={stages.map((stage) => ({ value: stage.id, label: stage.name }))}
+                onChange={(targetStageId) => updateStep(index, { targetStageId })}
+              />
             ) : (
               <input
                 aria-label={`Step ${index + 1} ${step.action === 'SEND_EMAIL' ? 'subject' : 'task title'}`}
@@ -279,15 +256,15 @@ export function AutomationBuilder({
             <label className="label" htmlFor="builder-status">
               Status
             </label>
-            <select
+            <Select
               id="builder-status"
-              className="input"
               value={draft.status}
-              onChange={(event) => update({ status: event.target.value as Draft['status'] })}
-            >
-              <option value="INACTIVE">Inactive</option>
-              <option value="ACTIVE">Active</option>
-            </select>
+              options={[
+                { value: 'INACTIVE', label: 'Inactive' },
+                { value: 'ACTIVE', label: 'Active' },
+              ]}
+              onChange={(picked) => update({ status: picked as Draft['status'] })}
+            />
             <p className="text-muted mt-1 text-xs">
               Changes apply to runs started from now on, never to ones already going.
             </p>

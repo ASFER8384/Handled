@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
+import { Select } from '@/components/select';
 
 export function StageSelect({
   id,
@@ -19,13 +20,14 @@ export function StageSelect({
   const [value, setValue] = useState(stageId ?? '');
 
   return (
-    <select
-      aria-label="Project stage"
-      className="input w-40 py-1.5 text-sm"
-      value={value}
+    <Select
+      ariaLabel="Project stage"
+      className="w-40"
+      placeholder="No stage"
+      value={value || null}
       disabled={pending}
-      onChange={(event) => {
-        const next = event.target.value;
+      options={stages.map((option) => ({ value: option.id, label: option.name }))}
+      onChange={(next) => {
         const previous = value;
         setValue(next);
         startTransition(async () => {
@@ -37,13 +39,6 @@ export function StageSelect({
           else router.refresh();
         });
       }}
-    >
-      {value === '' && <option value="">No stage</option>}
-      {stages.map((option) => (
-        <option key={option.id} value={option.id}>
-          {option.name}
-        </option>
-      ))}
-    </select>
+    />
   );
 }

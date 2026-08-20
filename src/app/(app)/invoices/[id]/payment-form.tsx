@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
+import { FormSelect } from '@/components/form-select';
 import { formatMoney, parseMoneyToCents } from '@/lib/money';
 import { api } from '@/lib/client-fetch';
 
@@ -29,6 +30,7 @@ export function PaymentForm({
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { isSubmitting },
@@ -79,13 +81,12 @@ export function PaymentForm({
         <label className="label" htmlFor="payment-method">
           Method
         </label>
-        <select id="payment-method" className="input" {...register('method')}>
-          {METHODS.map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+        <FormSelect
+          id="payment-method"
+          control={control}
+          name="method"
+          options={METHODS.map(([value, label]) => ({ value, label }))}
+        />
       </div>
 
       <div>
