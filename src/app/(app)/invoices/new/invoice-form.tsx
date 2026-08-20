@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { FormSelect } from '@/components/form-select';
 import { formatMoney, formatRate, parseMoneyToCents } from '@/lib/money';
+import { formatDate } from '@/components/ui';
+import { Dialog } from '@/components/dialog';
 import { api } from '@/lib/client-fetch';
 import { InvoiceSheet } from '@/components/invoice-sheet';
 import { Select } from '@/components/select';
@@ -230,10 +232,17 @@ export function InvoiceForm({
   }
 
   const dueDate = useWatch({ control, name: 'dueAt' });
+  const chosenProjectId = useWatch({ control, name: 'projectId' });
+  const chosenProject = projects.find((entry) => entry.id === chosenProjectId) ?? null;
+  // Who it is for and when it falls due are settings on the invoice rather
+  // than words in it, so they are asked for once, in a dialog, instead of
+  // sitting as three dropdowns in the middle of the document.
+  const [filing, setFiling] = useState(false);
   const notes = useWatch({ control, name: 'notes' });
 
   return (
     <form
+      id="invoice-form"
       onSubmit={handleSubmit(onSubmit)}
       className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_220px]"
       noValidate
@@ -299,36 +308,12 @@ export function InvoiceForm({
             {/* who it is to, and when it falls due */}
             <div className="mt-8 grid gap-8 sm:grid-cols-[minmax(0,1fr)_260px]">
               <div>
-                <label className="text-muted text-sm" htmlFor="invoice-client">
-                  Bill to
-                </label>
-                <div className="mt-1.5">
-                  <FormSelect
-                    id="invoice-client"
-                    control={control}
-                    name="clientId"
-                    placeholder="Pick a contact"
-                    options={clients.map((entry) => ({ value: entry.id, label: entry.name }))}
-                  />
-                </div>
-
-                {client?.email && <p className="text-muted mt-1.5 text-sm">{client.email}</p>}
-
-                <label className="text-muted mt-4 block text-sm" htmlFor="invoice-project">
-                  For
-                </label>
-                <div className="mt-1.5">
-                  <FormSelect
-                    id="invoice-project"
-                    control={control}
-                    name="projectId"
-                    placeholder="No project"
-                    options={projects.map((project) => ({
-                      value: project.id,
-                      label: project.name,
-                    }))}
-                  />
-                </div>
+                <p className="text-muted text-sm">Bill to</p>
+                <p className="mt-1.5 font-medium">{client?.name ?? 'Nobody yet'}</p>
+                {client?.email && <p className="text-muted text-sm">{client.email}</p>}
+                {chosenProject && (
+                  <p className="text-muted mt-2 text-sm">For {chosenProject.name}</p>
+                )}
               </div>
 
               <dl className="space-y-4 text-sm">
@@ -342,16 +327,11 @@ export function InvoiceForm({
                   <dt className="text-muted">Date issued</dt>
                   <dd className="text-muted">When you send it</dd>
                 </div>
-                <div>
-                  <label className="text-muted block" htmlFor="invoice-due">
-                    Payment due
-                  </label>
-                  <input
-                    id="invoice-due"
-                    type="date"
-                    className="input mt-1.5"
-                    {...register('dueAt')}
-                  />
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-muted">Payment due</dt>
+                  <dd className={dueDate ? 'font-medium' : 'text-muted'}>
+                    {dueDate ? formatDate(new Date(`${dueDate}T00:00`)) : 'Not set'}
+                  </dd>
                 </div>
                 <div className="border-line flex items-center justify-between gap-4 border-t pt-4">
                   <dt className="font-medium">Balance due</dt>
@@ -476,12 +456,87 @@ export function InvoiceForm({
 
         {formError && <p className="field-error mt-4">{formError}</p>}
 
-        <div className="mt-6 flex items-center gap-4">
+        <div className="mt-6 flex flex-wrap items-center gap-3">
           <button type="submit" className="btn-primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving…' : invoiceId ? 'Save changes' : 'Save draft'}
+            {isSubmitting ? 'Saving…' : invoiceId ? 'Save changes' : 'Save as draft'}
           </button>
-          <p className="text-muted text-sm">Nothing is sent until you send it.</p>
+          <button
+            type="button"
+            onClick={() => setFiling(true)}
+            className="border-line hover:border-accent rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
+          >
+            Client, project and dates
+          </button>
+          <p className="text-muted text-sm">
+            {chosenProject ? `On ${chosenProject.name}.` : 'Not on a project.'} Nothing is sent
+            until you send it.
+          </p>
         </div>
+
+        {filing && (
+          <Dialog fit width={460} title="Who it is for" onClose={() => setFiling(false)}>
+            <div className="space-y-4">
+              <div>
+                <label className="label" htmlFor="invoice-client">
+                  Bill to
+                </label>
+                <FormSelect
+                  id="invoice-client"
+                  control={control}
+                  name="clientId"
+                  placeholder="Pick a contact"
+                  options={clients.map((entry) => ({ value: entry.id, label: entry.name }))}
+                />
+                {errors.clientId && <p className="field-error">{errors.clientId.message}</p>}
+              </div>
+
+              <div>
+                <label className="label" htmlFor="invoice-project">
+                  Project
+                </label>
+                <FormSelect
+                  id="invoice-project"
+                  control={control}
+                  name="projectId"
+                  placeholder="No project"
+                  options={projects.map((project) => ({
+                    value: project.id,
+                    label: project.name,
+                  }))}
+                />
+                <p className="text-muted mt-1.5 text-xs">
+                  {projects.length === 0
+                    ? 'This client has no projects yet. It can be filed later from the invoices list.'
+                    : 'Optional. An invoice can stand on its own and be filed later.'}
+                </p>
+              </div>
+
+              <div>
+                <label className="label" htmlFor="invoice-due">
+                  Payment due
+                </label>
+                <input id="invoice-due" type="date" className="input" {...register('dueAt')} />
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center gap-3">
+              {/* The dialog is mounted on the body, so it reaches the form
+                  by name rather than by sitting inside it. */}
+              <button
+                type="submit"
+                form="invoice-form"
+                disabled={isSubmitting}
+                onClick={() => setFiling(false)}
+                className="btn-primary"
+              >
+                {isSubmitting ? 'Saving…' : 'Save'}
+              </button>
+              <button type="button" onClick={() => setFiling(false)} className="btn-ghost">
+                Done
+              </button>
+            </div>
+          </Dialog>
+        )}
       </div>
 
       {/* --- how it will look ---------------------------------------- */}

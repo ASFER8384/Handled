@@ -29,6 +29,8 @@ export type InvoiceRow = {
   /** Both needed before it can be emailed: it is sent from the project. */
   projectId: string | null;
   clientEmail: string | null;
+  /** Where this one could be filed, if it is not on a project yet. */
+  clientProjects: { id: string; name: string }[];
 };
 
 const STATUSES = [
@@ -184,7 +186,9 @@ export function InvoicesTable({ rows, currency }: { rows: InvoiceRow[]; currency
                 <td className="px-5 py-3">
                   <StatusBadge status={row.status} />
                 </td>
-                <td className="text-muted px-5 py-3">{row.project ?? '—'}</td>
+                <td className="text-muted px-5 py-3">
+                  {row.project ?? <FileOnProject row={row} onFiled={() => router.refresh()} />}
+                </td>
                 <td className="px-5 py-3">{row.client}</td>
                 <td className="px-5 py-3 text-right tabular-nums">
                   {formatMoney(row.totalCents, currency)}
@@ -265,5 +269,50 @@ export function InvoicesTable({ rows, currency }: { rows: InvoiceRow[]; currency
         )}
       </div>
     </>
+  );
+}
+
+/**
+ * An invoice standing on its own, offered the projects it could belong to.
+ *
+ * Which project an invoice is filed under is not part of the document, so it
+ * can be answered later - and later is usually when you know. A client with no
+ * projects is told so rather than shown an empty list.
+ */
+function FileOnProject({ row, onFiled }: { row: InvoiceRow; onFiled: () => void }) {
+  const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  if (row.clientProjects.length === 0) {
+    return <span className="text-muted/70">No projects</span>;
+  }
+
+  async function file(projectId: string) {
+    setSaving(true);
+    setFailed(false);
+    const { error } = await api(`/api/invoices/${row.id}/project`, {
+      method: 'PATCH',
+      body: { projectId },
+    });
+    setSaving(false);
+    if (error) {
+      setFailed(true);
+      return;
+    }
+    onFiled();
+  }
+
+  return (
+    <span className="block max-w-[190px]">
+      <Select
+        ariaLabel={`Put ${row.number} on a project`}
+        value={null}
+        disabled={saving}
+        placeholder={saving ? 'Filing…' : 'Add to project'}
+        options={row.clientProjects.map((project) => ({ value: project.id, label: project.name }))}
+        onChange={file}
+      />
+      {failed && <span className="field-error">Could not file it</span>}
+    </span>
   );
 }
