@@ -18,9 +18,12 @@ export default async function ContactsPage() {
   const contacts: ContactRow[] = clients.map((client) => {
     // Being a project's client and being added to one both count, and the
     // same project must not appear twice.
-    const projects = [...client.projects, ...client.projectContacts.map((row) => row.project)].filter(
-      (entry, index, all) => all.findIndex((other) => other.id === entry.id) === index,
-    );
+    const projects = [
+      // Their own projects first: being the client is the stronger tie, and
+      // it is the one that cannot simply be undone.
+      ...client.projects.map((entry) => ({ ...entry, role: 'client' as const })),
+      ...client.projectContacts.map((row) => ({ ...row.project, role: 'contact' as const })),
+    ].filter((entry, index, all) => all.findIndex((other) => other.id === entry.id) === index);
 
     return {
       id: client.id,
@@ -32,7 +35,7 @@ export default async function ContactsPage() {
       tags: client.tags,
       // Where they came from is a fact about their work, so it is read off it.
       source: projects.find((entry) => entry.leadSource)?.leadSource ?? null,
-      projects: projects.map((entry) => ({ id: entry.id, name: entry.name })),
+      projects: projects.map((entry) => ({ id: entry.id, name: entry.name, role: entry.role })),
     };
   });
 

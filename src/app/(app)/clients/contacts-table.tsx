@@ -18,7 +18,7 @@ export type ContactRow = {
   lastInteractionAt: string | null;
   source: string | null;
   tags: string[];
-  projects: { id: string; name: string }[];
+  projects: { id: string; name: string; role: 'client' | 'contact' }[];
 };
 
 /** The address book: everyone you work with, and the work they are attached to. */
@@ -31,6 +31,7 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
   const [editing, setEditing] = useState<ContactRow | null>(null);
   const [placing, setPlacing] = useState<ContactRow | null>(null);
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const term = search.trim().toLowerCase();
   const shown = term
@@ -52,6 +53,21 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
     await api('/api/clients/bulk', { method: 'POST', body: { ids: picked, action, tags } });
     setBusy(false);
     setChosen([]);
+    router.refresh();
+  }
+
+  /** Takes a contact off one project, leaving the contact and the project. */
+  async function unlink(projectId: string, contactId: string) {
+    setBusy(true);
+    const { error: failure } = await api(`/api/projects/${projectId}/contacts/${contactId}`, {
+      method: 'DELETE',
+    });
+    setBusy(false);
+    if (failure) {
+      setNotice(failure.error);
+      return;
+    }
+    setNotice(null);
     router.refresh();
   }
 
@@ -143,13 +159,34 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
                   ) : (
                     <span className="flex flex-wrap gap-1.5">
                       {contact.projects.map((project) => (
-                        <Link
+                        <span
                           key={project.id}
-                          href={`/projects/${project.id}`}
-                          className="rounded-full bg-black/[0.05] px-2.5 py-1 text-xs hover:underline"
+                          className="group/chip flex items-center gap-1 rounded-full bg-black/[0.05] py-1 pr-1.5 pl-2.5 text-xs"
                         >
-                          {project.name}
-                        </Link>
+                          <Link href={`/projects/${project.id}`} className="hover:underline">
+                            {project.name}
+                          </Link>
+                          {project.role === 'contact' ? (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => void unlink(project.id, contact.id)}
+                              aria-label={`Take ${contact.name} off ${project.name}`}
+                              title={`Take ${contact.name} off ${project.name}`}
+                              className="text-muted hover:text-accent opacity-0 transition-opacity group-hover/chip:opacity-100 disabled:opacity-30"
+                            >
+                              <CrossIcon />
+                            </button>
+                          ) : (
+                            <span
+                              title={`${contact.name} is the client this project is for`}
+                              aria-label="Client of this project"
+                              className="text-muted"
+                            >
+                              <LockIcon />
+                            </span>
+                          )}
+                        </span>
                       ))}
                     </span>
                   )}
@@ -321,6 +358,12 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
         </div>
       )}
 
+      {notice && (
+        <p className="field-error mt-3" role="status">
+          {notice}
+        </p>
+      )}
+
       {creating && <NewContactDialog onClose={() => setCreating(false)} />}
       {editing && <EditContactDialog contact={editing} onClose={() => setEditing(null)} />}
       {placing && (
@@ -353,6 +396,40 @@ function BarButton({
     >
       {children}
     </button>
+  );
+}
+
+function CrossIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-3 w-3"
+      aria-hidden
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+    >
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-3 w-3"
+      aria-hidden
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="5" y="10.5" width="14" height="9" rx="2" />
+      <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+    </svg>
   );
 }
 

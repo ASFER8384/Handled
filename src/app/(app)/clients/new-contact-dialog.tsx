@@ -10,9 +10,9 @@ import { DEFAULT_ISO, findCountry } from '@/lib/countries';
 type ProjectOption = { id: string; name: string };
 
 /**
- * A contact made here always lands on a project — an existing one, or a new
- * one opened in the same breath. A name with no work attached to it is an
- * address book entry, and this page is for the people you are working with.
+ * A contact, optionally landing on a project as it is made: an existing one,
+ * or a new one opened in the same breath. Somebody can just as well be in the
+ * book with no work attached to them yet.
  */
 export function NewContactDialog({ onClose }: { onClose: () => void }) {
   const router = useRouter();
@@ -68,6 +68,14 @@ export function NewContactDialog({ onClose }: { onClose: () => void }) {
       return;
     }
 
+    // No project asked for: the contact is saved and that is the whole job.
+    if (projectId === '') {
+      setBusy(false);
+      router.refresh();
+      onClose();
+      return;
+    }
+
     // A chosen project takes them on; NEW opens one. A typed name that turns
     // out to match an existing project joins that rather than making a second.
     const wanted = newProject.trim();
@@ -98,8 +106,9 @@ export function NewContactDialog({ onClose }: { onClose: () => void }) {
     onClose();
   }
 
-  const chosen = projectId !== '' && (projectId !== 'new' || newProject.trim() !== '');
-  const ready = name.trim() !== '' && email.trim() !== '' && chosen;
+  // A project is optional, but a half-named new one is not a project yet.
+  const projectSettled = projectId !== 'new' || newProject.trim() !== '';
+  const ready = name.trim() !== '' && email.trim() !== '' && projectSettled;
 
   return (
     <Dialog
@@ -177,7 +186,7 @@ export function NewContactDialog({ onClose }: { onClose: () => void }) {
 
         <div>
           <label className="label" htmlFor="new-contact-project">
-            Project <span aria-hidden>*</span>
+            Project
           </label>
           <select
             id="new-contact-project"
@@ -186,8 +195,8 @@ export function NewContactDialog({ onClose }: { onClose: () => void }) {
             onChange={(event) => setProjectId(event.target.value)}
             className="input-soft"
           >
-            <option value="" disabled>
-              {projects === null ? 'Loading your projects…' : 'Pick a project'}
+            <option value="">
+              {projects === null ? 'Loading your projects…' : 'No project for now'}
             </option>
             {(projects ?? []).map((entry) => (
               <option key={entry.id} value={entry.id}>
@@ -209,7 +218,8 @@ export function NewContactDialog({ onClose }: { onClose: () => void }) {
           )}
 
           <p className="text-muted mt-1.5 text-xs">
-            Every contact belongs to at least one project.
+            Leave this alone to just save them to your contacts; you can put them on a project
+            whenever the work turns up.
           </p>
         </div>
 
