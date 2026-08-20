@@ -51,6 +51,7 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
   const [picked, setPicked] = useState<string | null>(null);
   const [creating, setCreating] = useState<string | null>(null);
   const [connectOpen, setConnectOpen] = useState(false);
+  const [listOpen, setListOpen] = useState(true);
 
   const shown = events.filter((event) => !off.includes(event.layer));
 
@@ -110,6 +111,33 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
       {/* --- Today, where you are, the zone, and how much to show ------- */}
       <div className="border-line flex flex-wrap items-center justify-between gap-4 border-b px-6 py-3">
         <div className="flex items-center gap-4">
+          {/* Folding the list away gives the grid the whole width, which is
+              what a narrow window actually needs. */}
+          <Tip label={listOpen ? 'Hide what is drawn' : 'Show what is drawn'}>
+            <button
+              type="button"
+              onClick={() => setListOpen((open) => !open)}
+              aria-pressed={listOpen}
+              aria-label={listOpen ? 'Hide what is drawn' : 'Show what is drawn'}
+              className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+                listOpen ? 'bg-accent-soft/70 text-accent' : 'text-muted hover:bg-accent-soft/50'
+              }`}
+            >
+              <svg
+                aria-hidden
+                viewBox="0 0 24 24"
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="4.5" width="18" height="15" rx="2" />
+                <path d="M9.5 4.5v15" />
+              </svg>
+            </button>
+          </Tip>
+
           <button
             type="button"
             onClick={() => {
@@ -170,7 +198,7 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
 
       <div className="flex min-h-0 flex-1">
         {/* --- what is drawn ------------------------------------------- */}
-        <aside className="w-[230px] shrink-0 overflow-y-auto px-6 py-5">
+        <aside hidden={!listOpen} className="w-[214px] shrink-0 overflow-y-auto px-5 py-5">
           <button
             type="button"
             onClick={() => setConnectOpen((open) => !open)}
@@ -316,7 +344,9 @@ function TimeGrid({
       : 'grid-cols-[68px_repeat(7,minmax(0,1fr))]';
 
   return (
-    <div className="flex h-full min-w-[900px] flex-col">
+    <div
+      className={`flex h-full flex-col ${days.length === 1 ? 'min-w-[560px]' : 'min-w-[1040px]'}`}
+    >
       {/* the days themselves */}
       <div className={`border-line grid border-b ${columns}`}>
         <span />
