@@ -74,13 +74,24 @@ label:has(input[type='checkbox']) {
     @apply placeholder:text-muted/80 focus:ring-accent/25 h-9 w-full rounded-md bg-black/[0.035] px-3 text-sm outline-none focus:bg-black/[0.05] focus:ring-2;
   }
 
-  /* Fields written straight onto a document: no box until you are in one, so
-     the page reads as the invoice it will be rather than as a form. */
   /* On the invoice sheet: the page is white, so anything you can type into
      wears a faint grey to say so. It is the fields that have to be findable,
      not the paper. */
   .input-plain {
     @apply placeholder:text-muted/70 focus:ring-accent/30 w-full rounded-md bg-black/[0.035] px-2 py-1.5 text-sm outline-none hover:bg-black/[0.06] focus:bg-white focus:ring-2;
+  }
+
+  /* The spinner arrows sit inside the field and push the figure off the right
+     edge it is supposed to line up with, in a column that is nothing but
+     right edges. Typing or selecting still works without them. */
+  .input-plain[type='number'] {
+    appearance: textfield;
+  }
+
+  .input-plain[type='number']::-webkit-inner-spin-button,
+  .input-plain[type='number']::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
   }
 
   .input {

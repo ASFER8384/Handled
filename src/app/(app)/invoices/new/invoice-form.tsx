@@ -349,17 +349,17 @@ export function InvoiceForm({
               <table className="mt-10 w-full text-sm">
                 <thead>
                   <tr className="text-muted border-line border-b text-xs tracking-widest uppercase">
-                    <th className="py-3 text-left font-medium">Service info</th>
-                    <th className="w-20 py-3 text-right font-medium">Qty</th>
-                    <th className="w-36 py-3 text-right font-medium">Unit price</th>
-                    <th className="w-32 py-3 text-right font-medium">Total</th>
+                    <th className="py-3 pl-2 text-left font-medium">Service info</th>
+                    <th className="w-20 py-3 pr-2 text-right font-medium">Qty</th>
+                    <th className="w-36 py-3 pr-2 text-right font-medium">Unit price</th>
+                    <th className="w-32 py-3 pr-2 text-right font-medium">Total</th>
                     <th className="w-8" />
                   </tr>
                 </thead>
                 <tbody className="divide-line divide-y">
                   {fields.map((field, index) => (
                     <tr key={field.id} className="align-top">
-                      <td className="py-2 pr-3">
+                      <td className="py-2">
                         <input
                           aria-label={`Line ${index + 1} description`}
                           placeholder="What this line is for"
@@ -372,7 +372,7 @@ export function InvoiceForm({
                           <p className="field-error">{errors.items[index]?.description?.message}</p>
                         )}
                       </td>
-                      <td className="py-2">
+                      <td className="py-2 pl-3">
                         <input
                           aria-label={`Line ${index + 1} quantity`}
                           type="number"
@@ -381,7 +381,7 @@ export function InvoiceForm({
                           {...register(`items.${index}.quantity`, { valueAsNumber: true, min: 1 })}
                         />
                       </td>
-                      <td className="py-2">
+                      <td className="py-2 pl-3">
                         <input
                           aria-label={`Line ${index + 1} unit price`}
                           inputMode="decimal"
@@ -390,15 +390,15 @@ export function InvoiceForm({
                           {...register(`items.${index}.unitPrice`)}
                         />
                       </td>
-                      <td className="py-4 text-right tabular-nums">
-                        {formatMoney(lineTotal(index), currency)}
+                      <td className="py-2 pr-2 pl-3 text-right tabular-nums">
+                        <span className="block py-1.5">{formatMoney(lineTotal(index), currency)}</span>
                       </td>
-                      <td className="py-4 text-right">
+                      <td className="py-2 text-right">
                         {fields.length > 1 && (
                           <button
                             type="button"
                             aria-label={`Remove line ${index + 1}`}
-                            className="text-muted text-sm hover:text-red-700"
+                            className="text-muted block w-full py-1.5 text-sm hover:text-red-700"
                             onClick={() => remove(index)}
                           >
                             ✕
@@ -419,7 +419,7 @@ export function InvoiceForm({
                   Add line
                 </button>
 
-                <dl className="w-full max-w-[280px] text-sm">
+                <dl className="mr-8 w-full max-w-[280px] pr-2 text-sm">
                   <div className="flex justify-between py-1.5">
                     <dt className="text-muted">Subtotal</dt>
                     <dd className="tabular-nums">{formatMoney(subtotal, currency)}</dd>
