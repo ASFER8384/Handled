@@ -39,6 +39,8 @@ export const POST = handler(async (ctx, request: Request) => {
         number: await nextInvoiceNumber(tx, ctx.workspaceId),
         themeColor: data.themeColor ?? 'ink',
         themeFont: data.themeFont ?? 'sans',
+        taxRateBp: data.taxRateBp ?? 0,
+        taxLabel: data.taxLabel ?? null,
         dueAt: data.dueAt ?? null,
         notes: data.notes ?? null,
         items: {

@@ -225,6 +225,10 @@ export const invoiceSchema = z.object({
   notes: optionalText(2000),
   themeColor: z.string().max(20).optional(),
   themeFont: z.string().max(20).optional(),
+  /// Snapshotted from the workspace when written, so a later rate change does
+  /// not quietly restate an invoice that has already gone out.
+  taxRateBp: z.coerce.number().int().min(0).max(10000).optional(),
+  taxLabel: z.string().trim().max(20).optional(),
   items: z.array(invoiceItemSchema).min(1, 'Add at least one line item'),
 });
 
@@ -367,7 +371,24 @@ export type InvoiceTemplateInput = z.input<typeof invoiceTemplateSchema>;
 
 export const accountSchema = z.object({
   name: z.string().trim().min(1, 'Your name cannot be blank').max(80),
+  jobTitle: optionalText(60),
+  phoneCode: optionalText(8),
+  phone: optionalText(40),
+  address: optionalText(300),
 });
+
+export const passwordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Enter your current password'),
+    newPassword: z.string().min(10, 'Ten characters or more'),
+    confirm: z.string(),
+  })
+  .refine((values) => values.newPassword === values.confirm, {
+    message: 'Those two do not match',
+    path: ['confirm'],
+  });
+
+export type PasswordInput = z.input<typeof passwordSchema>;
 
 const link = z.string().trim().max(200).optional();
 
@@ -399,5 +420,19 @@ export const companySchema = z.object({
   themeFont: z.string().max(20).optional(),
 });
 
+export const bankSchema = z.object({
+  bankName: optionalText(80),
+  bankAccountName: optionalText(80),
+  bankAccountNumber: optionalText(40),
+  bankIban: optionalText(40),
+  bankSwift: optionalText(20),
+  bankNotes: optionalText(600),
+  taxLabel: z.string().trim().max(20).optional(),
+  taxNumber: optionalText(40),
+  /// Basis points, so 5% is 500 and half a percent is representable.
+  taxRateBp: z.coerce.number().int().min(0).max(10000).optional(),
+});
+
+export type BankInput = z.input<typeof bankSchema>;
 export type AccountInput = z.input<typeof accountSchema>;
 export type CompanyInput = z.input<typeof companySchema>;

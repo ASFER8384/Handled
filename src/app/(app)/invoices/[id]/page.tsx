@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
-import { balanceCents, formatMoney, paidCents, subtotalCents } from '@/lib/money';
+import { balanceCents, formatMoney, paidCents, subtotalCents, taxCents } from '@/lib/money';
 import { PageHeader, StatusBadge, formatDate } from '@/components/ui';
 import { InvoiceActions } from './invoice-actions';
 import { SaveAsTemplate } from './save-as-template';
@@ -28,9 +28,10 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
 
   const brand = await companyBrand(ctx.workspaceId, ctx.userEmail);
 
-  const total = subtotalCents(invoice.items);
+  const subtotal = subtotalCents(invoice.items);
+  const tax = taxCents(invoice.items, invoice.taxRateBp);
   const paid = paidCents(invoice.payments);
-  const balance = balanceCents(invoice.items, invoice.payments);
+  const balance = balanceCents(invoice.items, invoice.payments, invoice.taxRateBp);
 
   return (
     <>
@@ -88,7 +89,13 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
             issuedAt={invoice.issuedAt}
             dueAt={invoice.dueAt}
             items={invoice.items}
-            subtotal={total}
+            subtotal={subtotal}
+            tax={tax}
+            taxLabel={invoice.taxLabel ?? brand.taxLabel}
+            taxRateBp={invoice.taxRateBp}
+            taxNumber={brand.taxNumber}
+            pay={brand.pay}
+            payNotes={brand.payNotes}
             paid={paid}
             balance={balance}
             currency={ctx.currency}

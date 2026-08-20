@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
 import { sweepDueEmails } from '@/lib/messages';
-import { balanceCents, formatMoney, paidCents, subtotalCents } from '@/lib/money';
+import { balanceCents, formatMoney, paidCents, totalCents } from '@/lib/money';
 import { EmptyState, StatusBadge, formatDate } from '@/components/ui';
 import { LEAD_SOURCES, PROJECT_TYPES } from '@/lib/stages';
 import { TypeSelect } from './type-select';
@@ -97,7 +97,10 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
     ...new Set([...PROJECT_TYPES, ...usedTypes.map((row) => row.type as string)]),
   ].sort();
 
-  const invoiced = project.invoices.reduce((sum, invoice) => sum + subtotalCents(invoice.items), 0);
+  const invoiced = project.invoices.reduce(
+    (sum, invoice) => sum + totalCents(invoice.items, invoice.taxRateBp),
+    0,
+  );
   const paid = project.invoices.reduce((sum, invoice) => sum + paidCents(invoice.payments), 0);
 
   return (
@@ -340,13 +343,16 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
                         </Link>
                         <p className="text-muted text-sm">
                           Balance{' '}
-                          {formatMoney(balanceCents(invoice.items, invoice.payments), ctx.currency)}
+                          {formatMoney(
+                            balanceCents(invoice.items, invoice.payments, invoice.taxRateBp),
+                            ctx.currency,
+                          )}
                         </p>
                       </div>
                       <div className="flex items-center gap-4">
                         <StatusBadge status={invoice.status} />
                         <span className="font-medium tabular-nums">
-                          {formatMoney(subtotalCents(invoice.items), ctx.currency)}
+                          {formatMoney(totalCents(invoice.items, invoice.taxRateBp), ctx.currency)}
                         </span>
                       </div>
                     </li>

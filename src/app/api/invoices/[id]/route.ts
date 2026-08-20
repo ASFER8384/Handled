@@ -52,6 +52,8 @@ export const PUT = handler(async (ctx, request: Request, { params }: Params) => 
         notes: data.notes ?? null,
         themeColor: data.themeColor ?? 'ink',
         themeFont: data.themeFont ?? 'sans',
+        taxRateBp: data.taxRateBp ?? 0,
+        taxLabel: data.taxLabel ?? null,
         items: {
           create: data.items.map((item, position) => ({
             description: item.description,

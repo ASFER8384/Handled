@@ -1,5 +1,6 @@
 import { formatMoney } from '@/lib/money';
 import { formatDate } from '@/components/ui';
+import { formatRate } from '@/lib/money';
 import { invoiceTheme } from '@/lib/invoice-theme';
 
 type Line = {
@@ -27,10 +28,16 @@ export function InvoiceSheet({
   dueAt,
   items,
   subtotal,
+  tax,
+  taxLabel,
+  taxRateBp,
+  taxNumber,
   paid,
   balance,
   currency,
   notes,
+  pay,
+  payNotes,
   themeColor,
   themeFont,
 }: {
@@ -46,10 +53,18 @@ export function InvoiceSheet({
   dueAt: Date | null;
   items: Line[];
   subtotal: number;
+  /** Nothing is drawn for it when the rate is nothing. */
+  tax?: number;
+  taxLabel?: string;
+  taxRateBp?: number;
+  taxNumber?: string | null;
   paid: number;
   balance: number;
   currency: string;
   notes: string | null;
+  /** Where to send the money, as label and value pairs. */
+  pay?: [string, string][];
+  payNotes?: string | null;
   /** How it is painted, as chosen when it was written. */
   themeColor?: string | null;
   themeFont?: string | null;
@@ -145,6 +160,14 @@ export function InvoiceSheet({
             <dt className="text-muted">Subtotal</dt>
             <dd className="tabular-nums">{formatMoney(subtotal, currency)}</dd>
           </div>
+          {Boolean(taxRateBp) && (
+            <div className="flex justify-between py-1.5">
+              <dt className="text-muted">
+                {taxLabel ?? 'VAT'} {formatRate(taxRateBp ?? 0)}
+              </dt>
+              <dd className="tabular-nums">{formatMoney(tax ?? 0, currency)}</dd>
+            </div>
+          )}
           <div className="flex justify-between py-1.5">
             <dt className="text-muted">Paid</dt>
             <dd className="tabular-nums">{formatMoney(paid, currency)}</dd>
@@ -157,6 +180,26 @@ export function InvoiceSheet({
           </div>
         </dl>
       </div>
+
+      {(pay?.length || payNotes) && (
+        <section className="border-line mt-10 border-t pt-5">
+          <p className="text-muted text-xs tracking-widest uppercase">How to pay</p>
+          <dl className="mt-2 grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
+            {pay?.map(([label, value]) => (
+              <div key={label} className="flex justify-between gap-4">
+                <dt className="text-muted">{label}</dt>
+                <dd className="text-right font-medium">{value}</dd>
+              </div>
+            ))}
+          </dl>
+          {payNotes && <p className="text-muted mt-2 text-sm whitespace-pre-wrap">{payNotes}</p>}
+          {taxNumber && (
+            <p className="text-muted mt-2 text-sm">
+              {taxLabel ?? 'VAT'} registration {taxNumber}
+            </p>
+          )}
+        </section>
+      )}
 
       {notes && (
         <footer className="border-line mt-10 border-t pt-5">

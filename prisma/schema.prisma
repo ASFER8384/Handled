@@ -18,6 +18,11 @@ model User {
   id            String   @id @default(cuid())
   name          String
   email         String   @unique
+  /// The person, as distinct from the business they run.
+  jobTitle      String?
+  phoneCode     String?
+  phone         String?
+  address       String?
   emailVerified Boolean  @default(false)
   image         String?
   createdAt     DateTime @default(now())
@@ -120,6 +125,19 @@ model Workspace {
   socials   Json     @default("{}")
   /// The one colour that is theirs, used wherever a client sees them.
   brandColor String  @default("#c25a3a")
+  /// Where the money is sent, printed on anything asking for it.
+  bankName          String?
+  bankAccountName   String?
+  bankAccountNumber String?
+  bankIban          String?
+  bankSwift         String?
+  /// Anything else a payer needs: a reference format, a branch, a note.
+  bankNotes         String?
+  /// What the tax is called here, its registration number, and the rate in
+  /// basis points — 500 is 5%, so a half-percent is representable.
+  taxLabel   String  @default("VAT")
+  taxNumber  String?
+  taxRateBp  Int     @default(0)
   /// Uploaded marks. The bytes live outside public/, served by a route that
   /// checks the workspace first.
   logoKey         String?
@@ -442,6 +460,10 @@ model Invoice {
   /// invoice so the one you send stays the one they see.
   themeColor String       @default("ink")
   themeFont  String       @default("sans")
+  /// The tax charged on this invoice, snapshotted when it was written: a rate
+  /// changed next year must not rewrite what was already sent.
+  taxRateBp Int          @default(0)
+  taxLabel  String?
   issuedAt  DateTime?
   dueAt     DateTime?
   notes     String?

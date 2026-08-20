@@ -1,41 +1,68 @@
+import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
-import { formatDate } from '@/components/ui';
 import { AccountForm } from './account-form';
+import { PasswordForm } from './password-form';
 
-export default async function AccountSettingsPage() {
+/** Two, both real: who you are, and what keeps other people out. */
+const SECTIONS = [
+  { key: 'info', label: 'Account info' },
+  { key: 'security', label: 'Security' },
+];
+
+export default async function AccountSettingsPage(props: PageProps<'/settings/account'>) {
   const ctx = await requireWorkspace();
+  const params = await props.searchParams;
+  const asked = typeof params.section === 'string' ? params.section : 'info';
+  const section = SECTIONS.find((entry) => entry.key === asked) ?? SECTIONS[0];
 
-  const [user, membership] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: ctx.userId },
-      select: { name: true, email: true, createdAt: true },
-    }),
-    prisma.membership.findFirst({
-      where: { userId: ctx.userId, workspaceId: ctx.workspaceId },
-      select: { role: true },
-    }),
-  ]);
+  const user = await prisma.user.findUnique({
+    where: { id: ctx.userId },
+    select: {
+      name: true,
+      email: true,
+      jobTitle: true,
+      phoneCode: true,
+      phone: true,
+      address: true,
+    },
+  });
 
   return (
-    <div className="space-y-8">
-      <AccountForm name={user?.name ?? ctx.userName} email={user?.email ?? ctx.userEmail} />
+    <div className="grid gap-10 lg:grid-cols-[200px_minmax(0,1fr)]">
+      <nav className="space-y-0.5">
+        {SECTIONS.map((entry) => (
+          <Link
+            key={entry.key}
+            href={`/settings/account?section=${entry.key}`}
+            aria-current={entry.key === section.key ? 'page' : undefined}
+            className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
+              entry.key === section.key
+                ? 'bg-accent-soft/60 font-medium'
+                : 'text-muted hover:bg-accent-soft/30'
+            }`}
+          >
+            {entry.label}
+          </Link>
+        ))}
+      </nav>
 
-      <section className="card max-w-xl overflow-hidden">
-        <h2 className="border-line border-b px-6 py-4 font-medium">This workspace</h2>
-        <dl className="divide-line divide-y">
-          {[
-            ['Business', ctx.workspaceName],
-            ['Your role', (membership?.role ?? 'OWNER').toLowerCase()],
-            ['With Handled since', formatDate(user?.createdAt ?? null)],
-          ].map(([label, value]) => (
-            <div key={label} className="flex flex-wrap justify-between gap-4 px-6 py-3">
-              <dt className="text-muted text-sm">{label}</dt>
-              <dd className="text-sm font-medium capitalize">{value}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
+      <div className="min-w-0">
+        {section.key === 'info' ? (
+          <AccountForm
+            email={user?.email ?? ctx.userEmail}
+            phoneCode={user?.phoneCode ?? ''}
+            values={{
+              name: user?.name ?? ctx.userName,
+              jobTitle: user?.jobTitle ?? '',
+              phone: user?.phone ?? '',
+              address: user?.address ?? '',
+            }}
+          />
+        ) : (
+          <PasswordForm />
+        )}
+      </div>
     </div>
   );
 }

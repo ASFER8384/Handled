@@ -42,6 +42,28 @@ export function subtotalCents(items: readonly LineItem[]): number {
   return items.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0);
 }
 
+/**
+ * Tax on the subtotal, at a rate held in basis points — 500 is 5%.
+ *
+ * Rounded once, on the whole invoice, rather than per line: rounding each line
+ * and adding them up is how a total comes out a fil away from the same sum
+ * done on paper.
+ */
+export function taxCents(items: readonly LineItem[], rateBp: number): number {
+  if (!rateBp) return 0;
+  return Math.round((subtotalCents(items) * rateBp) / 10000);
+}
+
+/** What is actually owed: the lines plus whatever tax is charged on them. */
+export function totalCents(items: readonly LineItem[], rateBp = 0): number {
+  return subtotalCents(items) + taxCents(items, rateBp);
+}
+
+/** A rate as it is written: 500 -> "5%", 250 -> "2.5%". */
+export function formatRate(rateBp: number): string {
+  return `${(rateBp / 100).toFixed(rateBp % 100 === 0 ? 0 : 2).replace(/0$/, '')}%`;
+}
+
 export function paidCents(payments: readonly { amountCents: number }[]): number {
   return payments.reduce((sum, payment) => sum + payment.amountCents, 0);
 }
@@ -49,6 +71,7 @@ export function paidCents(payments: readonly { amountCents: number }[]): number 
 export function balanceCents(
   items: readonly LineItem[],
   payments: readonly { amountCents: number }[],
+  rateBp = 0,
 ): number {
-  return subtotalCents(items) - paidCents(payments);
+  return totalCents(items, rateBp) - paidCents(payments);
 }

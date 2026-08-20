@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
-import { balanceCents, subtotalCents } from '@/lib/money';
+import { balanceCents, totalCents } from '@/lib/money';
 import { EmptyState, PageHeader } from '@/components/ui';
 import { InvoicesTable, type InvoiceRow } from './invoices-table';
 
@@ -26,8 +26,8 @@ export default async function InvoicesPage() {
     project: invoice.project?.name ?? null,
     updatedAt: invoice.updatedAt.toISOString(),
     dueAt: invoice.dueAt ? invoice.dueAt.toISOString() : null,
-    totalCents: subtotalCents(invoice.items),
-    balanceCents: balanceCents(invoice.items, invoice.payments),
+    totalCents: totalCents(invoice.items, invoice.taxRateBp),
+    balanceCents: balanceCents(invoice.items, invoice.payments, invoice.taxRateBp),
     hasPayments: invoice.payments.length > 0,
   }));
 

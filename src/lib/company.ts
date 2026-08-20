@@ -24,6 +24,15 @@ export async function companyBrand(workspaceId: string, fallbackEmail: string) {
       region: true,
       country: true,
       logoKey: true,
+      bankName: true,
+      bankAccountName: true,
+      bankAccountNumber: true,
+      bankIban: true,
+      bankSwift: true,
+      bankNotes: true,
+      taxLabel: true,
+      taxNumber: true,
+      taxRateBp: true,
       themeColor: true,
       themeFont: true,
     },
@@ -44,8 +53,22 @@ export async function companyBrand(workspaceId: string, fallbackEmail: string) {
     .map((line) => (line ?? '').trim())
     .filter(Boolean);
 
+  // Only the lines that were filled in, in the order a payer reads them.
+  const pay = [
+    ['Bank', workspace?.bankName],
+    ['Account name', workspace?.bankAccountName],
+    ['Account number', workspace?.bankAccountNumber],
+    ['IBAN', workspace?.bankIban],
+    ['SWIFT', workspace?.bankSwift],
+  ].filter((entry): entry is [string, string] => Boolean(entry[1]));
+
   return {
     name: workspace?.name ?? '',
+    pay,
+    payNotes: workspace?.bankNotes ?? null,
+    taxLabel: workspace?.taxLabel ?? 'VAT',
+    taxNumber: workspace?.taxNumber ?? null,
+    taxRateBp: workspace?.taxRateBp ?? 0,
     contact,
     address: parts.length > 0 ? parts.join('\n') : (workspace?.address ?? null),
     logo: workspace?.logoKey ? '/api/settings/company/logo/main' : null,

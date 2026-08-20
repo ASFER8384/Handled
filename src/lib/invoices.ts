@@ -1,6 +1,6 @@
 import type { Prisma } from '@/generated/prisma/client';
 import type { InvoiceStatus } from '@/generated/prisma/enums';
-import { paidCents, subtotalCents, type LineItem } from '@/lib/money';
+import { paidCents, totalCents, type LineItem } from '@/lib/money';
 
 type Tx = Prisma.TransactionClient;
 
@@ -29,10 +29,12 @@ export function deriveStatus(
   stored: InvoiceStatus,
   items: readonly LineItem[],
   payments: readonly { amountCents: number }[],
+  /// Tax is part of what is owed, so it is part of what settles it.
+  taxRateBp = 0,
 ): InvoiceStatus {
   if (stored === 'DRAFT' || stored === 'VOID') return stored;
 
-  const total = subtotalCents(items);
+  const total = totalCents(items, taxRateBp);
   const paid = paidCents(payments);
   if (paid <= 0) return 'SENT';
   if (paid >= total) return 'PAID';
@@ -44,7 +46,7 @@ export async function resyncInvoiceStatus(tx: Tx, invoiceId: string): Promise<In
     where: { id: invoiceId },
     include: { items: true, payments: true },
   });
-  const status = deriveStatus(invoice.status, invoice.items, invoice.payments);
+  const status = deriveStatus(invoice.status, invoice.items, invoice.payments, invoice.taxRateBp);
   if (status !== invoice.status) {
     await tx.invoice.update({ where: { id: invoiceId }, data: { status } });
   }

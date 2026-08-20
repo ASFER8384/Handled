@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { FormSelect } from '@/components/form-select';
-import { formatMoney, parseMoneyToCents } from '@/lib/money';
+import { formatMoney, formatRate, parseMoneyToCents } from '@/lib/money';
 import { api } from '@/lib/client-fetch';
 import { InvoiceSheet } from '@/components/invoice-sheet';
 import {
@@ -61,6 +61,7 @@ export function InvoiceForm({
   fromEmail,
   fromAddress,
   logo,
+  tax,
   start,
   invoiceId,
   number,
@@ -72,6 +73,14 @@ export function InvoiceForm({
   fromEmail: string;
   fromAddress?: string | null;
   logo?: string | null;
+  /** What this invoice charges on top, and where the money goes. */
+  tax: {
+    rateBp: number;
+    label: string;
+    number: string | null;
+    pay: [string, string][];
+    payNotes: string | null;
+  };
   start?: InvoiceStart;
   /** Set when an invoice that already exists is being rewritten. */
   invoiceId?: string;
@@ -113,7 +122,9 @@ export function InvoiceForm({
     (parseMoneyToCents(watched[index]?.unitPrice ?? '') ?? 0) *
     Number(watched[index]?.quantity || 0);
 
-  const total = watched.reduce((sum, _item, index) => sum + lineTotal(index), 0);
+  const subtotal = watched.reduce((sum, _item, index) => sum + lineTotal(index), 0);
+  const taxDue = Math.round((subtotal * tax.rateBp) / 10000);
+  const total = subtotal + taxDue;
 
   async function onSubmit(values: Values) {
     setFormError(null);
@@ -143,6 +154,8 @@ export function InvoiceForm({
           notes: values.notes,
           themeColor: colour,
           themeFont: font,
+          taxRateBp: tax.rateBp,
+          taxLabel: tax.label,
           items,
         },
       },
@@ -186,7 +199,13 @@ export function InvoiceForm({
               quantity: Number(item?.quantity || 0),
               unitPriceCents: parseMoneyToCents(item?.unitPrice ?? '') ?? 0,
             }))}
-            subtotal={total}
+            subtotal={subtotal}
+            tax={taxDue}
+            taxLabel={tax.label}
+            taxRateBp={tax.rateBp}
+            taxNumber={tax.number}
+            pay={tax.pay}
+            payNotes={tax.payNotes}
             paid={0}
             balance={total}
             currency={currency}
@@ -355,8 +374,16 @@ export function InvoiceForm({
               <dl className="w-full max-w-[280px] text-sm">
                 <div className="flex justify-between py-1.5">
                   <dt className="text-muted">Subtotal</dt>
-                  <dd className="tabular-nums">{formatMoney(total, currency)}</dd>
+                  <dd className="tabular-nums">{formatMoney(subtotal, currency)}</dd>
                 </div>
+                {tax.rateBp > 0 && (
+                  <div className="flex justify-between py-1.5">
+                    <dt className="text-muted">
+                      {tax.label} {formatRate(tax.rateBp)}
+                    </dt>
+                    <dd className="tabular-nums">{formatMoney(taxDue, currency)}</dd>
+                  </div>
+                )}
                 <div className="border-line mt-1.5 flex justify-between border-t pt-3 text-base">
                   <dt className="font-medium">Balance due</dt>
                   <dd className="font-semibold tabular-nums" style={{ color: theme.hex }}>

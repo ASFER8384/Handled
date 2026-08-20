@@ -18,9 +18,10 @@ export const POST = handler(async (ctx, request: Request, { params }: Params) =>
   });
   if (!invoice) notFound('Invoice');
   if (invoice.status === 'VOID') throw new HttpError(409, 'This invoice is void');
-  if (invoice.status === 'DRAFT') throw new HttpError(409, 'Send the invoice before recording payment');
+  if (invoice.status === 'DRAFT')
+    throw new HttpError(409, 'Send the invoice before recording payment');
 
-  const outstanding = balanceCents(invoice.items, invoice.payments);
+  const outstanding = balanceCents(invoice.items, invoice.payments, invoice.taxRateBp);
   if (data.amountCents > outstanding) {
     throw new HttpError(422, 'That is more than the outstanding balance');
   }
