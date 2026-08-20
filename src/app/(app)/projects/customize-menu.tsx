@@ -144,7 +144,7 @@ function PropertiesPanel({ view }: { view: ViewPrefs }) {
   }
 
   return (
-    <div className="bg-surface absolute top-full right-0 z-40 mt-2 max-h-[380px] w-64 overflow-y-auto rounded-xl py-2 shadow-2xl ring-1 ring-black/10">
+    <div className="bg-surface absolute top-full right-0 z-40 mt-2 max-h-[70vh] w-64 overflow-y-auto rounded-xl py-2 shadow-2xl ring-1 ring-black/10">
       <p className="px-4 pt-1 pb-2 text-[15px] font-medium">
         {list ? 'Table column visibility' : 'Card property visibility'}
       </p>

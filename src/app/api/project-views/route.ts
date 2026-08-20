@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handler, notFound, parseBody } from '@/lib/api';
 import { projectViewCreateSchema } from '@/lib/validation';
+import { DEFAULT_HIDDEN_PROPS } from '@/lib/board-prefs';
 
 /** Creates a view, either blank or as a copy of one that already exists. */
 export const POST = handler(async (ctx, request: Request) => {
@@ -26,7 +27,7 @@ export const POST = handler(async (ctx, request: Request) => {
       position: (last._max?.position ?? -1) + 1,
       layout: source?.layout ?? 'BOARD',
       showGroups: source?.showGroups ?? true,
-      hiddenProps: source?.hiddenProps ?? [],
+      hiddenProps: source?.hiddenProps ?? DEFAULT_HIDDEN_PROPS,
       sortField: source?.sortField ?? null,
       sortDir: source?.sortDir ?? 'asc',
       filters: source?.filters ?? [],

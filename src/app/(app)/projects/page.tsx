@@ -1,12 +1,12 @@
 import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
-import { formatMoney } from '@/lib/money';
 import { EmptyState, formatDate } from '@/components/ui';
 import { CreateProjectButton } from '@/components/create-new';
 import { BoardToolbar } from './board-toolbar';
 import { Board } from './board';
 import { TableView } from './table-view';
 import { ViewTabs } from './view-tabs';
+import { DEFAULT_HIDDEN_PROPS } from '@/lib/board-prefs';
 
 export default async function ProjectsPage(props: PageProps<'/projects'>) {
   const ctx = await requireWorkspace();
@@ -46,6 +46,7 @@ export default async function ProjectsPage(props: PageProps<'/projects'>) {
               name: 'Main view',
               position: 0,
               isDefault: true,
+              hiddenProps: DEFAULT_HIDDEN_PROPS,
             },
           }),
         ];
@@ -206,10 +207,12 @@ export default async function ProjectsPage(props: PageProps<'/projects'>) {
             name: project.name,
             stageId: project.stageId,
             serviceDate: formatDate(project.eventDate),
+            endDate: project.endsAt ? formatDate(project.endsAt) : '—',
             leadSource: project.leadSource ?? 'Unknown',
             type: project.type ?? 'Unknown',
             contact: project.client.name,
-            value: formatMoney(project.valueCents, ctx.currency),
+            location: project.location ?? '—',
+            description: project.description ?? '—',
           }))}
         />
       )}
