@@ -76,8 +76,11 @@ label:has(input[type='checkbox']) {
 
   /* Fields written straight onto a document: no box until you are in one, so
      the page reads as the invoice it will be rather than as a form. */
+  /* On the invoice sheet: the page is white, so anything you can type into
+     wears a faint grey to say so. It is the fields that have to be findable,
+     not the paper. */
   .input-plain {
-    @apply placeholder:text-muted/70 focus:ring-accent/30 w-full rounded-md bg-transparent px-2 py-1.5 text-sm outline-none hover:bg-black/[0.03] focus:bg-white focus:ring-2;
+    @apply placeholder:text-muted/70 focus:ring-accent/30 w-full rounded-md bg-black/[0.035] px-2 py-1.5 text-sm outline-none hover:bg-black/[0.06] focus:bg-white focus:ring-2;
   }
 
   .input {
