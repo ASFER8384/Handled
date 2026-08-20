@@ -14,6 +14,10 @@ export type InvoiceTemplate = {
   /** How long after today it falls due, when it is made from this. */
   dueInDays: number;
   notes: string;
+  /** What kind of file it is, for the gallery filter. */
+  kind: string;
+  /** The trades it was written for, or 'Any business' when it suits all of them. */
+  industries: string[];
   /** `sampleCents` is only ever drawn in a preview, never saved on an invoice. */
   items: { description: string; quantity: number; sampleCents?: number }[];
 };
@@ -23,6 +27,8 @@ export const INVOICE_TEMPLATES: InvoiceTemplate[] = [
     id: 'deposit',
     name: 'Deposit',
     blurb: 'A retainer that holds the date, with the rest to follow.',
+    kind: 'Invoice',
+    industries: ['Photography & video', 'Events & weddings'],
     dueInDays: 7,
     notes: 'This retainer holds your date. The balance is due before the day itself.',
     items: [{ description: 'Retainer to hold the date', quantity: 1, sampleCents: 250000 }],
@@ -31,6 +37,8 @@ export const INVOICE_TEMPLATES: InvoiceTemplate[] = [
     id: 'balance',
     name: 'Balance',
     blurb: 'What is left to pay once the deposit is in.',
+    kind: 'Invoice',
+    industries: ['Photography & video', 'Events & weddings'],
     dueInDays: 14,
     notes: 'The balance of the agreed fee, less the retainer already paid.',
     items: [
@@ -42,6 +50,8 @@ export const INVOICE_TEMPLATES: InvoiceTemplate[] = [
     id: 'full',
     name: 'Full amount',
     blurb: 'The whole job on one invoice, itemised.',
+    kind: 'Invoice',
+    industries: ['Any business', 'Design & creative', 'Consulting'],
     dueInDays: 14,
     notes: 'Payable in full by the due date above.',
     items: [
@@ -51,6 +61,11 @@ export const INVOICE_TEMPLATES: InvoiceTemplate[] = [
     ],
   },
 ];
+
+/** Every industry any template claims, for the gallery's filter. */
+export const TEMPLATE_INDUSTRIES = [
+  ...new Set(INVOICE_TEMPLATES.flatMap((template) => template.industries)),
+].sort();
 
 export function findTemplate(id: string | null | undefined): InvoiceTemplate | null {
   return INVOICE_TEMPLATES.find((template) => template.id === id) ?? null;

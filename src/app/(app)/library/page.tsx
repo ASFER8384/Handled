@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
-import { PageHeader } from '@/components/ui';
 import { INVOICE_TEMPLATES } from '@/lib/invoice-templates';
 import { companyBrand } from '@/lib/company';
 import { TemplateGallery, type GalleryTemplate } from './template-gallery';
@@ -25,6 +24,8 @@ export default async function LibraryPage() {
       blurb: 'Saved from one of your invoices.',
       dueInDays: template.dueInDays,
       notes: template.notes,
+      kind: 'Invoice',
+      industries: ['Any business'],
       items: template.items as { description: string; quantity: number }[],
       mine: true,
     })),
@@ -32,16 +33,13 @@ export default async function LibraryPage() {
 
   return (
     <>
-      <PageHeader
-        title="Library"
-        subtitle="The files you send again and again, written once and kept here."
-      />
+      {/* Stays put while the gallery scrolls under it, so you always know
+          which page you are on and the filters never lose their heading. */}
+      <div className="border-line bg-background sticky top-14 z-20 -mx-8 -mt-8 border-b px-8 py-5">
+        <h1 className="text-2xl font-semibold tracking-tight">Library</h1>
+      </div>
 
-      <section>
-        <h2 className="text-[15px] font-semibold">Invoices</h2>
-        <p className="text-muted mt-1 mb-4 text-sm">
-          Lines and terms without the prices. Starting an invoice from one fills it in.
-        </p>
+      <section className="mt-6">
         <TemplateGallery
           templates={templates}
           brand={{
