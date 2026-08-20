@@ -106,7 +106,7 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
     // The page's own padding is taken back so the grid runs to the edges, and
     // the height is the screen less the bar above it. The negative margins put
     // the padding back into play, so this fills the window without pushing it.
-    <div className="-mx-8 -my-8 flex h-[calc(100dvh-3.5rem)] flex-col">
+    <div className="bg-surface -mx-8 -my-8 flex h-[calc(100dvh-3.5rem)] flex-col">
       {/* --- Today, where you are, the zone, and how much to show ------- */}
       <div className="border-line flex flex-wrap items-center justify-between gap-4 border-b px-6 py-3">
         <div className="flex items-center gap-4">
@@ -238,10 +238,6 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
               );
             })}
           </ul>
-
-          <p className="text-muted mt-6 text-xs leading-relaxed">
-            Everything here is your own work. Nothing is synced with an outside calendar yet.
-          </p>
         </aside>
 
         {/* --- the month, or the hours of a week or a day -------------- */}
