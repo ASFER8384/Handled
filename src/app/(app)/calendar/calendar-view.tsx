@@ -111,32 +111,7 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
       {/* --- Today, where you are, the zone, and how much to show ------- */}
       <div className="border-line flex flex-wrap items-center justify-between gap-4 border-b px-6 py-3">
         <div className="flex items-center gap-4">
-          {/* Folding the list away gives the grid the whole width, which is
-              what a narrow window actually needs. */}
-          <Tip label={listOpen ? 'Hide what is drawn' : 'Show what is drawn'}>
-            <button
-              type="button"
-              onClick={() => setListOpen((open) => !open)}
-              aria-pressed={listOpen}
-              aria-label={listOpen ? 'Hide what is drawn' : 'Show what is drawn'}
-              className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
-                listOpen ? 'bg-accent-soft/70 text-accent' : 'text-muted hover:bg-accent-soft/50'
-              }`}
-            >
-              <svg
-                aria-hidden
-                viewBox="0 0 24 24"
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinejoin="round"
-              >
-                <rect x="3" y="4.5" width="18" height="15" rx="2" />
-                <path d="M9.5 4.5v15" />
-              </svg>
-            </button>
-          </Tip>
+          {!listOpen && <FoldList open={listOpen} onToggle={() => setListOpen(true)} />}
 
           <button
             type="button"
@@ -166,7 +141,7 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
           {/* Floating: this sits at the right-hand edge, and a tooltip drawn
               beside it is part of the page's width even while invisible, which
               is enough to push the whole page sideways. */}
-          <Tip label="Every time on this page is read in this zone" floating>
+          <Tip label="Times shown in this zone" floating>
             <span className="text-muted flex items-center gap-2 text-sm">
               <svg
                 aria-hidden
@@ -199,13 +174,16 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
       <div className="flex min-h-0 flex-1">
         {/* --- what is drawn ------------------------------------------- */}
         <aside hidden={!listOpen} className="w-[214px] shrink-0 overflow-y-auto px-5 py-5">
-          <button
-            type="button"
-            onClick={() => setConnectOpen((open) => !open)}
-            className="text-accent text-[15px] font-medium hover:underline"
-          >
-            Connect calendar
-          </button>
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setConnectOpen((open) => !open)}
+              className="text-accent text-[15px] font-medium hover:underline"
+            >
+              Connect calendar
+            </button>
+            <FoldList open={listOpen} onToggle={() => setListOpen(false)} />
+          </div>
           {connectOpen && (
             <p className="text-muted mt-2 text-xs leading-relaxed">
               Nothing to connect yet. This month is drawn from your own projects, dates, invoices
@@ -531,6 +509,40 @@ function MonthCell({
         </div>
       )}
     </div>
+  );
+}
+
+/** Folds the list away, handing its width to the grid, and brings it back. */
+function FoldList({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  const label = open ? 'Hide list' : 'Show list';
+
+  // Floating: sitting at the top of a pane, a tooltip drawn in place is cut
+  // off by the row above it.
+  return (
+    <Tip label={label} floating>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-pressed={open}
+        aria-label={label}
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+          open ? 'text-muted hover:bg-accent-soft/60' : 'bg-accent-soft/70 text-accent'
+        }`}
+      >
+        <svg
+          aria-hidden
+          viewBox="0 0 24 24"
+          className="h-[18px] w-[18px]"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinejoin="round"
+        >
+          <rect x="3" y="4.5" width="18" height="15" rx="2" />
+          <path d="M9.5 4.5v15" />
+        </svg>
+      </button>
+    </Tip>
   );
 }
 

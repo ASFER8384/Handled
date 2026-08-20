@@ -3,6 +3,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+/** Kept in step with the panel's own min-width class below. */
+const PANEL_MIN_WIDTH = 200;
+
 export type SelectOption = {
   value: string;
   label: string;
@@ -70,16 +73,24 @@ export function Select({
     const above = rect.top - 16;
     const below = window.innerHeight - rect.bottom - 16;
 
+    // The panel has a floor on its width, so under a narrow field it is wider
+    // than the field it belongs to. Left where it was put, that overhang runs
+    // off the side of the window; it is pulled back in and hangs the other
+    // way instead. clientWidth, not innerWidth: the scrollbar is not room.
+    const view = document.documentElement.clientWidth;
+    const width = Math.max(rect.width, PANEL_MIN_WIDTH);
+    const left = Math.max(8, Math.min(rect.left, view - width - 8));
+
     setAnchor(
       above > below && below < 240
         ? {
-            left: rect.left,
+            left,
             width: rect.width,
             bottom: window.innerHeight - rect.top + 6,
             maxHeight: Math.min(320, above),
           }
         : {
-            left: rect.left,
+            left,
             width: rect.width,
             top: rect.bottom + 6,
             maxHeight: Math.min(320, below),
@@ -113,7 +124,9 @@ export function Select({
 
   const term = query.trim().toLowerCase();
   const matches = term
-    ? options.filter((option) => `${option.label} ${option.hint ?? ''}`.toLowerCase().includes(term))
+    ? options.filter((option) =>
+        `${option.label} ${option.hint ?? ''}`.toLowerCase().includes(term),
+      )
     : options;
   const exact = options.some((option) => option.label.toLowerCase() === term);
 

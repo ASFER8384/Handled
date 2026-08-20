@@ -30,7 +30,7 @@ export const CALENDAR_LAYERS = [
     swatchOff: 'h-3 w-3 rounded-full border-2 border-orange-500',
     bar: 'bg-orange-500/15 text-orange-900',
     /** Nothing books meetings yet, so the row is listed but cannot be used. */
-    comingSoon: 'Meetings appear here once there is a scheduler to book them',
+    comingSoon: 'Waiting on a scheduler',
   },
   {
     key: 'payment',
