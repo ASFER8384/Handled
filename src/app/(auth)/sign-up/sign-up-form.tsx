@@ -35,7 +35,12 @@ export function SignUpForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4" noValidate>
+    <form
+      method="post"
+      onSubmit={handleSubmit(onSubmit)}
+      className="mt-6 space-y-4"
+      noValidate
+    >
       <div>
         <label className="label" htmlFor="name">
           Your name
