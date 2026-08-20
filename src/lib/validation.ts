@@ -258,6 +258,8 @@ export const taskPatchSchema = z.object({
   dueHasTime: z.boolean().optional(),
   /** Null takes it off whoever had it. */
   assigneeId: z.union([z.string().max(40), z.null()]).optional(),
+  /** Null leaves it standing on its own, belonging to no project. */
+  projectId: z.union([z.string().max(40), z.null()]).optional(),
 });
 
 export const taskToggleSchema = z.object({ done: z.boolean() });

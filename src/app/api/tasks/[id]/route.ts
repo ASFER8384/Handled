@@ -18,6 +18,14 @@ export const PATCH = handler(async (ctx, request: Request, { params }: Params) =
     if (!member) notFound('That person');
   }
 
+  // A task can only be moved to a project in the same workspace.
+  if (data.projectId) {
+    const project = await prisma.project.count({
+      where: { id: data.projectId, workspaceId: ctx.workspaceId },
+    });
+    if (project === 0) notFound('Project');
+  }
+
   const { count } = await prisma.task.updateMany({
     where: { id, workspaceId: ctx.workspaceId },
     data: {
@@ -26,6 +34,7 @@ export const PATCH = handler(async (ctx, request: Request, { params }: Params) =
       ...(data.dueAt === undefined ? {} : { dueAt: data.dueAt ? new Date(data.dueAt) : null }),
       ...(data.dueHasTime === undefined ? {} : { dueHasTime: data.dueHasTime }),
       ...(data.assigneeId === undefined ? {} : { assigneeId: data.assigneeId }),
+      ...(data.projectId === undefined ? {} : { projectId: data.projectId }),
     },
   });
   if (count === 0) notFound('Task');

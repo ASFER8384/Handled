@@ -11,10 +11,12 @@ import { createPortal } from 'react-dom';
 export function FloatingTip({
   label,
   side,
+  className = '',
   children,
 }: {
   label: string;
   side: 'top' | 'right';
+  className?: string;
   children: React.ReactNode;
 }) {
   const [at, setAt] = useState<{ left: number; top: number } | null>(null);
@@ -30,7 +32,7 @@ export function FloatingTip({
 
   return (
     <span
-      className="inline-flex"
+      className={`inline-flex ${className}`}
       onMouseEnter={show}
       onMouseLeave={() => setAt(null)}
       onFocus={show}

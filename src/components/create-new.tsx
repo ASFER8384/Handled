@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { Dialog } from '@/components/dialog';
-import { InfoHint } from '@/components/ui';
+import { InfoHint, Tip } from '@/components/ui';
 import { api } from '@/lib/client-fetch';
 import { NewContactDialog } from '@/components/new-contact-dialog';
 import { FormSelect } from '@/components/form-select';
 
 // Schemas that coerce dates have an output type the form never holds, so these
 // forms carry their own shape and let the route do the validating.
-type TaskValues = { title: string; dueAt: string };
+type TaskValues = { title: string; projectId: string; dueAt: string; dueTime: string };
 
 export type CreateItem = { key: string; label: string; icon: string; href?: string };
 
@@ -82,6 +82,28 @@ export function CreateProjectButton() {
       </button>
       {open && (
         <ProjectDialog
+          onClose={() => setOpen(false)}
+          onDone={() => {
+            setOpen(false);
+            router.refresh();
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+export function CreateTaskButton() {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className="btn-primary px-4">
+        Add task
+      </button>
+      {open && (
+        <TaskDialog
           onClose={() => setOpen(false)}
           onDone={() => {
             setOpen(false);
@@ -462,16 +484,46 @@ function ProjectDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
 }
 
 function TaskDialog({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const [projects, setProjects] = useState<{ id: string; name: string }[] | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
+    control,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<TaskValues>();
 
+  useEffect(() => {
+    const stop = new AbortController();
+    fetch('/api/projects', { signal: stop.signal })
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error('projects'))))
+      .then((payload: { projects?: { id: string; name: string }[] }) =>
+        setProjects(payload.projects ?? []),
+      )
+      .catch(() => setProjects([]));
+    return () => stop.abort();
+  }, []);
+
+  // A time on its own has no day to sit on, so it waits for the date.
+  const date = watch('dueAt');
+
   async function onSubmit(values: TaskValues) {
     setFormError(null);
-    const { error } = await api('/api/tasks', { method: 'POST', body: values });
+    const { error } = await api('/api/tasks', {
+      method: 'POST',
+      body: {
+        title: values.title,
+        projectId: values.projectId || undefined,
+        // The time is folded into the date, and remembered as having been set,
+        // so a task due at four is not shown as due all day.
+        dueAt:
+          values.dueAt && values.dueTime
+            ? `${values.dueAt}T${values.dueTime}:00`
+            : values.dueAt || undefined,
+        dueHasTime: Boolean(values.dueAt && values.dueTime),
+      },
+    });
     if (error) {
       setFormError(error.error);
       return;
@@ -482,6 +534,7 @@ function TaskDialog({ onClose, onDone }: { onClose: () => void; onDone: () => vo
   return (
     <Dialog
       title="Add a task"
+      fit
       onClose={onClose}
       footer={<Submit form="task-form" label="Add task" busy={isSubmitting} />}
     >
@@ -490,15 +543,57 @@ function TaskDialog({ onClose, onDone }: { onClose: () => void; onDone: () => vo
           <input
             id="task-title"
             autoFocus
-            className="input"
+            className="input-soft"
             placeholder="What needs doing?"
             {...register('title', { required: 'What needs doing?' })}
           />
         </Field>
 
-        <Field label="Due" htmlFor="task-due">
-          <input id="task-due" type="date" className="input" {...register('dueAt')} />
+        <Field label="Project" htmlFor="task-project">
+          <FormSelect
+            id="task-project"
+            control={control}
+            name="projectId"
+            searchable
+            placeholder={projects === null ? 'Loading your projects…' : 'No project'}
+            options={(projects ?? []).map((project) => ({
+              value: project.id,
+              label: project.name,
+            }))}
+          />
         </Field>
+
+        <div className="grid grid-cols-2 gap-4 [&>*]:min-w-0">
+          <Field label="Due date" htmlFor="task-due">
+            <input id="task-due" type="date" className="input-soft" {...register('dueAt')} />
+          </Field>
+
+          <Field label="Due time" htmlFor="task-due-time">
+            {date ? (
+              <input
+                id="task-due-time"
+                type="time"
+                className="input-soft"
+                {...register('dueTime')}
+              />
+            ) : (
+              // A disabled input takes no hover of its own, so the tip sits on
+              // the wrapper and still explains why it cannot be typed in.
+              // Floating, because a tooltip drawn beside the field is part of
+              // the dialog's width even while it is invisible, and this one
+              // sits at the right-hand edge.
+              <Tip label="Pick a due date first" side="right" floating className="w-full">
+                <input
+                  id="task-due-time"
+                  type="time"
+                  disabled
+                  className="input-soft pointer-events-none opacity-40"
+                  {...register('dueTime')}
+                />
+              </Tip>
+            )}
+          </Field>
+        </div>
 
         {formError && <p className="field-error">{formError}</p>}
       </form>

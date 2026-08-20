@@ -5,32 +5,41 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
 import { Select } from '@/components/select';
 
-export type ProjectTask = {
+export type TaskItem = {
   id: string;
   title: string;
   done: boolean;
   /** ISO, or null when no date has been set. */
   dueAt: string | null;
   dueHasTime: boolean;
-  assigneeId: string | null;
+  /** Which project it belongs to, where the table shows more than one. */
+  projectId?: string | null;
 };
 
-export type Member = { id: string; name: string };
-
 /**
- * Tasks are edited where they are read: the title, the date, the time and the
- * person are each saved on their own the moment they are changed.
+ * Every task list in the app: the tab inside a project, and the page that
+ * holds the lot. Tasks are edited where they are read, each field saving on
+ * its own the moment it is changed.
+ *
+ * Give it a `projectId` and it is that project's list, adding to it as it
+ * goes. Give it `projects` instead and it is the whole workspace's, with a
+ * column for which project each task belongs to.
+ *
+ * Nothing here is assigned to anybody. A workspace is one person's, so every
+ * task is theirs, and a column saying so on every row said nothing.
  */
-export function TasksTab({
+export function TaskTable({
   projectId,
+  projects,
   tasks,
-  members,
-  me,
+  empty,
 }: {
-  projectId: string;
-  tasks: ProjectTask[];
-  members: Member[];
-  me: string;
+  projectId?: string;
+  /** Every project, when the table spans them. Absent inside one project. */
+  projects?: { id: string; name: string }[];
+  tasks: TaskItem[];
+  /** What the blank state says, since the two lists are blank differently. */
+  empty?: { title: string; body: string };
 }) {
   const router = useRouter();
   const [rows, setRows] = useState(tasks);
@@ -38,13 +47,17 @@ export function TasksTab({
   /** The row to put the caret in once it has been added. */
   const [fresh, setFresh] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [filters, setFilters] = useState({ due: '', status: '', assignee: '' });
+  const [lens, setLens] = useState<LensKey>('open');
   const [panel, setPanel] = useState(false);
 
   const [sort, setSort] = useState<'asc' | 'desc' | null>(null);
 
-  const active = Object.values(filters).filter(Boolean).length;
-  const shown = rows.filter((task) => matches(task, filters));
+  const counted = LENSES.map((entry) => ({
+    ...entry,
+    count: rows.filter((task) => inLens(task, entry.key)).length,
+  }));
+  const current = counted.find((entry) => entry.key === lens) ?? counted[0];
+  const shown = rows.filter((task) => inLens(task, lens));
   if (sort) {
     // Undated tasks sit at the bottom either way: they answer neither order.
     shown.sort((a, b) => {
@@ -58,9 +71,9 @@ export function TasksTab({
     // Guarded: a second click while the first is in flight made two tasks.
     if (adding) return;
     setAdding(true);
-    const { data, error: failure } = await api<{ task: ProjectTask }>('/api/tasks', {
+    const { data, error: failure } = await api<{ task: TaskItem }>('/api/tasks', {
       method: 'POST',
-      body: { title: 'Task name', projectId, assigneeId: me },
+      body: { title: 'Task name', ...(projectId ? { projectId } : {}) },
     });
     setAdding(false);
     if (failure || !data) {
@@ -74,7 +87,7 @@ export function TasksTab({
 
   async function patch(id: string, body: Record<string, unknown>) {
     setRows((current) =>
-      current.map((row) => (row.id === id ? { ...row, ...(body as Partial<ProjectTask>) } : row)),
+      current.map((row) => (row.id === id ? { ...row, ...(body as Partial<TaskItem>) } : row)),
     );
     const { error: failure } = await api(`/api/tasks/${id}`, { method: 'PATCH', body });
     if (failure) setError(failure.error);
@@ -100,9 +113,9 @@ export function TasksTab({
     return (
       <div className="py-20 text-center">
         <TaskArt />
-        <h2 className="mt-6 text-lg font-semibold">No tasks yet</h2>
+        <h2 className="mt-6 text-lg font-semibold">{empty?.title ?? 'No tasks yet'}</h2>
         <p className="text-muted mx-auto mt-2 max-w-md">
-          Keep track of what this project needs, all in one place.
+          {empty?.body ?? 'Keep track of what this project needs, all in one place.'}
         </p>
         <button
           type="button"
@@ -122,44 +135,38 @@ export function TasksTab({
 
   return (
     <div className="mt-6">
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-muted">Everything this project still needs doing.</p>
-        <button
-          type="button"
-          onClick={() => void add()}
-          disabled={adding}
-          className="border-line hover:border-accent rounded-md border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
-        >
-          Add task
-        </button>
-      </div>
+      {/* Inside a project this strip is the only way to add one. On the page
+          that spans every project the header already has the button, so
+          repeating it here said the same thing twice. */}
+      {!projects && (
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-muted">Everything this project still needs doing.</p>
+          <button
+            type="button"
+            onClick={() => void add()}
+            disabled={adding}
+            className="border-line hover:border-accent rounded-md border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            Add task
+          </button>
+        </div>
+      )}
 
-      <div className="mt-6 flex items-center justify-between">
+      <div className={`flex items-center justify-between gap-4 ${projects ? 'mt-2' : 'mt-6'}`}>
         <p className="text-muted text-sm">
-          {active > 0 ? (
-            <>
-              {shown.length} of <span className="text-foreground font-medium">{rows.length}</span>{' '}
-              {rows.length === 1 ? 'task' : 'tasks'}
-            </>
-          ) : (
-            <>
-              {rows.length} {rows.length === 1 ? 'task' : 'tasks'}
-            </>
-          )}
+          {shown.length} of <span className="text-foreground font-medium">{rows.length}</span>{' '}
+          {rows.length === 1 ? 'task' : 'tasks'}
         </p>
 
+        {/* One named list at a time, each carrying how many are in it, so the
+            question and the answer arrive together. */}
         <div className="relative" data-filter>
-          {active > 0 && (
-            <span className="bg-accent absolute -top-2 -right-2 z-10 flex h-[20px] min-w-[20px] items-center justify-center rounded-md px-1 text-[11px] font-semibold text-white">
-              {active}
-            </span>
-          )}
           <button
             type="button"
             onClick={() => setPanel((open) => !open)}
             aria-expanded={panel}
             className={`flex items-center gap-2 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
-              panel || active > 0 ? 'bg-accent-soft text-accent' : 'hover:bg-black/[0.05]'
+              panel ? 'bg-accent-soft text-accent' : 'hover:bg-black/[0.05]'
             }`}
           >
             <svg
@@ -173,67 +180,32 @@ export function TasksTab({
             >
               <path d="M4 7h16M7 12h10M10 17h4" />
             </svg>
-            Filter
+            {current.label}
+            <Badge count={current.count} on={lens === current.key} />
           </button>
 
           {panel && (
-            <div className="border-line bg-surface absolute top-full right-0 z-30 mt-2 w-[300px] rounded-xl border p-5 shadow-xl">
-              <div className="flex items-center justify-between">
-                <h3 className="text-muted text-xs font-semibold tracking-widest uppercase">
-                  Filter by
-                </h3>
+            <div
+              role="menu"
+              className="border-line bg-surface absolute top-full right-0 z-30 mt-2 w-[260px] rounded-xl border py-1.5 shadow-xl"
+            >
+              {counted.map((entry) => (
                 <button
+                  key={entry.key}
                   type="button"
-                  onClick={() => setFilters({ due: '', status: '', assignee: '' })}
-                  className="hover:text-accent flex items-center gap-1.5 text-sm font-medium transition-colors"
+                  role="menuitem"
+                  onClick={() => {
+                    setLens(entry.key);
+                    setPanel(false);
+                  }}
+                  className={`hover:bg-accent-soft/60 flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
+                    entry.key === lens ? 'font-semibold' : ''
+                  } ${entry.key === 'done' ? 'border-line mt-1.5 border-t pt-3' : ''}`}
                 >
-                  <svg
-                    aria-hidden
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                  >
-                    <path d="m6 6 12 12M18 6 6 18" />
-                  </svg>
-                  Clear all
+                  {entry.label}
+                  {entry.count > 0 && <Badge count={entry.count} on={entry.key === lens} />}
                 </button>
-              </div>
-
-              <div className="mt-4 space-y-4">
-                <Choice
-                  label="Due date"
-                  value={filters.due}
-                  onChange={(due) => setFilters((current) => ({ ...current, due }))}
-                  options={[
-                    ['overdue', 'Overdue'],
-                    ['today', 'Today'],
-                    ['week', 'This week'],
-                    ['month', 'This month'],
-                    ['none', 'No date'],
-                  ]}
-                />
-                <Choice
-                  label="Status"
-                  value={filters.status}
-                  onChange={(status) => setFilters((current) => ({ ...current, status }))}
-                  options={[
-                    ['open', 'Open'],
-                    ['done', 'Done'],
-                  ]}
-                />
-                <Choice
-                  label="Assigned to"
-                  value={filters.assignee}
-                  onChange={(assignee) => setFilters((current) => ({ ...current, assignee }))}
-                  options={[
-                    ...members.map((member) => [member.id, member.name] as [string, string]),
-                    ['nobody', 'Nobody yet'],
-                  ]}
-                />
-              </div>
+              ))}
             </div>
           )}
         </div>
@@ -262,7 +234,7 @@ export function TasksTab({
                 </button>
               </th>
               <th className="w-[130px] py-1 font-semibold">Due time</th>
-              <th className="w-[170px] py-1 font-semibold">Assigned to</th>
+              {projects && <th className="w-[190px] py-1 font-semibold">Project</th>}
               <th className="w-12" />
             </tr>
           </thead>
@@ -271,7 +243,7 @@ export function TasksTab({
               <Row
                 key={task.id}
                 task={task}
-                members={members}
+                projects={projects}
                 autoFocus={task.id === fresh}
                 onPatch={(body) => void patch(task.id, body)}
                 onRemove={() => void remove(task.id)}
@@ -286,83 +258,70 @@ export function TasksTab({
   );
 }
 
-/** One filled dropdown, reading "Select" until it is set. */
-function Choice({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  options: [string, string][];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div>
-      <label className="label" htmlFor={`filter-${label}`}>
-        {label}
-      </label>
-      <Select
-        id={`filter-${label}`}
-        value={value || null}
-        options={options.map(([key, text]) => ({ value: key, label: text }))}
-        onChange={onChange}
-      />
-    </div>
-  );
+/**
+ * The named lists a task can be looked at through. Open is the one worth
+ * landing on: a list of what is left is the reason to open the page at all.
+ */
+const LENSES = [
+  { key: 'open', label: 'Open tasks' },
+  { key: 'today', label: 'Tasks due today' },
+  { key: 'week', label: 'Tasks due this week' },
+  { key: 'overdue', label: 'Overdue tasks' },
+  { key: 'done', label: 'Completed tasks' },
+] as const;
+
+type LensKey = (typeof LENSES)[number]['key'];
+
+/** Midnight this morning, which every date question here is asked against. */
+function startOfToday(): Date {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
-/** Whether a task survives the filters. An unset filter waves everything through. */
-function matches(
-  task: ProjectTask,
-  filters: { due: string; status: string; assignee: string },
-): boolean {
-  if (filters.status === 'open' && task.done) return false;
-  if (filters.status === 'done' && !task.done) return false;
+/** Whether a task belongs in one of the named lists. */
+function inLens(task: TaskItem, lens: LensKey): boolean {
+  if (lens === 'done') return task.done;
+  if (task.done) return false;
+  if (lens === 'open') return true;
+  if (!task.dueAt) return false;
 
-  if (filters.assignee === 'nobody' && task.assigneeId) return false;
-  if (filters.assignee && filters.assignee !== 'nobody' && task.assigneeId !== filters.assignee) {
-    return false;
+  const due = new Date(task.dueAt);
+  const start = startOfToday();
+
+  if (lens === 'overdue') return due < start;
+  if (lens === 'today') {
+    const tomorrow = new Date(start);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return due >= start && due < tomorrow;
   }
+  // This week means the next seven days, today included.
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+  return due >= start && due < end;
+}
 
-  if (filters.due) {
-    if (filters.due === 'none') return task.dueAt === null;
-    if (!task.dueAt) return false;
-
-    const due = new Date(task.dueAt);
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    if (filters.due === 'overdue') return due < startOfToday && !task.done;
-    if (filters.due === 'today') {
-      const tomorrow = new Date(startOfToday);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      return due >= startOfToday && due < tomorrow;
-    }
-    if (filters.due === 'week') {
-      const end = new Date(startOfToday);
-      end.setDate(end.getDate() + 7);
-      return due >= startOfToday && due < end;
-    }
-    if (filters.due === 'month') {
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      return due >= startOfToday && due < end;
-    }
-  }
-
-  return true;
+/** The count beside a list's name. */
+function Badge({ count, on }: { count: number; on: boolean }) {
+  return (
+    <span
+      className={`flex h-[20px] min-w-[20px] items-center justify-center rounded-md px-1 text-[11px] font-semibold ${
+        on ? 'bg-accent text-white' : 'bg-black/[0.07]'
+      }`}
+    >
+      {count}
+    </span>
+  );
 }
 
 function Row({
   task,
-  members,
+  projects,
   autoFocus,
   onPatch,
   onRemove,
 }: {
-  task: ProjectTask;
-  members: Member[];
+  task: TaskItem;
+  projects?: { id: string; name: string }[];
   autoFocus: boolean;
   onPatch: (body: Record<string, unknown>) => void;
   onRemove: () => void;
@@ -435,7 +394,7 @@ function Row({
           onBlur={() => title.trim() && title !== task.title && onPatch({ title: title.trim() })}
           onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.blur()}
           aria-label="Task title"
-          className={`w-full rounded px-2 py-1.5 h-9 transition-colors outline-none hover:bg-black/[0.05] focus:bg-black/[0.05] ${
+          className={`h-9 w-full rounded px-2 py-1.5 transition-colors outline-none hover:bg-black/[0.05] focus:bg-black/[0.05] ${
             task.done ? 'text-muted line-through' : ''
           }`}
         />
@@ -450,7 +409,7 @@ function Row({
             value={date}
             onChange={(event) => stamp(event.target.value, time)}
             aria-label="Due date"
-            className={`w-full rounded px-2 py-1.5 h-9 transition-colors outline-none hover:bg-black/[0.05] focus:bg-black/[0.05] ${
+            className={`h-9 w-full rounded px-2 py-1.5 transition-colors outline-none hover:bg-black/[0.05] focus:bg-black/[0.05] ${
               date ? '' : 'text-transparent'
             }`}
           />
@@ -468,7 +427,7 @@ function Row({
             disabled={!date}
             onChange={(event) => stamp(date, event.target.value)}
             aria-label="Due time"
-            className={`w-full rounded px-2 py-1.5 h-9 transition-colors outline-none hover:bg-black/[0.05] focus:bg-black/[0.05] disabled:cursor-not-allowed ${
+            className={`h-9 w-full rounded px-2 py-1.5 transition-colors outline-none hover:bg-black/[0.05] focus:bg-black/[0.05] disabled:cursor-not-allowed ${
               time ? '' : 'text-transparent'
             }`}
           />
@@ -483,22 +442,17 @@ function Row({
         </span>
       </td>
 
-      <td className="pr-4">
-        <label className="flex items-center gap-2">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/[0.06] text-xs font-semibold">
-            {(members.find((member) => member.id === task.assigneeId)?.name ?? '?')
-              .slice(0, 1)
-              .toUpperCase()}
-          </span>
+      {projects && (
+        <td className="pr-4">
           <Select
-            ariaLabel="Assigned to"
-            placeholder="Nobody yet"
-            value={task.assigneeId}
-            options={members.map((member) => ({ value: member.id, label: member.name }))}
-            onChange={(assigneeId) => onPatch({ assigneeId: assigneeId || null })}
+            ariaLabel="Project"
+            placeholder="No project"
+            value={task.projectId ?? null}
+            options={projects.map((project) => ({ value: project.id, label: project.name }))}
+            onChange={(id) => onPatch({ projectId: id || null })}
           />
-        </label>
-      </td>
+        </td>
+      )}
 
       <td className="relative rounded-r-lg border-r pr-2 text-right" data-row-menu>
         <button

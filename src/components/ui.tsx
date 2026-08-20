@@ -129,23 +129,26 @@ export function Tip({
   label,
   side = 'top',
   floating,
+  className = '',
   children,
 }: {
   label: string;
   side?: 'top' | 'right';
   floating?: boolean;
+  /** For the wrapper, which is inline-flex and so sizes to what it holds. */
+  className?: string;
   children: React.ReactNode;
 }) {
   if (floating) {
     return (
-      <FloatingTip label={label} side={side}>
+      <FloatingTip label={label} side={side} className={className}>
         {children}
       </FloatingTip>
     );
   }
 
   return (
-    <span className="group/tip relative inline-flex">
+    <span className={`group/tip relative inline-flex ${className}`}>
       {children}
       <span
         role="tooltip"

@@ -11,7 +11,7 @@ import { NotesTab } from './notes-tab';
 import { FilesTab } from './files-tab';
 import { ActivityTab } from './activity-tab';
 import { AddPersonButton } from './add-person-button';
-import { TasksTab } from './tasks-tab';
+import { TaskTable } from '@/components/task-table';
 import { AboutPanel } from './about-panel';
 import { DetailsTab } from './details-tab';
 import { TabLinks } from './tab-links';
@@ -294,17 +294,14 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
           )}
 
           {tab === 'Tasks' && (
-            <TasksTab
+            <TaskTable
               projectId={project.id}
-              me={ctx.userId}
-              members={members.map((member) => ({ id: member.user.id, name: member.user.name }))}
               tasks={project.tasks.map((task) => ({
                 id: task.id,
                 title: task.title,
                 done: task.done,
                 dueAt: task.dueAt ? task.dueAt.toISOString() : null,
                 dueHasTime: task.dueHasTime,
-                assigneeId: task.assigneeId,
               }))}
             />
           )}
