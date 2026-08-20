@@ -7,7 +7,12 @@ import { FormSelect } from '@/components/form-select';
 import { formatMoney, parseMoneyToCents } from '@/lib/money';
 import { api } from '@/lib/client-fetch';
 
-type ClientOption = { id: string; name: string; projects: { id: string; name: string }[] };
+type ClientOption = {
+  id: string;
+  name: string;
+  email: string | null;
+  projects: { id: string; name: string }[];
+};
 
 type Values = {
   clientId: string;
@@ -29,13 +34,26 @@ export type InvoiceStart = {
   items: { description: string; quantity: number }[] | null;
 };
 
+/**
+ * The invoice, written on the invoice.
+ *
+ * Every field sits where the thing it says will be printed, so what you are
+ * filling in and what the client will read are the same page. A form of
+ * labelled boxes beside a preview asks you to hold two documents in your head
+ * and trust that they match.
+ */
 export function InvoiceForm({
   clients,
   currency,
+  from,
+  fromEmail,
   start,
 }: {
   clients: ClientOption[];
   currency: string;
+  /** The workspace, as it will appear at the top of the invoice. */
+  from: string;
+  fromEmail: string;
   start?: InvoiceStart;
 }) {
   const router = useRouter();
@@ -61,12 +79,14 @@ export function InvoiceForm({
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
   const watched = useWatch({ control, name: 'items' }) ?? [];
   const selectedClientId = useWatch({ control, name: 'clientId' });
-  const projects = clients.find((client) => client.id === selectedClientId)?.projects ?? [];
+  const client = clients.find((entry) => entry.id === selectedClientId);
+  const projects = client?.projects ?? [];
 
-  const total = watched.reduce((sum, item) => {
-    const cents = parseMoneyToCents(item?.unitPrice ?? '') ?? 0;
-    return sum + cents * Number(item?.quantity || 0);
-  }, 0);
+  const lineTotal = (index: number) =>
+    (parseMoneyToCents(watched[index]?.unitPrice ?? '') ?? 0) *
+    Number(watched[index]?.quantity || 0);
+
+  const total = watched.reduce((sum, _item, index) => sum + lineTotal(index), 0);
 
   async function onSubmit(values: Values) {
     setFormError(null);
@@ -104,115 +124,174 @@ export function InvoiceForm({
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="max-w-3xl space-y-6" noValidate>
-      <div className="card grid gap-4 p-5 sm:grid-cols-2">
-        <div>
-          <label className="label" htmlFor="invoice-client">
-            Client
-          </label>
-          <FormSelect
-            id="invoice-client"
-            control={control}
-            name="clientId"
-            placeholder="Pick a contact"
-            options={clients.map((client) => ({ value: client.id, label: client.name }))}
-          />
-        </div>
+    <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl" noValidate>
+      <article className="invoice-sheet card p-8 sm:p-10">
+        {/* who it is from */}
+        <header>
+          <p className="text-lg font-semibold">{from}</p>
+          <p className="text-muted mt-0.5 text-sm">{fromEmail}</p>
+        </header>
 
-        <div>
-          <label className="label" htmlFor="invoice-project">
-            Project
-          </label>
-          <FormSelect
-            id="invoice-project"
-            control={control}
-            name="projectId"
-            placeholder="No project"
-            options={projects.map((project) => ({ value: project.id, label: project.name }))}
-          />
-        </div>
+        <h2 className="mt-8 bg-black/[0.05] px-4 py-3 text-2xl font-bold tracking-tight">
+          INVOICE
+        </h2>
 
-        <div>
-          <label className="label" htmlFor="invoice-due">
-            Due date
-          </label>
-          <input id="invoice-due" type="date" className="input" {...register('dueAt')} />
-        </div>
-
-        <div className="sm:col-span-2">
-          <label className="label" htmlFor="invoice-notes">
-            Notes
-          </label>
-          <textarea id="invoice-notes" rows={2} className="input" {...register('notes')} />
-        </div>
-      </div>
-
-      <div className="card p-5">
-        <h2 className="font-medium">Line items</h2>
-
-        <div className="mt-4 space-y-3">
-          {fields.map((field, index) => (
-            <div key={field.id} className="grid grid-cols-12 items-start gap-2">
-              <div className="col-span-6">
-                <input
-                  aria-label={`Line ${index + 1} description`}
-                  placeholder="Description"
-                  className="input"
-                  {...register(`items.${index}.description`, { required: 'Describe this line' })}
-                />
-                {errors.items?.[index]?.description && (
-                  <p className="field-error">{errors.items[index]?.description?.message}</p>
-                )}
-              </div>
-              <div className="col-span-2">
-                <input
-                  aria-label={`Line ${index + 1} quantity`}
-                  type="number"
-                  min={1}
-                  className="input"
-                  {...register(`items.${index}.quantity`, { valueAsNumber: true, min: 1 })}
-                />
-              </div>
-              <div className="col-span-3">
-                <input
-                  aria-label={`Line ${index + 1} unit price`}
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  className="input"
-                  {...register(`items.${index}.unitPrice`)}
-                />
-              </div>
-              <div className="col-span-1 pt-2 text-right">
-                {fields.length > 1 && (
-                  <button
-                    type="button"
-                    aria-label={`Remove line ${index + 1}`}
-                    className="text-muted text-sm hover:text-red-700"
-                    onClick={() => remove(index)}
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
+        {/* who it is to, and when it falls due */}
+        <div className="mt-8 grid gap-8 sm:grid-cols-[minmax(0,1fr)_260px]">
+          <div>
+            <label className="text-muted text-sm" htmlFor="invoice-client">
+              Bill to
+            </label>
+            <div className="mt-1.5">
+              <FormSelect
+                id="invoice-client"
+                control={control}
+                name="clientId"
+                placeholder="Pick a contact"
+                options={clients.map((entry) => ({ value: entry.id, label: entry.name }))}
+              />
             </div>
-          ))}
+
+            {client?.email && <p className="text-muted mt-1.5 text-sm">{client.email}</p>}
+
+            <label className="text-muted mt-4 block text-sm" htmlFor="invoice-project">
+              For
+            </label>
+            <div className="mt-1.5">
+              <FormSelect
+                id="invoice-project"
+                control={control}
+                name="projectId"
+                placeholder="No project"
+                options={projects.map((project) => ({ value: project.id, label: project.name }))}
+              />
+            </div>
+          </div>
+
+          <dl className="space-y-4 text-sm">
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-muted">Invoice #</dt>
+              <dd className="text-muted">Given when saved</dd>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-muted">Date issued</dt>
+              <dd className="text-muted">When you send it</dd>
+            </div>
+            <div>
+              <label className="text-muted block" htmlFor="invoice-due">
+                Payment due
+              </label>
+              <input id="invoice-due" type="date" className="input mt-1.5" {...register('dueAt')} />
+            </div>
+            <div className="border-line flex items-center justify-between gap-4 border-t pt-4">
+              <dt className="font-medium">Balance due</dt>
+              <dd className="font-semibold tabular-nums">{formatMoney(total, currency)}</dd>
+            </div>
+          </dl>
         </div>
 
-        <div className="mt-4 flex items-center justify-between">
+        {/* what is being billed, typed straight into the table */}
+        <table className="mt-10 w-full text-sm">
+          <thead>
+            <tr className="text-muted border-line border-b text-xs tracking-widest uppercase">
+              <th className="py-3 text-left font-medium">Service info</th>
+              <th className="w-20 py-3 text-right font-medium">Qty</th>
+              <th className="w-36 py-3 text-right font-medium">Unit price</th>
+              <th className="w-32 py-3 text-right font-medium">Total</th>
+              <th className="w-8" />
+            </tr>
+          </thead>
+          <tbody className="divide-line divide-y">
+            {fields.map((field, index) => (
+              <tr key={field.id} className="align-top">
+                <td className="py-2 pr-3">
+                  <input
+                    aria-label={`Line ${index + 1} description`}
+                    placeholder="What this line is for"
+                    className="input-plain"
+                    {...register(`items.${index}.description`, { required: 'Describe this line' })}
+                  />
+                  {errors.items?.[index]?.description && (
+                    <p className="field-error">{errors.items[index]?.description?.message}</p>
+                  )}
+                </td>
+                <td className="py-2">
+                  <input
+                    aria-label={`Line ${index + 1} quantity`}
+                    type="number"
+                    min={1}
+                    className="input-plain text-right"
+                    {...register(`items.${index}.quantity`, { valueAsNumber: true, min: 1 })}
+                  />
+                </td>
+                <td className="py-2">
+                  <input
+                    aria-label={`Line ${index + 1} unit price`}
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    className="input-plain text-right"
+                    {...register(`items.${index}.unitPrice`)}
+                  />
+                </td>
+                <td className="py-4 text-right tabular-nums">
+                  {formatMoney(lineTotal(index), currency)}
+                </td>
+                <td className="py-4 text-right">
+                  {fields.length > 1 && (
+                    <button
+                      type="button"
+                      aria-label={`Remove line ${index + 1}`}
+                      className="text-muted text-sm hover:text-red-700"
+                      onClick={() => remove(index)}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div className="mt-4 flex items-start justify-between gap-6">
           <button type="button" className="btn-ghost" onClick={() => append({ ...BLANK_ITEM })}>
             Add line
           </button>
-          <p className="text-sm">
-            Total <span className="font-semibold tabular-nums">{formatMoney(total, currency)}</span>
-          </p>
+
+          <dl className="w-full max-w-[280px] text-sm">
+            <div className="flex justify-between py-1.5">
+              <dt className="text-muted">Subtotal</dt>
+              <dd className="tabular-nums">{formatMoney(total, currency)}</dd>
+            </div>
+            <div className="border-line mt-1.5 flex justify-between border-t pt-3 text-base">
+              <dt className="font-medium">Balance due</dt>
+              <dd className="font-semibold tabular-nums">{formatMoney(total, currency)}</dd>
+            </div>
+          </dl>
         </div>
+
+        <footer className="border-line mt-10 border-t pt-5">
+          <label className="text-muted text-xs tracking-widest uppercase" htmlFor="invoice-notes">
+            Notes
+          </label>
+          <textarea
+            id="invoice-notes"
+            rows={2}
+            placeholder="Terms, or anything the client should read."
+            className="input-plain mt-2"
+            {...register('notes')}
+          />
+        </footer>
+      </article>
+
+      {formError && <p className="field-error mt-4">{formError}</p>}
+
+      <div className="mt-6 flex items-center gap-4">
+        <button type="submit" className="btn-primary" disabled={isSubmitting}>
+          {isSubmitting ? 'Saving…' : 'Save draft'}
+        </button>
+        <p className="text-muted text-sm">Nothing is sent until you send it.</p>
       </div>
-
-      {formError && <p className="field-error">{formError}</p>}
-
-      <button type="submit" className="btn-primary" disabled={isSubmitting}>
-        {isSubmitting ? 'Saving…' : 'Save draft'}
-      </button>
     </form>
   );
 }

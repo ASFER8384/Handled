@@ -33,6 +33,7 @@ export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) 
     select: {
       id: true,
       name: true,
+      email: true,
       projects: { select: { id: true, name: true }, orderBy: { updatedAt: 'desc' } },
     },
     orderBy: { name: 'asc' },
@@ -60,6 +61,8 @@ export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) 
         <InvoiceForm
           clients={clients}
           currency={ctx.currency}
+          from={ctx.workspaceName}
+          fromEmail={ctx.userEmail}
           start={{
             clientId: owner?.id ?? null,
             projectId: owner ? projectId : null,

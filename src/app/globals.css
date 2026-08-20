@@ -74,6 +74,12 @@ label:has(input[type='checkbox']) {
     @apply placeholder:text-muted/80 focus:ring-accent/25 h-9 w-full rounded-md bg-black/[0.035] px-3 text-sm outline-none focus:bg-black/[0.05] focus:ring-2;
   }
 
+  /* Fields written straight onto a document: no box until you are in one, so
+     the page reads as the invoice it will be rather than as a form. */
+  .input-plain {
+    @apply placeholder:text-muted/70 focus:ring-accent/30 w-full rounded-md bg-transparent px-2 py-1.5 text-sm outline-none hover:bg-black/[0.03] focus:bg-white focus:ring-2;
+  }
+
   .input {
     @apply border-line bg-surface placeholder:text-muted focus:border-accent focus:ring-accent/20 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2;
   }
@@ -191,4 +197,28 @@ label:has(input[type='checkbox']) {
 .email-body hr {
   margin: 1rem 0;
   border-top: 1px solid var(--color-line);
+}
+
+/* An invoice is a document somebody keeps, so printing it gives them the
+   document and nothing else: no rail, no buttons, no page around it. */
+@media print {
+  body {
+    background: white;
+  }
+
+  aside,
+  header.sticky,
+  [data-print-hide] {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  .invoice-sheet {
+    border: 0;
+    box-shadow: none;
+    border-radius: 0;
+  }
 }

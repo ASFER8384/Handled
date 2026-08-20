@@ -6,6 +6,8 @@ import { balanceCents, formatMoney, paidCents, subtotalCents } from '@/lib/money
 import { PageHeader, StatusBadge, formatDate } from '@/components/ui';
 import { InvoiceActions } from './invoice-actions';
 import { SaveAsTemplate } from './save-as-template';
+import { InvoiceSheet } from './invoice-sheet';
+import { PrintButton } from './print-button';
 import { PaymentForm } from './payment-form';
 
 export default async function InvoiceDetailPage({ params }: PageProps<'/invoices/[id]'>) {
@@ -34,6 +36,7 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
         subtitle={`${invoice.client.name}${invoice.project ? ` · ${invoice.project.name}` : ''}`}
         action={
           <div className="flex flex-wrap items-start justify-end gap-2">
+            <PrintButton />
             <SaveAsTemplate
               suggestedName={invoice.project?.name ?? invoice.client.name}
               notes={invoice.notes ?? ''}
@@ -47,81 +50,42 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
         }
       />
 
-      <Link href="/invoices" className="text-muted text-sm hover:underline">
+      <Link href="/invoices" className="text-muted text-sm hover:underline" data-print-hide>
         ← All invoices
       </Link>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
         <div className="min-w-0 space-y-6">
-          <div className="card overflow-hidden">
-            <div className="border-line flex flex-wrap items-center gap-x-8 gap-y-2 border-b px-5 py-4 text-sm">
-              <span>
-                <StatusBadge status={invoice.status} />
-              </span>
-              <span className="text-muted">Issued {formatDate(invoice.issuedAt)}</span>
-              <span className="text-muted">Due {formatDate(invoice.dueAt)}</span>
-            </div>
-
-            <table className="w-full text-sm">
-              <thead className="text-muted border-line border-b text-left">
-                <tr>
-                  <th className="px-5 py-3 font-medium">Description</th>
-                  <th className="px-5 py-3 text-right font-medium">Qty</th>
-                  <th className="px-5 py-3 text-right font-medium">Unit</th>
-                  <th className="px-5 py-3 text-right font-medium">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-line divide-y">
-                {invoice.items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="px-5 py-3">{item.description}</td>
-                    <td className="px-5 py-3 text-right tabular-nums">{item.quantity}</td>
-                    <td className="px-5 py-3 text-right tabular-nums">
-                      {formatMoney(item.unitPriceCents, ctx.currency)}
-                    </td>
-                    <td className="px-5 py-3 text-right tabular-nums">
-                      {formatMoney(item.quantity * item.unitPriceCents, ctx.currency)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="border-line border-t">
-                <tr>
-                  <td colSpan={3} className="text-muted px-5 py-2 text-right">
-                    Total
-                  </td>
-                  <td className="px-5 py-2 text-right font-medium tabular-nums">
-                    {formatMoney(total, ctx.currency)}
-                  </td>
-                </tr>
-                <tr>
-                  <td colSpan={3} className="text-muted px-5 py-2 text-right">
-                    Paid
-                  </td>
-                  <td className="px-5 py-2 text-right tabular-nums">
-                    {formatMoney(paid, ctx.currency)}
-                  </td>
-                </tr>
-                <tr>
-                  <td colSpan={3} className="px-5 py-2 text-right font-medium">
-                    Balance
-                  </td>
-                  <td className="px-5 py-2 text-right font-semibold tabular-nums">
-                    {formatMoney(balance, ctx.currency)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+          <div
+            className="border-line flex flex-wrap items-center gap-x-8 gap-y-2 text-sm"
+            data-print-hide
+          >
+            <StatusBadge status={invoice.status} />
+            <span className="text-muted">Issued {formatDate(invoice.issuedAt)}</span>
+            <span className="text-muted">Due {formatDate(invoice.dueAt)}</span>
           </div>
 
-          {invoice.notes && (
-            <div className="card p-5">
-              <h2 className="font-medium">Notes</h2>
-              <p className="text-muted mt-2 text-sm whitespace-pre-wrap">{invoice.notes}</p>
-            </div>
-          )}
+          <InvoiceSheet
+            number={invoice.number}
+            from={ctx.workspaceName}
+            fromEmail={ctx.userEmail}
+            billTo={{
+              name: invoice.client.name,
+              company: invoice.client.company,
+              address: invoice.client.address,
+              email: invoice.client.email,
+            }}
+            issuedAt={invoice.issuedAt}
+            dueAt={invoice.dueAt}
+            items={invoice.items}
+            subtotal={total}
+            paid={paid}
+            balance={balance}
+            currency={ctx.currency}
+            notes={invoice.notes}
+          />
 
-          <div className="card p-5">
+          <div className="card p-5" data-print-hide>
             <h2 className="font-medium">Payments</h2>
             {invoice.payments.length === 0 ? (
               <p className="text-muted mt-2 text-sm">Nothing recorded yet.</p>
