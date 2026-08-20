@@ -50,7 +50,6 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
   const [off, setOff] = useState<LayerKey[]>([]);
   const [picked, setPicked] = useState<string | null>(null);
   const [creating, setCreating] = useState<string | null>(null);
-  const [connectOpen, setConnectOpen] = useState(false);
 
   const shown = events.filter((event) => !off.includes(event.layer));
 
@@ -173,19 +172,9 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
       <div className="flex min-h-0 flex-1">
         {/* --- what is drawn ------------------------------------------- */}
         <aside className="w-[214px] shrink-0 overflow-y-auto px-5 py-5">
-          <button
-            type="button"
-            onClick={() => setConnectOpen((open) => !open)}
-            className="text-accent text-[15px] font-medium hover:underline"
-          >
-            Connect calendar
-          </button>
-          {connectOpen && (
-            <p className="text-muted mt-2 text-xs leading-relaxed">
-              Nothing to connect yet. This month is drawn from your own projects, dates, invoices
-              and tasks — outside calendars come later.
-            </p>
-          )}
+          {/* Plain text, not a link: there is nothing to connect to yet, and
+              a link that goes nowhere is worse than a heading. */}
+          <p className="text-accent text-[15px] font-medium">Connect calendar</p>
 
           <h2 className="mt-6 text-[15px] font-semibold">Handled</h2>
           <ul className="mt-3 space-y-0.5">
