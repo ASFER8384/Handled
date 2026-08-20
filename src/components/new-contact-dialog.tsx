@@ -3,23 +3,30 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog } from '@/components/dialog';
-import { CountrySelect } from '@/components/country-select';
 import { api } from '@/lib/client-fetch';
-import { DEFAULT_ISO, findCountry } from '@/lib/countries';
+import { ContactFields, EMPTY_CORE, joinPhone, splitPhone, type ContactCore } from '@/components/contact-fields';
 import { MoreDetails, EMPTY_DETAILS, type ContactDetails } from '@/components/contact-details';
 import { ProjectPicker, type ProjectChoice, type ProjectOption } from '@/components/project-picker';
 
 /**
- * A contact, optionally landing on a project as it is made: an existing one,
- * or a new one opened in the same breath. Somebody can just as well be in the
- * book with no work attached to them yet.
+ * Making a contact, wherever it is asked for — the Contacts page, the panel on
+ * the home page, anywhere later. One dialog rather than one per doorway, so a
+ * contact made in one place is the same contact made in another.
+ *
+ * They optionally land on a project as they are made: an existing one, or a new
+ * one opened in the same breath. Somebody can just as well be in the book with
+ * no work attached to them yet.
  */
-export function NewContactDialog({ onClose }: { onClose: () => void }) {
+export function NewContactDialog({
+  onClose,
+  onDone,
+}: {
+  onClose: () => void;
+  /** Called after it saves, for callers that close a panel of their own. */
+  onDone?: () => void;
+}) {
   const router = useRouter();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [countryIso, setCountryIso] = useState(DEFAULT_ISO);
-  const [phone, setPhone] = useState('');
+  const [core, setCore] = useState<ContactCore>(EMPTY_CORE);
   const [details, setDetails] = useState<ContactDetails>(EMPTY_DETAILS);
   // null while the list is still coming: nothing can be chosen until it is
   // here, so a new project is never opened by mistake in place of an existing
@@ -53,9 +60,9 @@ export function NewContactDialog({ onClose }: { onClose: () => void }) {
     const { data, error: failure } = await api<{ client: { id: string } }>('/api/clients', {
       method: 'POST',
       body: {
-        name,
-        email,
-        phone: phone.trim() ? `${findCountry(countryIso).dial} ${phone.trim()}` : undefined,
+        name: core.name,
+        email: core.email,
+        phone: joinPhone(core),
         lastInteractionAt: details.lastInteractionAt || undefined,
         website: details.website || undefined,
         jobTitle: details.jobTitle || undefined,
@@ -75,7 +82,7 @@ export function NewContactDialog({ onClose }: { onClose: () => void }) {
     if (choice.kind === 'none') {
       setBusy(false);
       router.refresh();
-      onClose();
+      (onDone ?? onClose)();
       return;
     }
 
@@ -99,10 +106,10 @@ export function NewContactDialog({ onClose }: { onClose: () => void }) {
     }
 
     router.refresh();
-    onClose();
+    (onDone ?? onClose)();
   }
 
-  const ready = name.trim() !== '' && email.trim() !== '';
+  const ready = core.name.trim() !== '' && core.email.trim() !== '';
 
   return (
     <Dialog
@@ -120,63 +127,14 @@ export function NewContactDialog({ onClose }: { onClose: () => void }) {
       }
     >
       <div className="space-y-6">
-        <div>
-          <div className="flex items-baseline justify-between">
-            <label className="label" htmlFor="new-contact-name">
-              Full name <span aria-hidden>*</span>
-            </label>
-            <span className="text-muted text-sm tabular-nums">{name.length}/100</span>
-          </div>
-          <input
-            id="new-contact-name"
-            autoFocus
-            value={name}
-            maxLength={100}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Add full name"
-            className="input-soft"
-          />
-        </div>
-
-        <div>
-          <label className="label" htmlFor="new-contact-email">
-            Email address <span aria-hidden>*</span>
-          </label>
-          <input
-            id="new-contact-email"
-            type="email"
-            value={email}
-            onChange={(event) => {
-              setEmail(event.target.value);
-              clearFault('email');
-            }}
-            aria-invalid={Boolean(faults.email)}
-            placeholder="Add email address"
-            className={`input-soft ${faults.email ? 'ring-accent ring-1' : ''}`}
-          />
-          {faults.email && <p className="field-error">{faults.email}</p>}
-        </div>
-
-        <div>
-          <label className="label" htmlFor="new-contact-phone">
-            Phone number
-          </label>
-          <div className="flex gap-3">
-            <CountrySelect value={countryIso} onChange={setCountryIso} />
-            <input
-              id="new-contact-phone"
-              value={phone}
-              onChange={(event) => {
-                setPhone(event.target.value);
-                clearFault('phone');
-              }}
-              aria-invalid={Boolean(faults.phone)}
-              placeholder="50 123 4567"
-              className={`input-soft ${faults.phone ? 'ring-accent ring-1' : ''}`}
-            />
-          </div>
-          {faults.phone && <p className="field-error">{faults.phone}</p>}
-        </div>
+        <ContactFields
+          prefix="new-contact"
+          value={core}
+          onChange={setCore}
+          faults={faults}
+          onClearFault={clearFault}
+          autoFocus
+        />
 
         <div>
           <label className="label" htmlFor="new-contact-project">

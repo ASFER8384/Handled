@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
 import { Tip } from '@/components/ui';
 import { useMenu, MenuItem, DotsIcon, PenIcon, TrashIcon } from '../projects/[id]/editor-kit';
-import { NewContactDialog } from './new-contact-dialog';
+import { NewContactDialog } from '@/components/new-contact-dialog';
 import { EditContactDialog } from './edit-contact-dialog';
 import { AddToProjectDialog } from './add-to-project-dialog';
 import { DeleteContactDialog } from './delete-contact-dialog';

@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Dialog } from '@/components/dialog';
-import { CountrySelect } from '@/components/country-select';
 import { api } from '@/lib/client-fetch';
-import { DEFAULT_ISO, findCountry } from '@/lib/countries';
+import { ContactFields, EMPTY_CORE, joinPhone, splitPhone, type ContactCore } from '@/components/contact-fields';
 import { MoreDetails, EMPTY_DETAILS, type ContactDetails } from '@/components/contact-details';
 
 export type Contact = { id: string; name: string; email: string | null };
@@ -36,10 +35,7 @@ export function AddContactDialog({
   onAdded: (contact: Contact) => void;
 }) {
   const [mode, setMode] = useState<'new' | 'existing'>('new');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [countryIso, setCountryIso] = useState(DEFAULT_ISO);
-  const [phone, setPhone] = useState('');
+  const [core, setCore] = useState<ContactCore>(EMPTY_CORE);
   const [details, setDetails] = useState<ContactDetails>(EMPTY_DETAILS);
   const [search, setSearch] = useState('');
   const [contacts, setContacts] = useState<Option[] | null>(null);
@@ -93,9 +89,9 @@ export function AddContactDialog({
     setError(null);
     setFaults({});
     const payload = {
-      name,
-      email,
-      phone: phone.trim() ? `${findCountry(countryIso).dial} ${phone.trim()}` : undefined,
+      name: core.name,
+      email: core.email,
+      phone: joinPhone(core),
       lastInteractionAt: details.lastInteractionAt || undefined,
       website: details.website || undefined,
       jobTitle: details.jobTitle || undefined,
@@ -125,7 +121,8 @@ export function AddContactDialog({
     onAdded(data.contact);
   }
 
-  const ready = mode === 'existing' ? Boolean(picked) : name.trim() !== '' && email.trim() !== '';
+  const ready =
+    mode === 'existing' ? Boolean(picked) : core.name.trim() !== '' && core.email.trim() !== '';
 
   return (
     <Dialog
@@ -164,73 +161,14 @@ export function AddContactDialog({
 
       {mode === 'new' ? (
         <div className="mt-6 space-y-6">
-          <div>
-            <div className="flex items-baseline justify-between">
-              <label className="label" htmlFor="contact-name">
-                Full name <span aria-hidden>*</span>
-              </label>
-              <span className="text-muted text-sm tabular-nums">{name.length}/100</span>
-            </div>
-            <input
-              id="contact-name"
-              autoFocus
-              value={name}
-              maxLength={100}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Add full name"
-              className="input-soft"
-            />
-          </div>
-
-          <div>
-            <label className="label" htmlFor="contact-email">
-              Email address <span aria-hidden>*</span>
-            </label>
-            <input
-              id="contact-email"
-              type="email"
-              value={email}
-              onChange={(event) => {
-                setEmail(event.target.value);
-                clearFault('email');
-              }}
-              aria-invalid={Boolean(faults.email)}
-              aria-describedby={faults.email ? 'contact-email-error' : undefined}
-              placeholder="Add email address"
-              className={`input-soft ${faults.email ? 'ring-accent ring-1' : ''}`}
-            />
-            {faults.email && (
-              <p id="contact-email-error" className="field-error">
-                {faults.email}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="label" htmlFor="contact-phone">
-              Phone number
-            </label>
-            <div className="flex gap-3">
-              <CountrySelect value={countryIso} onChange={setCountryIso} />
-              <input
-                id="contact-phone"
-                value={phone}
-                onChange={(event) => {
-                  setPhone(event.target.value);
-                  clearFault('phone');
-                }}
-                aria-invalid={Boolean(faults.phone)}
-                aria-describedby={faults.phone ? 'contact-phone-error' : undefined}
-                placeholder="50 123 4567"
-                className={`input-soft ${faults.phone ? 'ring-accent ring-1' : ''}`}
-              />
-            </div>
-            {faults.phone && (
-              <p id="contact-phone-error" className="field-error">
-                {faults.phone}
-              </p>
-            )}
-          </div>
+          <ContactFields
+            prefix="contact"
+            value={core}
+            onChange={setCore}
+            faults={faults}
+            onClearFault={clearFault}
+            autoFocus
+          />
 
         <MoreDetails prefix="contact" value={details} onChange={setDetails} />
 
