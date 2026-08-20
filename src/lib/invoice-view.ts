@@ -1,4 +1,6 @@
+import { readFile } from 'node:fs/promises';
 import { prisma } from '@/lib/prisma';
+import { storagePath } from '@/lib/uploads';
 import { companyBrand } from '@/lib/company';
 import { balanceCents, paidCents, subtotalCents, taxCents } from '@/lib/money';
 
@@ -15,6 +17,11 @@ export type InvoiceView = {
   business: string;
   businessContact: string;
   businessAddress: string | null;
+  /**
+   * The logo as bytes, ready to be drawn into a file that travels on its own.
+   * A PDF has nowhere to fetch a URL from, so the picture goes inside it.
+   */
+  logo: { dataUri: string } | null;
   clientName: string;
   clientCompany: string | null;
   clientEmail: string | null;
@@ -49,12 +56,19 @@ export async function invoiceView(
 
   const brand = await companyBrand(workspaceId, userEmail);
 
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { logoKey: true, logoMime: true },
+  });
+  const logo = await logoBytes(workspace?.logoKey ?? null, workspace?.logoMime ?? null);
+
   return {
     id: invoice.id,
     number: invoice.number,
     business: brand.name,
     businessContact: brand.contact,
     businessAddress: brand.address,
+    logo,
     clientName: invoice.client.name,
     clientCompany: invoice.client.company,
     clientEmail: invoice.client.email,
@@ -77,4 +91,23 @@ export async function invoiceView(
     pay: brand.pay,
     payNotes: brand.payNotes,
   };
+}
+
+/**
+ * The logo, if there is one that a PDF can actually draw.
+ *
+ * PNG and JPEG only: the renderer cannot rasterise SVG or WebP, and a picture
+ * that fails to draw takes the whole document down with it. A logo it cannot
+ * read is left out rather than risking the invoice.
+ */
+async function logoBytes(
+  key: string | null,
+  mime: string | null,
+): Promise<{ dataUri: string } | null> {
+  if (!key || !mime) return null;
+  if (mime !== 'image/png' && mime !== 'image/jpeg') return null;
+
+  const bytes = await readFile(storagePath(key)).catch(() => null);
+  if (!bytes) return null;
+  return { dataUri: `data:${mime};base64,${bytes.toString('base64')}` };
 }

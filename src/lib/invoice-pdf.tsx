@@ -1,4 +1,4 @@
-import { Document, Page, Text, View, StyleSheet, renderToBuffer } from '@react-pdf/renderer';
+import { Document, Image, Page, Text, View, StyleSheet, renderToBuffer } from '@react-pdf/renderer';
 import { formatMoney, formatRate } from '@/lib/money';
 import { invoiceTheme } from '@/lib/invoice-theme';
 import type { InvoiceView } from '@/lib/invoice-view';
@@ -17,6 +17,8 @@ const LINE = '#e9e0d7';
 
 const styles = StyleSheet.create({
   page: { padding: 44, fontSize: 10, color: '#17110e', fontFamily: 'Helvetica' },
+  // Height only, so a wide logo and a square one both come out in proportion.
+  logo: { height: 40, marginBottom: 10, objectFit: 'contain', alignSelf: 'flex-start' },
   business: { fontSize: 14, fontFamily: 'Helvetica-Bold' },
   quiet: { color: MUTED, marginTop: 2 },
   band: { marginTop: 22, padding: '10 12', fontSize: 18, fontFamily: 'Helvetica-Bold' },
@@ -56,6 +58,7 @@ function InvoiceDocument({ invoice }: { invoice: InvoiceView }) {
     <Document title={`Invoice ${invoice.number}`} author={invoice.business}>
       <Page size="A4" style={styles.page}>
         <View>
+          {invoice.logo ? <Image src={invoice.logo.dataUri} style={styles.logo} /> : null}
           <Text style={styles.business}>{invoice.business}</Text>
           <Text style={styles.quiet}>{invoice.businessContact}</Text>
           {invoice.businessAddress ? (
