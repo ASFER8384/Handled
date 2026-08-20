@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
 import { Select } from '@/components/select';
@@ -190,7 +191,14 @@ export function TableView({
                       onChange={() => toggle(row.id)}
                     />
                   </td>
-                  <td className="py-3.5 pr-4 font-medium">{row.name}</td>
+                  <td className="py-3.5 pr-4 font-medium">
+                    {/* The way into a project from the table. A card on the
+                        board opens from its title, and a row has to as well,
+                        or the table is a list you cannot get out of. */}
+                    <Link href={`/projects/${row.id}`} className="hover:underline">
+                      {row.name}
+                    </Link>
+                  </td>
                   {fields.map((field) => (
                     <td
                       key={field.key}
