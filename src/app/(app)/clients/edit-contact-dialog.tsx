@@ -5,9 +5,20 @@ import { useRouter } from 'next/navigation';
 import { Dialog } from '@/components/dialog';
 import { api } from '@/lib/client-fetch';
 import { Tip } from '@/components/ui';
-import { ContactFields, EMPTY_CORE, joinPhone, splitPhone, type ContactCore } from '@/components/contact-fields';
+import {
+  ContactFields,
+  EMPTY_CORE,
+  joinPhone,
+  splitPhone,
+  type ContactCore,
+} from '@/components/contact-fields';
 import { MoreDetails, EMPTY_DETAILS, type ContactDetails } from '@/components/contact-details';
-import { ProjectPicker, type ProjectChoice, type ProjectOption } from '@/components/project-picker';
+import {
+  ProjectChoiceFields,
+  projectChosen,
+  type ProjectChoice,
+  type ProjectOption,
+} from '@/components/project-picker';
 import type { ContactRow } from './contacts-table';
 
 /** Changes a contact's own details. Where they work is set elsewhere. */
@@ -41,7 +52,11 @@ export function EditContactDialog({
   // its own tie, and undoing one should not wait on the rest of the form.
   const [on, setOn] = useState(contact.projects);
   const [all, setAll] = useState<ProjectOption[] | null>(null);
-  const [choice, setChoice] = useState<ProjectChoice>({ kind: 'none' });
+  const [choice, setChoice] = useState<ProjectChoice>({ kind: 'new', name: '' });
+
+  // Adding is its own button here rather than happening on selection: the
+  // choice has two halves now, and half a choice must not fire.
+  const readyToLink = projectChosen(choice);
 
   useEffect(() => {
     const stop = new AbortController();
@@ -68,8 +83,8 @@ export function EditContactDialog({
   }
 
   async function link(picked: ProjectChoice) {
-    setChoice({ kind: 'none' });
-    if (picked.kind === 'none') return;
+    setChoice({ kind: 'new', name: '' });
+    if (!projectChosen(picked)) return;
     setBusy(true);
 
     const { data, error: failure } =
@@ -80,7 +95,7 @@ export function EditContactDialog({
           }).then((result) => ({ data: { id: picked.id, name: picked.name }, error: result.error }))
         : await api<{ project: { id: string; name: string } }>('/api/projects', {
             method: 'POST',
-            body: { name: picked.name, clientId: contact.id },
+            body: { name: picked.name.trim(), clientId: contact.id },
           }).then((result) => ({ data: result.data?.project ?? null, error: result.error }));
 
     setBusy(false);
@@ -90,7 +105,10 @@ export function EditContactDialog({
     }
     setError(null);
     // A project opened for them is theirs; one they joined they can leave.
-    setOn((current) => [...current, { ...data, role: picked.kind === 'new' ? 'client' : 'contact' }]);
+    setOn((current) => [
+      ...current,
+      { ...data, role: picked.kind === 'new' ? 'client' : 'contact' },
+    ]);
     router.refresh();
   }
 
@@ -155,7 +173,6 @@ export function EditContactDialog({
           autoFocus
         />
 
-
         <div>
           <p className="label">Projects</p>
           {on.length > 0 && (
@@ -190,15 +207,23 @@ export function EditContactDialog({
             </ul>
           )}
 
-          <ProjectPicker
-            id="edit-contact-project"
+          <ProjectChoiceFields
+            prefix="edit-contact"
             value={choice}
-            projects={(all ?? []).filter(
-              (project) => !on.some((held) => held.id === project.id),
-            )}
-            placeholder={on.length === 0 ? 'Put them on a project' : 'Add another project'}
-            onChange={(picked) => void link(picked)}
+            projects={all}
+            exclude={on.map((project) => project.id)}
+            contactName={contact.name}
+            onChange={setChoice}
           />
+
+          <button
+            type="button"
+            disabled={busy || !readyToLink}
+            onClick={() => void link(choice)}
+            className="btn-ghost mt-3 px-4 disabled:opacity-40"
+          >
+            {busy ? 'Adding…' : 'Add to project'}
+          </button>
         </div>
 
         <MoreDetails prefix="edit-contact" value={details} onChange={setDetails} />

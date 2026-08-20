@@ -4,9 +4,19 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog } from '@/components/dialog';
 import { api } from '@/lib/client-fetch';
-import { ContactFields, EMPTY_CORE, joinPhone, splitPhone, type ContactCore } from '@/components/contact-fields';
+import {
+  ContactFields,
+  EMPTY_CORE,
+  joinPhone,
+  type ContactCore,
+} from '@/components/contact-fields';
 import { MoreDetails, EMPTY_DETAILS, type ContactDetails } from '@/components/contact-details';
-import { ProjectPicker, type ProjectChoice, type ProjectOption } from '@/components/project-picker';
+import {
+  ProjectChoiceFields,
+  projectChosen,
+  type ProjectChoice,
+  type ProjectOption,
+} from '@/components/project-picker';
 
 /**
  * Making a contact, wherever it is asked for — the Contacts page, the panel on
@@ -79,7 +89,7 @@ export function NewContactDialog({
     }
 
     // No project asked for: the contact is saved and that is the whole job.
-    if (choice.kind === 'none') {
+    if (!projectChosen(choice)) {
       setBusy(false);
       router.refresh();
       (onDone ?? onClose)();
@@ -137,20 +147,15 @@ export function NewContactDialog({
         />
 
         <div>
-          <label className="label" htmlFor="new-contact-project">
-            Project
-          </label>
-          <ProjectPicker
-            id="new-contact-project"
+          <p className="label">Project</p>
+          <ProjectChoiceFields
+            prefix="new-contact"
             value={choice}
             projects={projects}
+            optional
+            contactName={core.name.trim() || undefined}
             onChange={setChoice}
           />
-
-          <p className="text-muted mt-1.5 text-xs">
-            Leave this alone to just save them to your contacts; you can put them on a project
-            whenever the work turns up.
-          </p>
         </div>
 
         <MoreDetails prefix="new-contact" value={details} onChange={setDetails} />

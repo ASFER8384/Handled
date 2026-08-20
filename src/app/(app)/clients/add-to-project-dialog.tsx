@@ -3,10 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog } from '@/components/dialog';
-import { Select } from '@/components/select';
+import {
+  ProjectChoiceFields,
+  projectChosen,
+  type ProjectChoice,
+  type ProjectOption,
+} from '@/components/project-picker';
 import { api } from '@/lib/client-fetch';
-
-type ProjectOption = { id: string; name: string };
 
 /**
  * Puts a contact on a piece of work: one that exists, or one opened under a
@@ -35,10 +38,8 @@ export function AddToProjectDialog({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<'new' | 'existing'>('new');
-  const [name, setName] = useState('');
+  const [choice, setChoice] = useState<ProjectChoice>({ kind: 'new', name: '' });
   const [projects, setProjects] = useState<ProjectOption[] | null>(null);
-  const [picked, setPicked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,14 +52,13 @@ export function AddToProjectDialog({
     return () => stop.abort();
   }, []);
 
-  const open = (projects ?? []).filter((project) => !already.includes(project.id));
-
   async function add() {
+    if (!projectChosen(choice)) return;
     setBusy(true);
     setError(null);
 
-    if (mode === 'existing') {
-      const { error: failure } = await api(`/api/projects/${picked}/contacts`, {
+    if (choice.kind === 'existing') {
+      const { error: failure } = await api(`/api/projects/${choice.id}/contacts`, {
         method: 'POST',
         body: { clientId: contactId },
       });
@@ -68,12 +68,11 @@ export function AddToProjectDialog({
         return;
       }
       // They join a project that already has a client, so they are on it.
-      const project = open.find((entry) => entry.id === picked);
-      if (project) onAdded?.({ ...project, role: 'contact' });
+      onAdded?.({ id: choice.id, name: choice.name, role: 'contact' });
     } else {
       const { data, error: failure } = await api<{ project: { id: string; name: string } }>(
         '/api/projects',
-        { method: 'POST', body: { name: name.trim(), clientId: contactId } },
+        { method: 'POST', body: { name: choice.name.trim(), clientId: contactId } },
       );
       setBusy(false);
       if (failure || !data) {
@@ -88,7 +87,7 @@ export function AddToProjectDialog({
     onClose();
   }
 
-  const ready = mode === 'existing' ? Boolean(picked) : name.trim() !== '';
+  const ready = projectChosen(choice);
 
   return (
     <Dialog
@@ -106,67 +105,14 @@ export function AddToProjectDialog({
         </button>
       }
     >
-      <div className="flex items-center gap-10">
-        {(
-          [
-            ['new', 'New project'],
-            ['existing', 'Existing project'],
-          ] as const
-        ).map(([value, label]) => (
-          <label key={value} className="flex items-center gap-2.5 text-sm">
-            <input
-              type="radio"
-              name="add-to-project-mode"
-              checked={mode === value}
-              onChange={() => setMode(value)}
-              className="accent-brand-ink h-[18px] w-[18px]"
-            />
-            {label}
-          </label>
-        ))}
-      </div>
-
-      <div className="mt-6">
-        {mode === 'new' ? (
-          <>
-            <label className="sr-only" htmlFor="add-project-name">
-              Project name
-            </label>
-            <input
-              id="add-project-name"
-              autoFocus
-              value={name}
-              maxLength={140}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Project name"
-              className="input-soft"
-            />
-            <p className="text-muted mt-1.5 text-sm">
-              A new project will be created with this contact as its client.
-            </p>
-          </>
-        ) : (
-          <>
-            <Select
-              id="add-project-existing"
-              ariaLabel="Existing project"
-              placeholder={projects === null ? 'Loading your projects…' : 'Pick a project'}
-              disabled={projects === null}
-              searchable
-              value={picked}
-              options={open.map((project) => ({ value: project.id, label: project.name }))}
-              onChange={setPicked}
-            />
-            <p className="text-muted mt-1.5 text-sm">
-              {projects === null
-                ? 'Fetching what you have open.'
-                : open.length === 0
-                  ? `${contactName} is already on every project you have.`
-                  : 'They join the project alongside whoever is already on it.'}
-            </p>
-          </>
-        )}
-      </div>
+      <ProjectChoiceFields
+        prefix="add-to"
+        value={choice}
+        projects={projects}
+        exclude={already}
+        contactName={contactName}
+        onChange={setChoice}
+      />
 
       <p className="text-muted mt-6 flex items-start gap-2.5 text-sm">
         <BulbIcon />
