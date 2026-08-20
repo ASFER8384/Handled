@@ -8,6 +8,7 @@ import { EmptyState, formatDate } from '@/components/ui';
 import { LEAD_SOURCES, PROJECT_TYPES } from '@/lib/stages';
 import { TypeSelect } from './type-select';
 import { ProjectInvoices } from './project-invoices';
+import { MoneySummary } from './money-summary';
 import { NotesTab } from './notes-tab';
 import { FilesTab } from './files-tab';
 import { ActivityTab } from './activity-tab';
@@ -311,20 +312,14 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
 
           {tab === 'Financials' && (
             <div className="mt-6">
-              <section className="card mb-6 p-5">
-                <h2 className="mb-4 font-semibold">Money</h2>
-                <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
-                  <Money label="Project value" cents={project.valueCents} currency={ctx.currency} />
-                  <Money label="Invoiced" cents={invoiced} currency={ctx.currency} />
-                  <Money label="Paid" cents={paid} currency={ctx.currency} />
-                  <Money
-                    label="Outstanding"
-                    cents={invoiced - paid}
-                    currency={ctx.currency}
-                    strong
-                  />
-                </dl>
-              </section>
+              <div className="mb-6">
+                <MoneySummary
+                  valueCents={project.valueCents}
+                  invoicedCents={invoiced}
+                  paidCents={paid}
+                  currency={ctx.currency}
+                />
+              </div>
 
               {project.invoices.length === 0 ? (
                 <EmptyState
@@ -428,27 +423,6 @@ function Stat({ label, value, strong }: { label: string; value: string; strong?:
       <dt className="text-muted text-xs tracking-widest uppercase">{label}</dt>
       <dd className={`mt-1.5 text-lg ${strong ? 'text-accent font-semibold' : 'font-medium'}`}>
         {value}
-      </dd>
-    </div>
-  );
-}
-
-function Money({
-  label,
-  cents,
-  currency,
-  strong,
-}: {
-  label: string;
-  cents: number;
-  currency: string;
-  strong?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <dt className="text-muted">{label}</dt>
-      <dd className={`tabular-nums ${strong ? 'font-semibold' : ''}`}>
-        {formatMoney(cents, currency)}
       </dd>
     </div>
   );

@@ -3,7 +3,13 @@
 import { useEffect, useState } from 'react';
 import { Dialog } from '@/components/dialog';
 import { api } from '@/lib/client-fetch';
-import { ContactFields, EMPTY_CORE, joinPhone, splitPhone, type ContactCore } from '@/components/contact-fields';
+import {
+  ContactFields,
+  EMPTY_CORE,
+  joinPhone,
+  splitPhone,
+  type ContactCore,
+} from '@/components/contact-fields';
 import { MoreDetails, EMPTY_DETAILS, type ContactDetails } from '@/components/contact-details';
 
 export type Contact = { id: string; name: string; email: string | null };
@@ -170,13 +176,13 @@ export function AddContactDialog({
             autoFocus
           />
 
-        <MoreDetails prefix="contact" value={details} onChange={setDetails} />
+          <MoreDetails prefix="contact" value={details} onChange={setDetails} />
 
           {error && <p className="field-error">{error}</p>}
         </div>
       ) : (
         <div className="mt-6">
-          <div className="input-soft focus-within:bg-black/[0.05] flex items-center gap-2">
+          <div className="input-soft flex items-center gap-2 focus-within:bg-black/[0.05]">
             <svg
               aria-hidden
               viewBox="0 0 24 24"

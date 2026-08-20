@@ -300,7 +300,7 @@ export function NoteEditor({
               scheduleSave();
             }}
           >
-            <span className="text-[15px] font-semibold underline decoration-[3px] decoration-[#C4262E] underline-offset-[3px]">
+            <span className="text-[15px] font-semibold underline decoration-[#C4262E] decoration-[3px] underline-offset-[3px]">
               A
             </span>
           </Swatches>
