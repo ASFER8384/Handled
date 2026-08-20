@@ -43,12 +43,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family:
-    'proxima-nova',
-    'Proxima Nova',
-    var(--font-sans-fallback),
-    ui-sans-serif,
-    system-ui,
-    sans-serif;
+    'proxima-nova', 'Proxima Nova', var(--font-sans-fallback), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -66,23 +61,21 @@ label:has(input[type='checkbox']) {
 
 @layer components {
   .card {
-    @apply rounded-xl border border-line bg-surface;
+    @apply border-line bg-surface rounded-xl border;
   }
 
   .label {
-    @apply mb-1.5 block text-sm font-medium text-foreground;
+    @apply text-foreground mb-1.5 block text-sm font-medium;
   }
 
   /* Dialog fields are filled rather than outlined — on a white modal a border
      reads as a second edge next to the modal's own. */
   .input-soft {
-    @apply h-9 w-full rounded-md bg-black/[0.035] px-3 text-sm outline-none
-      placeholder:text-muted/80 focus:bg-black/[0.05] focus:ring-2 focus:ring-accent/25;
+    @apply placeholder:text-muted/80 focus:ring-accent/25 h-9 w-full rounded-md bg-black/[0.035] px-3 text-sm outline-none focus:bg-black/[0.05] focus:ring-2;
   }
 
   .input {
-    @apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none
-      placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/20;
+    @apply border-line bg-surface placeholder:text-muted focus:border-accent focus:ring-accent/20 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2;
   }
 
   /* Tailwind v4 cannot @apply a class defined in this same layer, so each
@@ -90,16 +83,15 @@ label:has(input[type='checkbox']) {
   .btn,
   .btn-primary,
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium
-      transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .btn-primary {
-    @apply bg-accent text-white hover:bg-accent/90;
+    @apply bg-accent hover:bg-accent/90 text-white;
   }
 
   .btn-ghost {
-    @apply border border-line bg-surface text-foreground hover:bg-accent-soft;
+    @apply border-line bg-surface text-foreground hover:bg-accent-soft border;
   }
 
   .field-error {
@@ -122,25 +114,34 @@ label:has(input[type='checkbox']) {
   .pill,
   .pill-dark,
   .pill-light {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-base
-      font-medium transition-transform duration-150 hover:-translate-y-0.5;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-base font-medium transition-transform duration-150 hover:-translate-y-0.5;
   }
 
   .pill-dark {
-    @apply bg-brand-ink text-white hover:bg-brand-ink/90;
+    @apply bg-brand-ink hover:bg-brand-ink/90 text-white;
   }
 
   .pill-light {
-    @apply border border-brand-ink/15 bg-white text-brand-ink hover:bg-brand-ink/5;
+    @apply border-brand-ink/15 text-brand-ink hover:bg-brand-ink/5 border bg-white;
   }
 
   .chip {
-    @apply rounded-full border border-brand-ink/10 bg-white px-4 py-2 text-sm font-medium
-      text-brand-ink transition-colors;
+    @apply border-brand-ink/10 text-brand-ink rounded-full border bg-white px-4 py-2 text-sm font-medium transition-colors;
   }
 
   .chip-active {
-    @apply border-transparent bg-brand-clay/60;
+    @apply bg-brand-clay/60 border-transparent;
+  }
+}
+
+/* An armed chip drains its tint over the seconds it stays armed, so the time
+   you have to think about it is something you can see rather than guess. */
+@keyframes chip-countdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
   }
 }
 

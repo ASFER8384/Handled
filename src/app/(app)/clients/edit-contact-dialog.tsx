@@ -196,7 +196,7 @@ export function EditContactDialog({
                       </button>
                     </Tip>
                   ) : (
-                    <Tip label={`${contact.name} is the client ${project.name} is for`}>
+                    <Tip label="Client of this project. Change it on the project page.">
                       <span aria-label="Client of this project" className="text-muted">
                         <Lock />
                       </span>

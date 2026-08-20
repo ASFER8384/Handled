@@ -310,13 +310,23 @@ export function ContactsTable({
                             <span
                               key={project.id}
                               data-arm
-                              className={`group/chip flex items-center gap-1 rounded-full py-1 pr-1.5 pl-2.5 text-xs transition-colors ${
+                              className={`group/chip relative flex items-center gap-1 overflow-hidden rounded-full py-1 pr-1.5 pl-2.5 text-xs transition-colors ${
                                 armed === `${contact.id}:${project.id}`
-                                  ? 'bg-accent-soft text-accent'
+                                  ? 'bg-accent-soft/40 text-accent'
                                   : 'bg-black/[0.05]'
                               }`}
                             >
-                              <Link href={`/projects/${project.id}`} className="hover:underline">
+                              {armed === `${contact.id}:${project.id}` && (
+                                <span
+                                  aria-hidden
+                                  style={{ animationDuration: `${ARM_SECONDS}s` }}
+                                  className="bg-accent-soft absolute inset-0 origin-left animate-[chip-countdown_linear_forwards]"
+                                />
+                              )}
+                              <Link
+                                href={`/projects/${project.id}`}
+                                className="relative hover:underline"
+                              >
                                 {project.name}
                               </Link>
                               {project.role === 'contact' ? (
@@ -329,7 +339,7 @@ export function ContactsTable({
                                       setArmed(null);
                                       void unlink(project.id, contact.id);
                                     }}
-                                    className="text-accent ml-0.5 font-semibold underline underline-offset-2 disabled:opacity-40"
+                                    className="text-accent relative ml-0.5 font-semibold underline underline-offset-2 disabled:opacity-40"
                                   >
                                     Remove?
                                   </button>
@@ -348,7 +358,7 @@ export function ContactsTable({
                                 )
                               ) : (
                                 <Tip
-                                  label={`${contact.name} is the client this project is for`}
+                                  label="Client of this project. Change it on the project page."
                                   floating
                                 >
                                   <span aria-label="Client of this project" className="text-muted">
