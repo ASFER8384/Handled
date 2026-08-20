@@ -433,6 +433,10 @@ model ProjectMessage {
   replyTo   ProjectMessage?  @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
   replies   ProjectMessage[] @relation("MessageReply")
 
+  /// The invoice this email carries, when it was written to send one.
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -481,6 +485,7 @@ model Invoice {
 
   items    InvoiceItem[]
   payments Payment[]
+  messages ProjectMessage[]
 
   @@unique([workspaceId, number])
   @@index([workspaceId, status])

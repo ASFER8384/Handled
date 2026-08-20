@@ -13,8 +13,7 @@ const vercelHosts = [process.env.VERCEL_PROJECT_PRODUCTION_URL, process.env.VERC
   .filter(Boolean)
   .map((host) => `https://${host}`);
 
-const baseURL =
-  process.env.BETTER_AUTH_URL ?? vercelHosts[0] ?? 'http://localhost:3000';
+const baseURL = process.env.BETTER_AUTH_URL ?? vercelHosts[0] ?? 'http://localhost:3000';
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: 'postgresql' }),

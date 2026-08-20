@@ -23,6 +23,7 @@
     "@node-rs/argon2": "^2.0.2",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
+    "@react-pdf/renderer": "^4.6.1",
     "better-auth": "^1.6.27",
     "next": "16.3.0",
     "react": "19.2.8",

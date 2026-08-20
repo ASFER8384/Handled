@@ -122,7 +122,11 @@ export async function sweepDueSteps(workspaceId: string): Promise<number> {
 
       await prisma.automationRunStep.update({
         where: { id: runStep.id },
-        data: { status: outcome.ok ? 'DONE' : 'FAILED', executedAt: new Date(), detail: outcome.detail },
+        data: {
+          status: outcome.ok ? 'DONE' : 'FAILED',
+          executedAt: new Date(),
+          detail: outcome.detail,
+        },
       });
       executed += 1;
 
@@ -203,5 +207,3 @@ export async function hasLiveRun(automationId: string, workspaceId: string): Pro
   });
   return live > 0;
 }
-
-

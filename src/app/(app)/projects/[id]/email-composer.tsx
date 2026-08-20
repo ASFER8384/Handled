@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ActivityMessage } from './activity-tab';
 import { AddContactDialog } from './add-contact-dialog';
 import { Tip } from '@/components/ui';
+import { Dialog } from '@/components/dialog';
 import {
   AlignIcon,
   CalendarIcon,
@@ -87,6 +88,8 @@ export type Prefill = {
   bodyHtml: string;
   /** Sending marks this invoice sent. */
   invoiceId: string;
+  /** The PDF the server attaches on the way out, named here so it is seen. */
+  attachmentName: string;
 };
 
 /** Everything the email bar in HoneyBook offers, wired to real behaviour. */
@@ -143,6 +146,11 @@ export function EmailComposer({
   const [sendTime, setSendTime] = useState('09:00');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Whatever is being looked at before it goes: the invoice, or any file.
+  const [preview, setPreview] = useState<{ name: string; src: string } | null>(null);
+  // Taken off, this is an ordinary email again: no document goes with it, and
+  // the invoice is not treated as having been sent.
+  const [carryInvoice, setCarryInvoice] = useState(true);
 
   // The editor is a live element, so its contents are set after it mounts
   // rather than passed in as a value.
@@ -228,7 +236,7 @@ export function EmailComposer({
         bodyHtml: fill(html),
         attachmentIds: attachments.map((file) => file.id),
         replyToId: replyTo?.id,
-        invoiceId: prefill?.invoiceId,
+        invoiceId: carryInvoice ? prefill?.invoiceId : undefined,
         draft,
         scheduledFor,
       }),
@@ -336,15 +344,54 @@ export function EmailComposer({
         className="composer-body max-h-[340px] min-h-[220px] overflow-y-auto px-4 py-4 outline-none"
       />
 
-      {attachments.length > 0 && (
+      {(attachments.length > 0 || (prefill && carryInvoice)) && (
         <ul className="flex flex-wrap gap-2 px-4 pb-3">
+          {/* The invoice rides along whatever else is attached, and cannot be
+              taken off: an email about an invoice without the invoice is the
+              one thing this is here to stop. */}
+          {prefill && carryInvoice && (
+            <li className="border-line bg-accent-soft/40 hover:border-accent flex items-center gap-2 rounded border px-2 py-1 transition-colors">
+              <button
+                type="button"
+                onClick={() =>
+                  setPreview({
+                    name: prefill.attachmentName,
+                    src: `/api/invoices/${prefill.invoiceId}/pdf`,
+                  })
+                }
+                className="flex items-center gap-2"
+              >
+                <Clip className="h-3.5 w-3.5" />
+                {prefill.attachmentName}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCarryInvoice(false)}
+                aria-label={`Remove ${prefill.attachmentName}`}
+                className="text-muted hover:text-foreground"
+              >
+                <Cross className="h-3 w-3" />
+              </button>
+            </li>
+          )}
           {attachments.map((file) => (
             <li
               key={file.id}
               className="border-line flex items-center gap-2 rounded border px-2 py-1"
             >
-              <Clip className="h-3.5 w-3.5" />
-              {file.name}
+              <button
+                type="button"
+                onClick={() =>
+                  setPreview({
+                    name: file.name,
+                    src: `/api/project-files/${file.id}/content`,
+                  })
+                }
+                className="flex items-center gap-2"
+              >
+                <Clip className="h-3.5 w-3.5" />
+                {file.name}
+              </button>
               <button
                 type="button"
                 onClick={() => setAttachments((all) => all.filter((entry) => entry.id !== file.id))}
@@ -359,6 +406,14 @@ export function EmailComposer({
       )}
 
       {error && <p className="field-error px-4 pb-2">{error}</p>}
+
+      {/* An attachment is a document, not a filename: anything going out can
+          be read first, in the shape the client will receive it. */}
+      {preview && (
+        <Dialog title={preview.name} onClose={() => setPreview(null)} width={900}>
+          <FilePreview name={preview.name} src={preview.src} />
+        </Dialog>
+      )}
 
       {/* ---- formatting ------------------------------------------------- */}
       {showFormat && (
@@ -761,5 +816,38 @@ function DateButton({
         </div>
       )}
     </span>
+  );
+}
+
+/** What a file looks like, by what kind of file it is. */
+function FilePreview({ name, src }: { name: string; src: string }) {
+  const kind = name.split('.').pop()?.toLowerCase() ?? '';
+  const image = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg'].includes(kind);
+  const inBrowser = image || ['pdf', 'txt', 'html'].includes(kind);
+
+  return (
+    <div className="flex h-full flex-col">
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt={name} className="mx-auto max-h-[560px] rounded-lg object-contain" />
+      ) : inBrowser ? (
+        <iframe
+          title={name}
+          src={src}
+          className="border-line h-full min-h-[520px] w-full rounded-lg border"
+        />
+      ) : (
+        <p className="text-muted py-10 text-center text-sm">
+          This kind of file cannot be shown here. It still goes with the email.
+        </p>
+      )}
+
+      <p className="text-muted mt-3 shrink-0 text-sm">
+        <a href={src} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+          Open it in a tab
+        </a>{' '}
+        to see it full size.
+      </p>
+    </div>
   );
 }

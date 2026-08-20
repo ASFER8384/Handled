@@ -36,6 +36,7 @@ export const POST = handler(async (ctx, request: Request, { params }: Params) =>
       bodyHtml: data.bodyHtml ?? null,
       attachments: files.map((file) => ({ id: file.id, name: file.name })),
       replyToId: data.replyToId ?? null,
+      invoiceId: data.invoiceId ?? null,
       status: data.draft ? 'DRAFT' : when ? 'SCHEDULED' : 'QUEUED',
       scheduledFor: data.draft ? null : when,
       detail: data.draft

@@ -2,6 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { prisma } from '@/lib/prisma';
 import { sendEmail } from '@/lib/email';
 import { storagePath } from '@/lib/uploads';
+import { invoiceView } from '@/lib/invoice-view';
+import { invoicePdf } from '@/lib/invoice-pdf';
 
 /**
  * Sending, in one place, so a message goes out the same way whether it was
@@ -33,8 +35,45 @@ export async function deliver(messageId: string): Promise<{ delivered: boolean; 
     });
   }
 
+  // An invoice travels as the document, not as a description of one. It is
+  // drawn at the moment it goes out, so what lands is the invoice as it
+  // stands rather than a copy taken when the email was written.
+  if (message.invoiceId) {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: message.invoiceId },
+      select: { workspaceId: true, number: true, workspace: { select: { currency: true } } },
+    });
+    // Only used as the fallback contact line when the workspace has no email
+    // of its own, so the oldest member is the right one to ask.
+    const owner = invoice
+      ? await prisma.membership.findFirst({
+          where: { workspaceId: invoice.workspaceId },
+          orderBy: { createdAt: 'asc' },
+          select: { user: { select: { email: true } } },
+        })
+      : null;
+    const view = invoice
+      ? await invoiceView(
+          message.invoiceId,
+          invoice.workspaceId,
+          owner?.user.email ?? '',
+          invoice.workspace.currency,
+        )
+      : null;
+    if (view) {
+      carried.push({
+        filename: `${view.number}.pdf`,
+        type: 'application/pdf',
+        content: (await invoicePdf(view)).toString('base64'),
+      });
+    }
+  }
+
   const result = await sendEmail({
-    to: message.to.split(',').map((address) => address.trim()).filter(Boolean),
+    to: message.to
+      .split(',')
+      .map((address) => address.trim())
+      .filter(Boolean),
     subject: message.subject,
     body: message.body,
     bodyHtml: message.bodyHtml ?? undefined,

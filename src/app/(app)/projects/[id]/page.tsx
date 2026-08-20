@@ -3,7 +3,14 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
 import { sweepDueEmails } from '@/lib/messages';
-import { balanceCents, formatMoney, paidCents, totalCents } from '@/lib/money';
+import {
+  balanceCents,
+  formatMoney,
+  paidCents,
+  subtotalCents,
+  taxCents,
+  totalCents,
+} from '@/lib/money';
 import { EmptyState, formatDate } from '@/components/ui';
 import { LEAD_SOURCES, PROJECT_TYPES } from '@/lib/stages';
 import { TypeSelect } from './type-select';
@@ -109,33 +116,47 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
     : undefined;
 
   const brand = composing ? await companyBrand(ctx.workspaceId, ctx.userEmail) : null;
-  const prefill =
+
+  const forEmail =
     composing && brand
       ? {
-          to: project.client.email,
-          invoiceId: composing.id,
-          subject: invoiceEmailSubject({
-            number: composing.number,
-            business: brand.name,
-            clientName: project.client.name,
-            balanceCents: balanceCents(composing.items, composing.payments, composing.taxRateBp),
-            currency: ctx.currency,
-            dueAt: composing.dueAt,
-            pay: brand.pay,
-            payNotes: brand.payNotes,
-          }),
-          bodyHtml: invoiceEmailHtml({
-            number: composing.number,
-            business: brand.name,
-            clientName: project.client.name,
-            balanceCents: balanceCents(composing.items, composing.payments, composing.taxRateBp),
-            currency: ctx.currency,
-            dueAt: composing.dueAt,
-            pay: brand.pay,
-            payNotes: brand.payNotes,
-          }),
+          number: composing.number,
+          business: brand.name,
+          businessContact: brand.contact,
+          businessAddress: brand.address,
+          clientName: project.client.name,
+          clientCompany: project.client.company,
+          clientEmail: project.client.email,
+          issuedAt: composing.issuedAt,
+          dueAt: composing.dueAt,
+          items: composing.items.map((item) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPriceCents: item.unitPriceCents,
+          })),
+          subtotalCents: subtotalCents(composing.items),
+          taxCents: taxCents(composing.items, composing.taxRateBp),
+          taxLabel: composing.taxLabel ?? brand.taxLabel,
+          taxRateBp: composing.taxRateBp,
+          paidCents: paidCents(composing.payments),
+          balanceCents: balanceCents(composing.items, composing.payments, composing.taxRateBp),
+          currency: ctx.currency,
+          notes: composing.notes,
+          themeColor: composing.themeColor,
+          pay: brand.pay,
+          payNotes: brand.payNotes,
         }
       : null;
+
+  const prefill = forEmail
+    ? {
+        to: project.client.email,
+        invoiceId: composing!.id,
+        attachmentName: `${composing!.number}.pdf`,
+        subject: invoiceEmailSubject(forEmail),
+        bodyHtml: invoiceEmailHtml(forEmail),
+      }
+    : null;
 
   const invoiced = project.invoices.reduce(
     (sum, invoice) => sum + totalCents(invoice.items, invoice.taxRateBp),
