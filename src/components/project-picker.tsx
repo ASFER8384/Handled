@@ -108,7 +108,7 @@ export function ProjectChoiceFields({
           />
           <p className="text-muted mt-1.5 text-sm">
             A new project, opened for {them}. They will be its client, which cannot be undone from
-            the contact — a project is always for somebody.
+            the contact. A project is always for somebody.
           </p>
         </div>
       )}
@@ -135,7 +135,7 @@ export function ProjectChoiceFields({
               ? 'Fetching what you have open.'
               : open.length === 0
                 ? `${them} is already on every project you have.`
-                : 'It already has a client, so they join it alongside them — and can be taken off again.'}
+                : 'It already has a client, so they join it alongside them, and can be taken off again.'}
           </p>
         </div>
       )}
