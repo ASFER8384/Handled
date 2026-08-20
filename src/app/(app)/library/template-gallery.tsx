@@ -1,8 +1,8 @@
 'use client';
 
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Dialog } from '@/components/dialog';
 import { Select } from '@/components/select';
 import { EmptyState } from '@/components/ui';
 import { InvoiceSheet } from '@/components/invoice-sheet';
@@ -218,36 +218,15 @@ export function TemplateGallery({
       </div>
 
       {open && (
-        <Dialog title={open.name} onClose={() => setOpen(null)} width={860}>
-          <Sheet template={open} brand={brand} />
-
-          <p className="text-muted mt-5 text-sm">
-            Due {open.dueInDays} days out. The prices above are an example — yours are asked for
-            when you write the invoice.
-          </p>
-
-          {error && <p className="field-error">{error}</p>}
-
-          <div className="mt-5 flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => router.push(`/invoices/new?start=${open.id}`)}
-              className="btn-primary"
-            >
-              Use template
-            </button>
-            {open.mine && (
-              <button
-                type="button"
-                disabled={working}
-                onClick={() => remove(open)}
-                className="text-muted text-sm hover:text-red-700 disabled:opacity-50"
-              >
-                Delete
-              </button>
-            )}
-          </div>
-        </Dialog>
+        <Preview
+          template={open}
+          brand={brand}
+          error={error}
+          working={working}
+          onUse={() => router.push(`/invoices/new?start=${open.id}`)}
+          onDelete={() => remove(open)}
+          onClose={() => setOpen(null)}
+        />
       )}
     </>
   );
@@ -341,5 +320,155 @@ function Sheet({
         themeFont={brand.themeFont}
       />
     </div>
+  );
+}
+
+/**
+ * A template opened: what it is on the left, the invoice itself on the right.
+ *
+ * The picture is the point, so it gets the room — the pane scrolls the whole
+ * sheet at full size rather than shrinking it into a column of text. What the
+ * words are for is the part a picture cannot say: how long it gives the client
+ * to pay, and what happens after it is sent.
+ */
+function Preview({
+  template,
+  brand,
+  error,
+  working,
+  onUse,
+  onDelete,
+  onClose,
+}: {
+  template: GalleryTemplate;
+  brand: GalleryBrand;
+  error: string | null;
+  working: boolean;
+  onUse: () => void;
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [onClose]);
+
+  if (typeof document === 'undefined') return null;
+
+  const tags = [template.kind, ...template.industries];
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={template.name}
+        className="bg-surface relative flex h-[calc(100vh-4rem)] w-full max-w-[1140px] overflow-hidden rounded-2xl shadow-2xl"
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="text-muted hover:text-foreground absolute top-5 right-5 z-10 transition-colors"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="h-6 w-6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          >
+            <path d="m6 6 12 12M18 6 6 18" />
+          </svg>
+        </button>
+
+        {/* --- what it is ------------------------------------------------ */}
+        <div className="flex w-[380px] shrink-0 flex-col overflow-y-auto p-8">
+          <h2 className="font-display text-2xl leading-tight font-bold">{template.name}</h2>
+          <p className="text-muted mt-2 text-sm">
+            {template.mine ? 'Saved from one of your invoices' : 'Built into Handled'}
+          </p>
+
+          <p className="mt-5 text-sm leading-relaxed">{template.blurb}</p>
+
+          <p className="text-muted mt-8 text-xs tracking-widest uppercase">What it does</p>
+          <ol className="mt-3 space-y-3 text-sm">
+            <li className="flex gap-3">
+              <Dot />
+              <span>
+                Writes the invoice — {template.items.length}{' '}
+                {template.items.length === 1 ? 'line' : 'lines'}, due in {template.dueInDays} days.
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <Dot />
+              <span>Takes the payment, and records it against the project.</span>
+            </li>
+          </ol>
+
+          <p className="text-muted mt-8 text-xs tracking-widest uppercase">Tags</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <span key={tag} className="bg-background rounded-full px-3 py-1 text-xs">
+                {tag}
+              </span>
+            ))}
+          </div>
+
+          {error && <p className="field-error mt-6">{error}</p>}
+
+          <div className="mt-auto flex items-center gap-3 pt-8">
+            <button type="button" onClick={onUse} className="btn-primary">
+              Use this template
+            </button>
+            {template.mine && (
+              <button
+                type="button"
+                disabled={working}
+                onClick={onDelete}
+                className="text-muted text-sm hover:text-red-700 disabled:opacity-50"
+              >
+                Delete
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* --- the invoice itself ---------------------------------------- */}
+        <div className="bg-background min-w-0 flex-1 overflow-y-auto p-8">
+          <div className="mx-auto max-w-[640px]">
+            <Sheet template={template} brand={brand} />
+            <p className="text-muted mt-4 text-center text-xs">
+              The prices are an example. Yours are asked for when you write the invoice.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/** The step marker down the left of the list of what a template does. */
+function Dot() {
+  return (
+    <span
+      aria-hidden
+      className="border-accent mt-1.5 h-2 w-2 shrink-0 rounded-full border-2 bg-white"
+    />
   );
 }
