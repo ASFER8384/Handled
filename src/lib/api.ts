@@ -120,3 +120,34 @@ export async function refuseDuplicateContact(
     }
   }
 }
+
+/**
+ * Names the work a contact is tied to. Deleting one cascades into the projects
+ * they are the client of, so a contact holding work is never simply removed —
+ * the work has to be dealt with first, deliberately.
+ */
+export async function workHeldBy(
+  workspaceId: string,
+  clientIds: string[],
+): Promise<Map<string, string[]>> {
+  const held = new Map<string, string[]>();
+  if (clientIds.length === 0) return held;
+
+  const rows = await prisma.client.findMany({
+    where: { id: { in: clientIds }, workspaceId },
+    select: {
+      id: true,
+      projects: { select: { name: true } },
+      projectContacts: { select: { project: { select: { name: true } } } },
+    },
+  });
+
+  for (const row of rows) {
+    const names = [
+      ...row.projects.map((project) => project.name),
+      ...row.projectContacts.map((link) => link.project.name),
+    ].filter((name, index, all) => all.indexOf(name) === index);
+    if (names.length > 0) held.set(row.id, names);
+  }
+  return held;
+}

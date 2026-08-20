@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { handler, parseBody } from '@/lib/api';
+import { handler, HttpError, parseBody, workHeldBy } from '@/lib/api';
 
 const bulkSchema = z.object({
   ids: z.array(z.string().min(1)).min(1).max(500),
@@ -18,6 +18,22 @@ export const POST = handler(async (ctx, request: Request) => {
   const where = { id: { in: data.ids }, workspaceId: ctx.workspaceId };
 
   if (data.action === 'delete') {
+    // All or nothing: quietly deleting the free ones and leaving the rest
+    // reads as a half-done job with no way to tell which half.
+    const held = await workHeldBy(ctx.workspaceId, data.ids);
+    if (held.size > 0) {
+      const names = await prisma.client.findMany({
+        where: { id: { in: [...held.keys()] } },
+        select: { name: true },
+      });
+      throw new HttpError(
+        409,
+        held.size === 1
+          ? `${names[0]?.name ?? 'One of them'} is still on a project. Take them off first, or delete the project.`
+          : `${held.size} of them are still on projects. Take them off first, or delete those projects.`,
+      );
+    }
+
     const { count } = await prisma.client.deleteMany({ where });
     return NextResponse.json({ changed: count });
   }

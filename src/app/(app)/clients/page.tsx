@@ -36,8 +36,6 @@ export default async function ContactsPage() {
       address: client.address,
       notes: client.notes,
       tags: client.tags,
-      // Where they came from is a fact about their work, so it is read off it.
-      source: projects.find((entry) => entry.leadSource)?.leadSource ?? null,
       projects: projects.map((entry) => ({ id: entry.id, name: entry.name, role: entry.role })),
     };
   });

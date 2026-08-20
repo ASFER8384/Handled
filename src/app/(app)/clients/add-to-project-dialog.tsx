@@ -54,6 +54,7 @@ export function AddToProjectDialog({
   return (
     <Dialog
       title={`Add ${contactName} to a project`}
+      fit
       onClose={onClose}
       footer={
         <button

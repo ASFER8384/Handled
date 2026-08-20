@@ -17,12 +17,18 @@ export function Dialog({
   onClose,
   footer,
   width = 500,
+  fit,
   children,
 }: {
   title: string;
   onClose: () => void;
   /** Panel width in px; the height is fixed so every dialog scrolls the same. */
   width?: number;
+  /**
+   * Let the panel be as tall as its contents. For a dialog with a paragraph in
+   * it, the standing height is mostly empty space under the words.
+   */
+  fit?: boolean;
   /** Pinned below the scroll area. Buttons here reach the form by `form=` id. */
   footer?: ReactNode;
   children: ReactNode;
@@ -55,7 +61,9 @@ export function Dialog({
         aria-modal="true"
         aria-label={title}
         style={{ maxWidth: width }}
-        className="bg-surface flex h-[600px] max-h-[calc(100vh-2rem)] w-full flex-col rounded-xl shadow-2xl"
+        className={`bg-surface flex max-h-[calc(100vh-2rem)] w-full flex-col rounded-xl shadow-2xl ${
+          fit ? '' : 'h-[600px]'
+        }`}
       >
         <div className="border-line relative flex shrink-0 items-center justify-center border-b px-6 py-5">
           <h2 className="text-lg font-semibold">{title}</h2>

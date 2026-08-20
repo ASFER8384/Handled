@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { handler, notFound, parseBody, refuseDuplicateContact } from '@/lib/api';
+import { handler, HttpError, notFound, parseBody, refuseDuplicateContact, workHeldBy } from '@/lib/api';
 import { clientSchema } from '@/lib/validation';
 
 type Params = { params: Promise<{ id: string }> };
@@ -31,6 +31,17 @@ export const PATCH = handler(async (ctx, request: Request, { params }: Params) =
 
 export const DELETE = handler(async (ctx, _request: Request, { params }: Params) => {
   const { id } = await params;
+
+  // Their projects would go with them, so they cannot.
+  const held = await workHeldBy(ctx.workspaceId, [id]);
+  const work = held.get(id);
+  if (work) {
+    throw new HttpError(
+      409,
+      `They are still on ${work.join(', ')}. Take them off first, or delete the project.`,
+    );
+  }
+
   const { count } = await prisma.client.deleteMany({
     where: { id, workspaceId: ctx.workspaceId },
   });

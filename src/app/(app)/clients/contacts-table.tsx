@@ -9,6 +9,7 @@ import { useMenu, MenuItem, DotsIcon, PenIcon, TrashIcon } from '../projects/[id
 import { NewContactDialog } from './new-contact-dialog';
 import { EditContactDialog } from './edit-contact-dialog';
 import { AddToProjectDialog } from './add-to-project-dialog';
+import { DeleteContactDialog } from './delete-contact-dialog';
 
 export type ContactRow = {
   id: string;
@@ -20,7 +21,6 @@ export type ContactRow = {
   jobTitle: string | null;
   address: string | null;
   notes: string | null;
-  source: string | null;
   tags: string[];
   projects: { id: string; name: string; role: 'client' | 'contact' }[];
 };
@@ -34,13 +34,15 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<ContactRow | null>(null);
   const [placing, setPlacing] = useState<ContactRow | null>(null);
+  const [removing, setRemoving] = useState<ContactRow | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const term = search.trim().toLowerCase();
   const shown = term
     ? contacts.filter((contact) =>
-        [contact.name, contact.email, contact.phone, ...contact.tags,
+        [contact.name, contact.email, contact.phone, contact.jobTitle, contact.website,
+          contact.address, ...contact.tags,
           ...contact.projects.map((project) => project.name)]
           .filter(Boolean)
           .join(' ')
@@ -54,8 +56,16 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
 
   async function bulk(action: 'delete' | 'addTags' | 'removeTags', tags: string[] = []) {
     setBusy(true);
-    await api('/api/clients/bulk', { method: 'POST', body: { ids: picked, action, tags } });
+    const { error: failure } = await api('/api/clients/bulk', {
+      method: 'POST',
+      body: { ids: picked, action, tags },
+    });
     setBusy(false);
+    if (failure) {
+      setNotice(failure.error);
+      return;
+    }
+    setNotice(null);
     setChosen([]);
     router.refresh();
   }
@@ -113,7 +123,7 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
       </div>
 
       <div className="card mt-4 overflow-x-auto">
-        <table className="w-full min-w-[1000px] text-left text-sm">
+        <table className="w-full min-w-[1240px] text-left text-sm">
           <thead className="text-muted border-line border-b">
             <tr className="[&>th]:px-5 [&>th]:py-3 [&>th]:font-medium">
               <th className="w-10 pr-0">
@@ -127,10 +137,12 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
               </th>
               <th>Name</th>
               <th>Projects</th>
-              <th>Source</th>
-              <th>Last interaction</th>
+              <th>Job title</th>
               <th>Email</th>
               <th>Phone</th>
+              <th>Website</th>
+              <th>Mailing address</th>
+              <th>Last interaction</th>
               <th>Tags</th>
               <th className="w-20" />
             </tr>
@@ -193,16 +205,21 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
                     </span>
                   )}
                 </td>
-                <td className="text-muted">{contact.source ?? '—'}</td>
-                <td className="text-muted whitespace-nowrap">
-                  {contact.lastInteractionAt
-                    ? new Date(contact.lastInteractionAt).toLocaleDateString('en-GB', {
-                        dateStyle: 'medium',
-                      })
-                    : '—'}
-                </td>
-                <td className="text-muted">{contact.email ?? '—'}</td>
-                <td className="text-muted whitespace-nowrap">{contact.phone ?? '—'}</td>
+                <Cell value={contact.jobTitle} />
+                <Cell value={contact.email} />
+                <Cell value={contact.phone} nowrap />
+                <Cell value={contact.website} />
+                <Cell value={contact.address} />
+                <Cell
+                  nowrap
+                  value={
+                    contact.lastInteractionAt
+                      ? new Date(contact.lastInteractionAt).toLocaleDateString('en-GB', {
+                          dateStyle: 'medium',
+                        })
+                      : null
+                  }
+                />
                 <td>
                   {contact.tags.length === 0 ? (
                     <span className="text-muted">—</span>
@@ -269,8 +286,7 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
                           <MenuItem
                             onClick={() => {
                               close();
-                              setChosen([contact.id]);
-                              void bulk('delete');
+                              setRemoving(contact);
                             }}
                           >
                             <span className="text-accent flex items-center gap-2.5">
@@ -367,6 +383,17 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
         </p>
       )}
 
+      {removing && (
+        <DeleteContactDialog
+          contact={removing}
+          onClose={() => setRemoving(null)}
+          onDeleted={() => {
+            setRemoving(null);
+            router.refresh();
+          }}
+        />
+      )}
+
       {creating && <NewContactDialog onClose={() => setCreating(false)} />}
       {editing && <EditContactDialog contact={editing} onClose={() => setEditing(null)} />}
       {placing && (
@@ -433,6 +460,16 @@ function LockIcon() {
       <rect x="5" y="10.5" width="14" height="9" rx="2" />
       <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
     </svg>
+  );
+}
+
+/** Anything unfilled reads the same way, so a row scans as a row. */
+function Cell({ value, nowrap }: { value: string | null; nowrap?: boolean }) {
+  const filled = value?.trim();
+  return (
+    <td className={`text-muted ${nowrap ? 'whitespace-nowrap' : ''}`}>
+      {filled ? <span className="max-w-[220px] truncate">{filled}</span> : '—'}
+    </td>
   );
 }
 
