@@ -410,7 +410,7 @@ function Preview({
             <li className="flex gap-3">
               <Dot />
               <span>
-                Writes the invoice — {template.items.length}{' '}
+                Writes the invoice with {template.items.length}{' '}
                 {template.items.length === 1 ? 'line' : 'lines'}, due in {template.dueInDays} days.
               </span>
             </li>
