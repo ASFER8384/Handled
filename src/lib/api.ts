@@ -40,6 +40,15 @@ export function handler<T extends unknown[]>(
           { status: error.status },
         );
       }
+      // The database refuses to delete anything work still points at. A
+      // route ought to have said so in its own words first; if one has not,
+      // this is still an answer rather than a crash.
+      if ((error as { code?: string }).code === 'P2003') {
+        return NextResponse.json(
+          { error: 'Something is still attached to this. Take that off first.' },
+          { status: 409 },
+        );
+      }
       console.error('[api]', error);
       return NextResponse.json({ error: 'Something went wrong' }, { status: 500 });
     }
@@ -99,9 +108,7 @@ export async function refuseDuplicateContact(
   });
 
   if (email) {
-    const taken = others.find(
-      (other) => other.email?.trim().toLowerCase() === email.toLowerCase(),
-    );
+    const taken = others.find((other) => other.email?.trim().toLowerCase() === email.toLowerCase());
     if (taken) {
       throw new HttpError(409, `${email} is already saved as ${taken.name}.`, {
         email: `Already used by ${taken.name}.`,
@@ -139,6 +146,9 @@ export async function workHeldBy(
       id: true,
       projects: { select: { name: true } },
       projectContacts: { select: { project: { select: { name: true } } } },
+      // Invoices hold a contact just as firmly as a project does: the
+      // database refuses to delete either out from under one.
+      invoices: { select: { number: true } },
     },
   });
 
@@ -146,6 +156,7 @@ export async function workHeldBy(
     const names = [
       ...row.projects.map((project) => project.name),
       ...row.projectContacts.map((link) => link.project.name),
+      ...row.invoices.map((invoice) => `invoice ${invoice.number}`),
     ].filter((name, index, all) => all.indexOf(name) === index);
     if (names.length > 0) held.set(row.id, names);
   }

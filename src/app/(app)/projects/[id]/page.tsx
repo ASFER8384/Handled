@@ -26,59 +26,65 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
   const { id } = await props.params;
   const params = await props.searchParams;
   const tab: Tab =
-    TABS.find((name) => name.toLowerCase() === String(params.tab ?? '').toLowerCase()) ??
-    'Email';
+    TABS.find((name) => name.toLowerCase() === String(params.tab ?? '').toLowerCase()) ?? 'Email';
 
-  const [project, usedTypes, members, stages, usedSources, customFields] = await Promise.all([
-    prisma.project.findFirst({
-      where: { id, workspaceId: ctx.workspaceId },
-      include: {
-        client: true,
-        stage: true,
-        tasks: { orderBy: [{ done: 'asc' }, { dueAt: 'asc' }] },
-        invoices: {
-          orderBy: { createdAt: 'desc' },
-          include: { items: true, payments: true },
-        },
-        contacts: { include: { client: true }, orderBy: { createdAt: 'asc' } },
-        dates: { orderBy: { position: 'asc' } },
-        fieldValues: true,
-        notes: { orderBy: { updatedAt: 'desc' } },
-        messages: { orderBy: { createdAt: 'desc' } },
-        files: { orderBy: { createdAt: 'desc' } },
-        automationRuns: {
-          orderBy: { startedAt: 'desc' },
-          include: {
-            automation: { select: { name: true } },
-            steps: { orderBy: { position: 'asc' } },
+  const [project, usedTypes, members, stages, usedSources, customFields, contacts] =
+    await Promise.all([
+      prisma.project.findFirst({
+        where: { id, workspaceId: ctx.workspaceId },
+        include: {
+          client: true,
+          stage: true,
+          tasks: { orderBy: [{ done: 'asc' }, { dueAt: 'asc' }] },
+          invoices: {
+            orderBy: { createdAt: 'desc' },
+            include: { items: true, payments: true },
+          },
+          contacts: { include: { client: true }, orderBy: { createdAt: 'asc' } },
+          dates: { orderBy: { position: 'asc' } },
+          fieldValues: true,
+          notes: { orderBy: { updatedAt: 'desc' } },
+          messages: { orderBy: { createdAt: 'desc' } },
+          files: { orderBy: { createdAt: 'desc' } },
+          automationRuns: {
+            orderBy: { startedAt: 'desc' },
+            include: {
+              automation: { select: { name: true } },
+              steps: { orderBy: { position: 'asc' } },
+            },
           },
         },
-      },
-    }),
-    prisma.project.findMany({
-      where: { workspaceId: ctx.workspaceId, type: { not: null } },
-      distinct: ['type'],
-      select: { type: true },
-    }),
-    prisma.membership.findMany({
-      where: { workspaceId: ctx.workspaceId },
-      include: { user: { select: { id: true, name: true } } },
-    }),
-    prisma.pipelineStage.findMany({
-      where: { workspaceId: ctx.workspaceId, hidden: false },
-      orderBy: { position: 'asc' },
-      select: { id: true, name: true },
-    }),
-    prisma.project.findMany({
-      where: { workspaceId: ctx.workspaceId, leadSource: { not: null } },
-      distinct: ['leadSource'],
-      select: { leadSource: true },
-    }),
-    prisma.customField.findMany({
-      where: { workspaceId: ctx.workspaceId },
-      orderBy: { position: 'asc' },
-    }),
-  ]);
+      }),
+      prisma.project.findMany({
+        where: { workspaceId: ctx.workspaceId, type: { not: null } },
+        distinct: ['type'],
+        select: { type: true },
+      }),
+      prisma.membership.findMany({
+        where: { workspaceId: ctx.workspaceId },
+        include: { user: { select: { id: true, name: true } } },
+      }),
+      prisma.pipelineStage.findMany({
+        where: { workspaceId: ctx.workspaceId, hidden: false },
+        orderBy: { position: 'asc' },
+        select: { id: true, name: true },
+      }),
+      prisma.project.findMany({
+        where: { workspaceId: ctx.workspaceId, leadSource: { not: null } },
+        distinct: ['leadSource'],
+        select: { leadSource: true },
+      }),
+      prisma.customField.findMany({
+        where: { workspaceId: ctx.workspaceId },
+        orderBy: { position: 'asc' },
+      }),
+      // Everyone in the address book, so the project can be handed to any of them.
+      prisma.client.findMany({
+        where: { workspaceId: ctx.workspaceId },
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, email: true },
+      }),
+    ]);
   if (!project) notFound();
 
   // The starting list plus anything this workspace has typed in before.
@@ -135,26 +141,24 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
           {/* Everyone on the project. They are all the same kind of thing —
               people this job involves — so they all read the same way. */}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-            {[project.client, ...project.contacts.map((entry) => entry.client)].map(
-              (person) => (
-                <div key={person.id} className="flex items-center gap-3">
-                  <span className="bg-accent-soft text-accent flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-semibold">
-                    {person.name.slice(0, 1).toUpperCase()}
-                  </span>
-                  <div className="min-w-0">
-                    <Link
-                      href={`/clients/${person.id}`}
-                      className="block truncate font-medium hover:underline"
-                    >
-                      {person.name}
-                    </Link>
-                    <p className="text-muted truncate text-sm">
-                      {person.email ?? 'No email on file'}
-                    </p>
-                  </div>
+            {[project.client, ...project.contacts.map((entry) => entry.client)].map((person) => (
+              <div key={person.id} className="flex items-center gap-3">
+                <span className="bg-accent-soft text-accent flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-semibold">
+                  {person.name.slice(0, 1).toUpperCase()}
+                </span>
+                <div className="min-w-0">
+                  <Link
+                    href={`/clients/${person.id}`}
+                    className="block truncate font-medium hover:underline"
+                  >
+                    {person.name}
+                  </Link>
+                  <p className="text-muted truncate text-sm">
+                    {person.email ?? 'No email on file'}
+                  </p>
                 </div>
-              ),
-            )}
+              </div>
+            ))}
 
             <AddPersonButton
               projectId={project.id}
@@ -414,6 +418,8 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
         <aside className="py-6">
           <AboutPanel
             projectId={project.id}
+            clientId={project.clientId}
+            contacts={contacts}
             stageId={project.stageId}
             stages={stages}
             leadSource={project.leadSource}

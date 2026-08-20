@@ -14,7 +14,9 @@ export const PATCH = handler(async (ctx, request: Request, { params }: Params) =
 
   // Scoped to the workspace so a foreign client id cannot be smuggled in.
   if (clientId) {
-    const client = await prisma.client.count({ where: { id: clientId, workspaceId: ctx.workspaceId } });
+    const client = await prisma.client.count({
+      where: { id: clientId, workspaceId: ctx.workspaceId },
+    });
     if (client === 0) notFound('Client');
   }
 
@@ -29,6 +31,12 @@ export const PATCH = handler(async (ctx, request: Request, { params }: Params) =
   // off a project rather than only ever changed.
   const when = (value: string | null | undefined) =>
     value === undefined ? undefined : value ? new Date(value) : null;
+
+  // Somebody already on the project who becomes its client would otherwise
+  // appear twice: once as the client, once in the list beside them.
+  if (clientId) {
+    await prisma.projectContact.deleteMany({ where: { projectId: id, clientId } });
+  }
 
   const { count } = await prisma.project.updateMany({
     where: { id, workspaceId: ctx.workspaceId },

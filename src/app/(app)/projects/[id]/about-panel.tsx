@@ -12,6 +12,8 @@ import { Caret, Cross, DotsIcon, MenuItem, TrashIcon, useMenu } from './editor-k
  */
 export function AboutPanel({
   projectId,
+  clientId,
+  contacts,
   stageId,
   stages,
   leadSource,
@@ -19,6 +21,9 @@ export function AboutPanel({
   tags,
 }: {
   projectId: string;
+  /** Who this work is for. Every project has exactly one. */
+  clientId: string;
+  contacts: { id: string; name: string; email: string | null }[];
   stageId: string | null;
   stages: { id: string; name: string }[];
   leadSource: string | null;
@@ -27,10 +32,12 @@ export function AboutPanel({
 }) {
   const router = useRouter();
   const { menu, toggle, close } = useMenu();
-  const [current, setCurrent] = useState({ stageId, leadSource, tags });
+  const [current, setCurrent] = useState({ clientId, stageId, leadSource, tags });
   const [draft, setDraft] = useState('');
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handedOver = current.clientId !== clientId;
 
   async function save(patch: Record<string, unknown>) {
     setCurrent((now) => ({ ...now, ...(patch as Partial<typeof now>) }));
@@ -98,6 +105,29 @@ export function AboutPanel({
       </header>
 
       <div className="space-y-5 px-5 py-5">
+        {/* A project opened for the wrong person used to be unfixable: the
+            client cannot be taken off, because work is always for somebody.
+            It can be handed to somebody else instead. */}
+        <Field label="Client" htmlFor="about-client">
+          <Select
+            id="about-client"
+            value={current.clientId}
+            searchable
+            placeholder="Pick a contact"
+            options={contacts.map((contact) => ({
+              value: contact.id,
+              label: contact.name,
+              hint: contact.email ?? undefined,
+            }))}
+            onChange={(next) => void save({ clientId: next })}
+          />
+          <p className="text-muted mt-1.5 text-xs">
+            {handedOver
+              ? 'Handed over. Whoever held it before is no longer on this project.'
+              : 'This work is for them. Everyone else here is on it alongside them.'}
+          </p>
+        </Field>
+
         <Field label="Stage" htmlFor="about-stage">
           <Select
             id="about-stage"

@@ -261,7 +261,9 @@ model Project {
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   clientId    String
-  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  /// Restrict, not Cascade: deleting a contact must never take the work with
+  /// them. The database refuses, rather than trusting every caller to check.
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Restrict)
   /// Null only while a stage is being deleted out from under it.
   stageId     String?
   stage       PipelineStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
@@ -391,7 +393,9 @@ model Invoice {
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   clientId    String
-  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  /// Restrict, as with a project: an invoice is a record of money owed, and
+  /// deleting the person it was sent to must not erase it.
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Restrict)
   projectId   String?
   project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
