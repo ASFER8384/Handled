@@ -8,7 +8,25 @@ export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) 
   const ctx = await requireWorkspace();
   const params = await props.searchParams;
   const projectId = typeof params.project === 'string' ? params.project : null;
-  const template = findTemplate(typeof params.start === 'string' ? params.start : null);
+  const start = typeof params.start === 'string' ? params.start : null;
+
+  // Either one of the three that ship with Handled, or one this workspace
+  // saved. The link looks the same, so nothing downstream has to care which.
+  const saved = start
+    ? await prisma.invoiceTemplate.findFirst({ where: { id: start, workspaceId: ctx.workspaceId } })
+    : null;
+  const template =
+    findTemplate(start) ??
+    (saved
+      ? {
+          id: saved.id,
+          name: saved.name,
+          blurb: '',
+          dueInDays: saved.dueInDays,
+          notes: saved.notes,
+          items: saved.items as { description: string; quantity: number }[],
+        }
+      : null);
 
   const clients = await prisma.client.findMany({
     where: { workspaceId: ctx.workspaceId },

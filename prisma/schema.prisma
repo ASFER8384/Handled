@@ -102,6 +102,7 @@ model Workspace {
   memberships Membership[]
   clients     Client[]
   stages      PipelineStage[]
+  invoiceTemplates InvoiceTemplate[]
   views       ProjectView[]
   contactViews ContactView[]
   projects    Project[]
@@ -426,6 +427,26 @@ model Invoice {
   @@index([workspaceId, status])
   @@index([clientId])
   @@map("invoice")
+}
+
+/// An invoice you would write again: its lines and its terms, without the
+/// prices, the client, or the dates that belong to one particular job.
+model InvoiceTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  notes     String   @default("")
+  /// How far out the due date is set when an invoice is made from this.
+  dueInDays Int      @default(14)
+  /// [{ description, quantity }] in the order they are billed.
+  items     Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, name])
+  @@map("invoice_template")
 }
 
 model InvoiceItem {

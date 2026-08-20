@@ -5,6 +5,7 @@ import { requireWorkspace } from '@/lib/session';
 import { balanceCents, formatMoney, paidCents, subtotalCents } from '@/lib/money';
 import { PageHeader, StatusBadge, formatDate } from '@/components/ui';
 import { InvoiceActions } from './invoice-actions';
+import { SaveAsTemplate } from './save-as-template';
 import { PaymentForm } from './payment-form';
 
 export default async function InvoiceDetailPage({ params }: PageProps<'/invoices/[id]'>) {
@@ -31,7 +32,19 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
       <PageHeader
         title={invoice.number}
         subtitle={`${invoice.client.name}${invoice.project ? ` · ${invoice.project.name}` : ''}`}
-        action={<InvoiceActions id={invoice.id} status={invoice.status} hasPayments={paid > 0} />}
+        action={
+          <div className="flex flex-wrap items-start justify-end gap-2">
+            <SaveAsTemplate
+              suggestedName={invoice.project?.name ?? invoice.client.name}
+              notes={invoice.notes ?? ''}
+              items={invoice.items.map((item) => ({
+                description: item.description,
+                quantity: item.quantity,
+              }))}
+            />
+            <InvoiceActions id={invoice.id} status={invoice.status} hasPayments={paid > 0} />
+          </div>
+        }
       />
 
       <Link href="/invoices" className="text-muted text-sm hover:underline">
@@ -117,7 +130,8 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
                 {invoice.payments.map((payment) => (
                   <li key={payment.id} className="flex items-center justify-between py-2">
                     <span className="text-muted">
-                      {formatDate(payment.paidAt)} · {payment.method.replace('_', ' ').toLowerCase()}
+                      {formatDate(payment.paidAt)} ·{' '}
+                      {payment.method.replace('_', ' ').toLowerCase()}
                       {payment.reference ? ` · ${payment.reference}` : ''}
                     </span>
                     <span className="tabular-nums">

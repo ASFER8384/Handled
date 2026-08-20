@@ -338,3 +338,22 @@ export const contactViewPatchSchema = z
       .optional(),
   })
   .strict();
+
+// --- Invoice templates ------------------------------------------------------
+
+export const invoiceTemplateSchema = z.object({
+  name: z.string().trim().min(1, 'Name it').max(80),
+  notes: z.string().max(2000).default(''),
+  dueInDays: z.number().int().min(0).max(365).default(14),
+  items: z
+    .array(
+      z.object({
+        description: z.string().trim().min(1).max(200),
+        quantity: z.number().int().min(1).max(9999),
+      }),
+    )
+    .min(1, 'A template needs at least one line')
+    .max(50),
+});
+
+export type InvoiceTemplateInput = z.input<typeof invoiceTemplateSchema>;
