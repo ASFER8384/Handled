@@ -362,3 +362,24 @@ export const invoiceTemplateSchema = z.object({
 });
 
 export type InvoiceTemplateInput = z.input<typeof invoiceTemplateSchema>;
+
+// --- Settings ---------------------------------------------------------------
+
+export const accountSchema = z.object({
+  name: z.string().trim().min(1, 'Your name cannot be blank').max(80),
+});
+
+export const companySchema = z.object({
+  name: z.string().trim().min(1, 'The business needs a name').max(80),
+  trade: optionalText(60),
+  email: z.union([z.email('That email does not look right'), z.literal('')]).optional(),
+  phone: optionalText(40),
+  website: optionalText(120),
+  address: optionalText(300),
+  currency: z.string().trim().length(3, 'Three letters, like AED').optional(),
+  themeColor: z.string().max(20).optional(),
+  themeFont: z.string().max(20).optional(),
+});
+
+export type AccountInput = z.input<typeof accountSchema>;
+export type CompanyInput = z.input<typeof companySchema>;

@@ -7,6 +7,7 @@ import { PageHeader, StatusBadge, formatDate } from '@/components/ui';
 import { InvoiceActions } from './invoice-actions';
 import { SaveAsTemplate } from './save-as-template';
 import { InvoiceSheet } from '@/components/invoice-sheet';
+import { companyBrand } from '@/lib/company';
 import { PrintButton } from './print-button';
 import { PaymentForm } from './payment-form';
 
@@ -24,6 +25,8 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
     },
   });
   if (!invoice) notFound();
+
+  const brand = await companyBrand(ctx.workspaceId, ctx.userEmail);
 
   const total = subtotalCents(invoice.items);
   const paid = paidCents(invoice.payments);
@@ -72,8 +75,9 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
 
           <InvoiceSheet
             number={invoice.number}
-            from={ctx.workspaceName}
-            fromEmail={ctx.userEmail}
+            from={brand.name || ctx.workspaceName}
+            fromEmail={brand.contact}
+            fromAddress={brand.address}
             billTo={{
               name: invoice.client.name,
               company: invoice.client.company,

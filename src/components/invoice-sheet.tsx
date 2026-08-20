@@ -20,6 +20,7 @@ export function InvoiceSheet({
   number,
   from,
   fromEmail,
+  fromAddress,
   billTo,
   issuedAt,
   dueAt,
@@ -34,7 +35,9 @@ export function InvoiceSheet({
 }: {
   number: string;
   from: string;
+  /** Email, phone and site on one line, as a client reads them. */
   fromEmail: string;
+  fromAddress?: string | null;
   billTo: { name: string; company: string | null; address: string | null; email: string | null };
   issuedAt: Date | null;
   dueAt: Date | null;
@@ -56,6 +59,9 @@ export function InvoiceSheet({
       <header>
         <p className="text-lg font-semibold">{from}</p>
         <p className="text-muted mt-0.5 text-sm">{fromEmail}</p>
+        {fromAddress && (
+          <p className="text-muted mt-0.5 text-sm whitespace-pre-line">{fromAddress}</p>
+        )}
       </header>
 
       <h2

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
 import { PageHeader } from '@/components/ui';
+import { companyBrand } from '@/lib/company';
 import { InvoiceForm } from '../../new/invoice-form';
 
 /**
@@ -36,6 +37,8 @@ export default async function EditInvoicePage({ params }: PageProps<'/invoices/[
   if (!invoice) notFound();
   if (invoice.status !== 'DRAFT') redirect(`/invoices/${id}`);
 
+  const brand = await companyBrand(ctx.workspaceId, ctx.userEmail);
+
   return (
     <>
       <PageHeader
@@ -51,8 +54,9 @@ export default async function EditInvoicePage({ params }: PageProps<'/invoices/[
         <InvoiceForm
           clients={clients}
           currency={ctx.currency}
-          from={ctx.workspaceName}
-          fromEmail={ctx.userEmail}
+          from={brand.name || ctx.workspaceName}
+          fromEmail={brand.contact}
+          fromAddress={brand.address}
           invoiceId={invoice.id}
           number={invoice.number}
           start={{

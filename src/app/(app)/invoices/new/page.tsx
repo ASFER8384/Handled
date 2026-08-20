@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
 import { EmptyState, PageHeader } from '@/components/ui';
 import { dueDateFromNow, findTemplate } from '@/lib/invoice-templates';
+import { companyBrand } from '@/lib/company';
 import { InvoiceForm } from './invoice-form';
 
 export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) {
@@ -27,6 +28,8 @@ export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) 
           items: saved.items as { description: string; quantity: number }[],
         }
       : null);
+
+  const brand = await companyBrand(ctx.workspaceId, ctx.userEmail);
 
   const clients = await prisma.client.findMany({
     where: { workspaceId: ctx.workspaceId },
@@ -61,14 +64,17 @@ export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) 
         <InvoiceForm
           clients={clients}
           currency={ctx.currency}
-          from={ctx.workspaceName}
-          fromEmail={ctx.userEmail}
+          from={brand.name || ctx.workspaceName}
+          fromEmail={brand.contact}
+          fromAddress={brand.address}
           start={{
             clientId: owner?.id ?? null,
             projectId: owner ? projectId : null,
             dueAt: template ? dueDateFromNow(template.dueInDays) : '',
             notes: template?.notes ?? '',
             items: template?.items ?? null,
+            themeColor: brand.themeColor,
+            themeFont: brand.themeFont,
           }}
         />
       )}

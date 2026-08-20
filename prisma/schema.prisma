@@ -96,6 +96,16 @@ model Workspace {
   name      String
   slug      String   @unique
   currency  String   @default("AED")
+  /// What a client sees at the top of anything you send them.
+  email     String?
+  phone     String?
+  website   String?
+  address   String?
+  /// What kind of business this is, in its own words.
+  trade     String?
+  /// What a file starts out looking like, before it is changed on the file.
+  themeColor String  @default("ink")
+  themeFont  String  @default("sans")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

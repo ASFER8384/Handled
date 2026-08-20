@@ -59,6 +59,7 @@ export function InvoiceForm({
   currency,
   from,
   fromEmail,
+  fromAddress,
   start,
   invoiceId,
   number,
@@ -68,6 +69,7 @@ export function InvoiceForm({
   /** The workspace, as it will appear at the top of the invoice. */
   from: string;
   fromEmail: string;
+  fromAddress?: string | null;
   start?: InvoiceStart;
   /** Set when an invoice that already exists is being rewritten. */
   invoiceId?: string;
@@ -166,6 +168,7 @@ export function InvoiceForm({
             number={number ?? 'Given when saved'}
             from={from}
             fromEmail={fromEmail}
+            fromAddress={fromAddress}
             billTo={{
               name: client?.name ?? 'Nobody yet',
               company: null,
@@ -194,6 +197,9 @@ export function InvoiceForm({
             <header>
               <p className="text-lg font-semibold">{from}</p>
               <p className="text-muted mt-0.5 text-sm">{fromEmail}</p>
+              {fromAddress && (
+                <p className="text-muted mt-0.5 text-sm whitespace-pre-line">{fromAddress}</p>
+              )}
             </header>
 
             <h2
