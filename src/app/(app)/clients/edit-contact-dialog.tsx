@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { Dialog } from '@/components/dialog';
 import { CountrySelect } from '@/components/country-select';
 import { api } from '@/lib/client-fetch';
+import { Tip } from '@/components/ui';
 import { COUNTRIES, DEFAULT_ISO, findCountry } from '@/lib/countries';
+import { MoreDetails, EMPTY_DETAILS, type ContactDetails } from '@/components/contact-details';
 import { ProjectPicker, type ProjectChoice, type ProjectOption } from '@/components/project-picker';
 import type { ContactRow } from './contacts-table';
 
@@ -34,9 +36,14 @@ export function EditContactDialog({
   const [email, setEmail] = useState(contact.email ?? '');
   const [countryIso, setCountryIso] = useState(start.iso);
   const [phone, setPhone] = useState(start.local);
-  const [lastInteraction, setLastInteraction] = useState(
-    contact.lastInteractionAt ? contact.lastInteractionAt.slice(0, 10) : '',
-  );
+  const [details, setDetails] = useState<ContactDetails>({
+    ...EMPTY_DETAILS,
+    lastInteractionAt: contact.lastInteractionAt ? contact.lastInteractionAt.slice(0, 10) : '',
+    website: contact.website ?? '',
+    jobTitle: contact.jobTitle ?? '',
+    address: contact.address ?? '',
+    notes: contact.notes ?? '',
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [faults, setFaults] = useState<Record<string, string>>({});
@@ -115,7 +122,11 @@ export function EditContactDialog({
         name,
         email,
         phone: phone.trim() ? `${findCountry(countryIso).dial} ${phone.trim()}` : undefined,
-        lastInteractionAt: lastInteraction || undefined,
+        lastInteractionAt: details.lastInteractionAt || undefined,
+        website: details.website || undefined,
+        jobTitle: details.jobTitle || undefined,
+        address: details.address || undefined,
+        notes: details.notes || undefined,
         tags: contact.tags,
       },
     });
@@ -202,18 +213,6 @@ export function EditContactDialog({
           {faults.phone && <p className="field-error">{faults.phone}</p>}
         </div>
 
-        <div>
-          <label className="label" htmlFor="edit-contact-last">
-            Last interaction
-          </label>
-          <input
-            id="edit-contact-last"
-            type="date"
-            value={lastInteraction}
-            onChange={(event) => setLastInteraction(event.target.value)}
-            className="input-soft"
-          />
-        </div>
 
         <div>
           <p className="label">Projects</p>
@@ -226,23 +225,23 @@ export function EditContactDialog({
                 >
                   {project.name}
                   {project.role === 'contact' ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void unlink(project.id)}
-                      aria-label={`Take ${contact.name} off ${project.name}`}
-                      className="text-muted hover:text-accent disabled:opacity-40"
-                    >
-                      <Cross />
-                    </button>
+                    <Tip label={`Take ${contact.name} off ${project.name}`}>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void unlink(project.id)}
+                        aria-label={`Take ${contact.name} off ${project.name}`}
+                        className="text-muted hover:text-accent disabled:opacity-40"
+                      >
+                        <Cross />
+                      </button>
+                    </Tip>
                   ) : (
-                    <span
-                      title={`${contact.name} is the client ${project.name} is for`}
-                      aria-label="Client of this project"
-                      className="text-muted"
-                    >
-                      <Lock />
-                    </span>
+                    <Tip label={`${contact.name} is the client ${project.name} is for`}>
+                      <span aria-label="Client of this project" className="text-muted">
+                        <Lock />
+                      </span>
+                    </Tip>
                   )}
                 </li>
               ))}
@@ -259,6 +258,8 @@ export function EditContactDialog({
             onChange={(picked) => void link(picked)}
           />
         </div>
+
+        <MoreDetails prefix="edit-contact" value={details} onChange={setDetails} />
 
         {error && <p className="field-error">{error}</p>}
       </div>

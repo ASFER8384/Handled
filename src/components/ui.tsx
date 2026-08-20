@@ -106,3 +106,42 @@ export function formatDate(value: Date | string | null | undefined): string {
     year: 'numeric',
   }).format(new Date(value));
 }
+
+/**
+ * A dark label on hover, with a notch pointing back at what it names. Use this
+ * rather than the `title` attribute: the browser's own tooltip is a pale system
+ * box that arrives a second late and cannot be styled to match anything here.
+ */
+export function Tip({
+  label,
+  side = 'top',
+  children,
+}: {
+  label: string;
+  side?: 'top' | 'right';
+  children: React.ReactNode;
+}) {
+  return (
+    <span className="group/tip relative inline-flex">
+      {children}
+      <span
+        role="tooltip"
+        className={`bg-brand-ink pointer-events-none absolute z-40 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap text-white opacity-0 transition-opacity group-hover/tip:opacity-100 group-has-[:focus-visible]/tip:opacity-100 ${
+          side === 'right'
+            ? 'top-1/2 left-full ml-2 -translate-y-1/2'
+            : 'bottom-full left-1/2 mb-2 -translate-x-1/2'
+        }`}
+      >
+        {label}
+        <span
+          aria-hidden
+          className={`bg-brand-ink absolute h-2 w-2 rotate-45 rounded-[1px] ${
+            side === 'right'
+              ? 'top-1/2 right-full translate-x-1 -translate-y-1/2'
+              : 'top-full left-1/2 -translate-x-1/2 -translate-y-1'
+          }`}
+        />
+      </span>
+    </span>
+  );
+}

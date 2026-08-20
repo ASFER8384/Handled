@@ -181,7 +181,7 @@ function Row({
       </div>
 
       {built ? (
-        <span className="text-muted" title="Built in, so it stays">
+        <span className="text-muted">
           <LockIcon className="h-4 w-4" />
         </span>
       ) : (

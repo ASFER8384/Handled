@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
+import { Tip } from '@/components/ui';
 import type { ViewFilter, ViewPrefs } from '@/lib/board-prefs';
 import { CustomizeMenu } from './customize-menu';
 import type { StageDraft } from './stages-dialog';
@@ -178,7 +179,6 @@ export function BoardToolbar({
               key={entry.field}
               type="button"
               onClick={() => dropFilter(entry.field)}
-              title="Remove this filter"
               className="border-accent bg-accent-soft text-accent flex h-[26px] items-center gap-1.5 rounded-full border px-2.5 text-sm font-medium select-none"
             >
               {entry.label}: {entry.value}
@@ -503,40 +503,6 @@ function IconButton({
   );
 }
 
-/** A dark label on hover, with a notch pointing back at what it names. */
-function Tip({
-  label,
-  side = 'top',
-  children,
-}: {
-  label: string;
-  side?: 'top' | 'right';
-  children: React.ReactNode;
-}) {
-  return (
-    <span className="group/tip relative inline-flex">
-      {children}
-      <span
-        role="tooltip"
-        className={`bg-brand-ink pointer-events-none absolute z-40 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap text-white opacity-0 transition-opacity group-hover/tip:opacity-100 group-has-[:focus-visible]/tip:opacity-100 ${
-          side === 'right'
-            ? 'top-1/2 left-full ml-2 -translate-y-1/2'
-            : 'bottom-full left-1/2 mb-2 -translate-x-1/2'
-        }`}
-      >
-        {label}
-        <span
-          aria-hidden
-          className={`bg-brand-ink absolute h-2 w-2 rotate-45 rounded-[1px] ${
-            side === 'right'
-              ? 'top-1/2 right-full translate-x-1 -translate-y-1/2'
-              : 'top-full left-1/2 -translate-x-1/2 -translate-y-1'
-          }`}
-        />
-      </span>
-    </span>
-  );
-}
 
 function ViewLink({
   onClick,

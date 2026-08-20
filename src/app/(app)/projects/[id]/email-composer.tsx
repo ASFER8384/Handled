@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import type { ActivityMessage } from './activity-tab';
 import { AddContactDialog } from './add-contact-dialog';
+import { Tip } from '@/components/ui';
 import {
   AlignIcon,
   CalendarIcon,
@@ -242,15 +243,16 @@ export function EmailComposer({
           </span>
         ))}
 
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          aria-label="Add a recipient"
-          title="Add a recipient"
-          className="border-line text-muted hover:border-accent hover:text-accent flex h-7 w-7 items-center justify-center rounded-full border transition-colors"
-        >
-          +
-        </button>
+        <Tip label="Add a recipient">
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            aria-label="Add a recipient"
+            className="border-line text-muted hover:border-accent hover:text-accent flex h-7 w-7 items-center justify-center rounded-full border transition-colors"
+          >
+            +
+          </button>
+        </Tip>
 
         <span className="ml-auto flex items-center gap-4">
           {previous && !replyTo && (

@@ -5,6 +5,7 @@ import { Dialog } from '@/components/dialog';
 import { CountrySelect } from '@/components/country-select';
 import { api } from '@/lib/client-fetch';
 import { DEFAULT_ISO, findCountry } from '@/lib/countries';
+import { MoreDetails, EMPTY_DETAILS, type ContactDetails } from '@/components/contact-details';
 
 export type Contact = { id: string; name: string; email: string | null };
 
@@ -39,7 +40,7 @@ export function AddContactDialog({
   const [email, setEmail] = useState('');
   const [countryIso, setCountryIso] = useState(DEFAULT_ISO);
   const [phone, setPhone] = useState('');
-  const [lastInteraction, setLastInteraction] = useState('');
+  const [details, setDetails] = useState<ContactDetails>(EMPTY_DETAILS);
   const [search, setSearch] = useState('');
   const [contacts, setContacts] = useState<Option[] | null>(null);
   const [lookupFailed, setLookupFailed] = useState(false);
@@ -91,19 +92,23 @@ export function AddContactDialog({
     setBusy(true);
     setError(null);
     setFaults({});
-    const details = {
+    const payload = {
       name,
       email,
       phone: phone.trim() ? `${findCountry(countryIso).dial} ${phone.trim()}` : undefined,
-      lastInteractionAt: lastInteraction || undefined,
+      lastInteractionAt: details.lastInteractionAt || undefined,
+      website: details.website || undefined,
+      jobTitle: details.jobTitle || undefined,
+      address: details.address || undefined,
+      notes: details.notes || undefined,
     };
 
     const { data, error: failure } = attach
       ? await api<{ contact: Contact }>(`/api/projects/${projectId}/contacts`, {
           method: 'POST',
-          body: mode === 'existing' ? { clientId: picked } : details,
+          body: mode === 'existing' ? { clientId: picked } : payload,
         })
-      : await api<{ client: Contact }>('/api/clients', { method: 'POST', body: details }).then(
+      : await api<{ client: Contact }>('/api/clients', { method: 'POST', body: payload }).then(
           (result) => ({
             data: result.data ? { contact: result.data.client } : null,
             error: result.error,
@@ -227,18 +232,7 @@ export function AddContactDialog({
             )}
           </div>
 
-          <div>
-            <label className="label" htmlFor="contact-last">
-              Last interaction
-            </label>
-            <input
-              id="contact-last"
-              type="date"
-              value={lastInteraction}
-              onChange={(event) => setLastInteraction(event.target.value)}
-              className="input-soft"
-            />
-          </div>
+        <MoreDetails prefix="contact" value={details} onChange={setDetails} />
 
           {error && <p className="field-error">{error}</p>}
         </div>

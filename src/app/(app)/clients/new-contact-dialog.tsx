@@ -6,6 +6,7 @@ import { Dialog } from '@/components/dialog';
 import { CountrySelect } from '@/components/country-select';
 import { api } from '@/lib/client-fetch';
 import { DEFAULT_ISO, findCountry } from '@/lib/countries';
+import { MoreDetails, EMPTY_DETAILS, type ContactDetails } from '@/components/contact-details';
 import { ProjectPicker, type ProjectChoice, type ProjectOption } from '@/components/project-picker';
 
 /**
@@ -19,7 +20,7 @@ export function NewContactDialog({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState('');
   const [countryIso, setCountryIso] = useState(DEFAULT_ISO);
   const [phone, setPhone] = useState('');
-  const [lastInteraction, setLastInteraction] = useState('');
+  const [details, setDetails] = useState<ContactDetails>(EMPTY_DETAILS);
   // null while the list is still coming: nothing can be chosen until it is
   // here, so a new project is never opened by mistake in place of an existing
   // one that had simply not loaded yet.
@@ -55,7 +56,11 @@ export function NewContactDialog({ onClose }: { onClose: () => void }) {
         name,
         email,
         phone: phone.trim() ? `${findCountry(countryIso).dial} ${phone.trim()}` : undefined,
-        lastInteractionAt: lastInteraction || undefined,
+        lastInteractionAt: details.lastInteractionAt || undefined,
+        website: details.website || undefined,
+        jobTitle: details.jobTitle || undefined,
+        address: details.address || undefined,
+        notes: details.notes || undefined,
       },
     });
 
@@ -190,18 +195,7 @@ export function NewContactDialog({ onClose }: { onClose: () => void }) {
           </p>
         </div>
 
-        <div>
-          <label className="label" htmlFor="new-contact-last">
-            Last interaction
-          </label>
-          <input
-            id="new-contact-last"
-            type="date"
-            value={lastInteraction}
-            onChange={(event) => setLastInteraction(event.target.value)}
-            className="input-soft"
-          />
-        </div>
+        <MoreDetails prefix="new-contact" value={details} onChange={setDetails} />
 
         {error && <p className="field-error">{error}</p>}
       </div>

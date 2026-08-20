@@ -34,6 +34,10 @@ export const POST = handler(async (ctx, request: Request, { params }: Params) =>
         email: data.email,
         phone: data.phone ?? null,
         lastInteractionAt: data.lastInteractionAt ?? null,
+        website: data.website ?? null,
+        jobTitle: data.jobTitle ?? null,
+        address: data.address ?? null,
+        notes: data.notes ?? null,
       },
     });
     clientId = created.id;

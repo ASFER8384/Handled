@@ -28,10 +28,13 @@ export default async function ContactsPage() {
     return {
       id: client.id,
       name: client.name,
-      company: client.company,
       email: client.email,
       phone: client.phone,
       lastInteractionAt: client.lastInteractionAt?.toISOString() ?? null,
+      website: client.website,
+      jobTitle: client.jobTitle,
+      address: client.address,
+      notes: client.notes,
       tags: client.tags,
       // Where they came from is a fact about their work, so it is read off it.
       source: projects.find((entry) => entry.leadSource)?.leadSource ?? null,

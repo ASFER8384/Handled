@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AddContactDialog } from './add-contact-dialog';
+import { Tip } from '@/components/ui';
 
 /**
  * The one way onto a project. Whoever is added here joins it and shows up in
@@ -14,15 +15,16 @@ export function AddPersonButton({ projectId, exclude }: { projectId: string; exc
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setAdding(true)}
-        aria-label="Add contact to project"
-        title="Add contact to project"
-        className="border-line text-muted hover:border-accent hover:text-accent flex h-10 w-10 items-center justify-center rounded-full border text-lg transition-colors"
-      >
-        +
-      </button>
+      <Tip label="Add contact to project">
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          aria-label="Add contact to project"
+          className="border-line text-muted hover:border-accent hover:text-accent flex h-10 w-10 items-center justify-center rounded-full border text-lg transition-colors"
+        >
+          +
+        </button>
+      </Tip>
 
       {adding && (
         <AddContactDialog

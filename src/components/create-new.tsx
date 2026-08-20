@@ -139,7 +139,6 @@ type ContactValues = {
   phone: string;
   lastInteractionAt: string;
   website: string;
-  company: string;
   jobTitle: string;
   address: string;
   notes: string;
@@ -191,7 +190,6 @@ function ContactDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
         name: values.name,
         email: values.email,
         phone,
-        company: values.company,
         jobTitle: values.jobTitle,
         website: values.website,
         address: values.address,
@@ -345,18 +343,6 @@ function ContactDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
                   className="input-soft"
                   placeholder="Add contact's website"
                   {...register('website')}
-                />
-              </div>
-
-              <div>
-                <label className="label" htmlFor="contact-company">
-                  Organization
-                </label>
-                <input
-                  id="contact-company"
-                  className="input-soft"
-                  placeholder="Organization name"
-                  {...register('company')}
                 />
               </div>
 

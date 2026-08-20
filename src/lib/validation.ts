@@ -101,6 +101,10 @@ export const projectContactSchema = z.object({
   email: z.union([z.email('That is not an email address'), z.literal('')]).optional(),
   phone: optionalText(40),
   lastInteractionAt: optionalDate,
+  website: optionalText(200),
+  jobTitle: optionalText(120),
+  address: optionalText(400),
+  notes: optionalText(1000),
 });
 
 export const projectMessageSchema = z.object({

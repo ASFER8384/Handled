@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
+import { Tip } from '@/components/ui';
 import { useMenu, MenuItem, DotsIcon, PenIcon, TrashIcon } from '../projects/[id]/editor-kit';
 import { NewContactDialog } from './new-contact-dialog';
 import { EditContactDialog } from './edit-contact-dialog';
@@ -12,10 +13,13 @@ import { AddToProjectDialog } from './add-to-project-dialog';
 export type ContactRow = {
   id: string;
   name: string;
-  company: string | null;
   email: string | null;
   phone: string | null;
   lastInteractionAt: string | null;
+  website: string | null;
+  jobTitle: string | null;
+  address: string | null;
+  notes: string | null;
   source: string | null;
   tags: string[];
   projects: { id: string; name: string; role: 'client' | 'contact' }[];
@@ -36,7 +40,7 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
   const term = search.trim().toLowerCase();
   const shown = term
     ? contacts.filter((contact) =>
-        [contact.name, contact.email, contact.phone, contact.company, ...contact.tags,
+        [contact.name, contact.email, contact.phone, ...contact.tags,
           ...contact.projects.map((project) => project.name)]
           .filter(Boolean)
           .join(' ')
@@ -151,7 +155,6 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
                 </td>
                 <td>
                   <span className="font-medium">{contact.name}</span>
-                  {contact.company && <p className="text-muted text-xs">{contact.company}</p>}
                 </td>
                 <td>
                   {contact.projects.length === 0 ? (
@@ -167,24 +170,23 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
                             {project.name}
                           </Link>
                           {project.role === 'contact' ? (
-                            <button
-                              type="button"
-                              disabled={busy}
-                              onClick={() => void unlink(project.id, contact.id)}
-                              aria-label={`Take ${contact.name} off ${project.name}`}
-                              title={`Take ${contact.name} off ${project.name}`}
-                              className="text-muted hover:text-accent opacity-0 transition-opacity group-hover/chip:opacity-100 disabled:opacity-30"
-                            >
-                              <CrossIcon />
-                            </button>
+                            <Tip label={`Take ${contact.name} off ${project.name}`}>
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => void unlink(project.id, contact.id)}
+                                aria-label={`Take ${contact.name} off ${project.name}`}
+                                className="text-muted hover:text-accent opacity-0 transition-opacity group-hover/chip:opacity-100 disabled:opacity-30"
+                              >
+                                <CrossIcon />
+                              </button>
+                            </Tip>
                           ) : (
-                            <span
-                              title={`${contact.name} is the client this project is for`}
-                              aria-label="Client of this project"
-                              className="text-muted"
-                            >
-                              <LockIcon />
-                            </span>
+                            <Tip label={`${contact.name} is the client this project is for`}>
+                              <span aria-label="Client of this project" className="text-muted">
+                                <LockIcon />
+                              </span>
+                            </Tip>
                           )}
                         </span>
                       ))}
@@ -220,14 +222,15 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
                 <td>
                   <span className="flex items-center justify-end gap-1">
                     {contact.email && (
-                      <a
-                        href={`mailto:${contact.email}`}
-                        title="Send email"
-                        aria-label={`Send email to ${contact.name}`}
-                        className="text-muted hover:text-accent flex h-8 w-8 items-center justify-center rounded transition-colors hover:bg-black/[0.05]"
-                      >
-                        <MailIcon />
-                      </a>
+                      <Tip label="Send email">
+                        <a
+                          href={`mailto:${contact.email}`}
+                          aria-label={`Send email to ${contact.name}`}
+                          className="text-muted hover:text-accent flex h-8 w-8 items-center justify-center rounded transition-colors hover:bg-black/[0.05]"
+                        >
+                          <MailIcon />
+                        </a>
+                      </Tip>
                     )}
 
                     <span className="relative" data-menu>
