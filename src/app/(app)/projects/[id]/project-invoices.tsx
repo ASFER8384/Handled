@@ -259,9 +259,29 @@ function PaymentDialog({
   const [reference, setReference] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Written first, then read back. A payment cannot be taken off an invoice
+  // once it is on, and the amount decides whether the invoice reads as paid,
+  // so it is worth one look at what is about to be written down.
+  const [checking, setChecking] = useState(false);
+  const [typed, setTyped] = useState('');
+
+  const cents = parseMoneyToCents(amount);
+  const settles = cents !== null && cents >= invoice.balanceCents;
+
+  function check() {
+    if (cents === null || cents <= 0) {
+      setError('Enter an amount');
+      return;
+    }
+    if (cents > invoice.balanceCents) {
+      setError('That is more than the outstanding balance');
+      return;
+    }
+    setError(null);
+    setChecking(true);
+  }
 
   async function save() {
-    const cents = parseMoneyToCents(amount);
     if (cents === null || cents <= 0) {
       setError('Enter an amount');
       return;
@@ -283,76 +303,141 @@ function PaymentDialog({
   return (
     <Dialog
       fit
-      title={`Payment for ${invoice.number}`}
+      title={checking ? `Record this against ${invoice.number}` : `Payment for ${invoice.number}`}
       onClose={onClose}
       footer={
         <div className="flex items-center gap-3">
-          <button type="button" onClick={onClose} className="btn-ghost">
-            Cancel
+          <button
+            type="button"
+            onClick={() => (checking ? setChecking(false) : onClose())}
+            className="btn-ghost"
+          >
+            {checking ? 'Back' : 'Cancel'}
           </button>
-          <button type="button" onClick={save} disabled={saving} className="btn-primary">
-            {saving ? 'Recording…' : 'Record payment'}
+          <button
+            type="button"
+            onClick={checking ? save : check}
+            disabled={saving || (checking && typed.trim().toLowerCase() !== 'record')}
+            className="btn-primary disabled:opacity-40"
+          >
+            {saving ? 'Recording…' : checking ? 'Record payment' : 'Continue'}
           </button>
         </div>
       }
     >
-      <p className="text-muted text-sm">
-        Outstanding{' '}
-        <span className="text-foreground font-medium tabular-nums">
-          {formatMoney(invoice.balanceCents, currency)}
-        </span>
-      </p>
+      {checking ? (
+        <>
+          <dl className="divide-line divide-y text-sm">
+            <Line label="Amount" value={formatMoney(cents ?? 0, currency)} strong />
+            <Line
+              label="Method"
+              value={METHODS.find((entry) => entry.value === method)?.label ?? method}
+            />
+            <Line label="Date received" value={paidAt || 'Today'} />
+            {reference.trim() && <Line label="Reference" value={reference.trim()} />}
+            <Line
+              label="Leaves outstanding"
+              value={formatMoney(Math.max(0, invoice.balanceCents - (cents ?? 0)), currency)}
+            />
+          </dl>
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="label" htmlFor="pay-amount">
-            Amount
-          </label>
-          <input
-            id="pay-amount"
-            className="input"
-            inputMode="decimal"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-          />
-        </div>
+          <p className="text-muted mt-4 text-sm">
+            {settles
+              ? `${invoice.number} will be marked paid in full.`
+              : `${invoice.number} will be marked part paid.`}{' '}
+            A payment cannot be taken off an invoice afterwards.
+          </p>
 
-        <div>
-          <label className="label" htmlFor="pay-method">
-            Method
-          </label>
-          <Select id="pay-method" value={method} options={METHODS} onChange={setMethod} />
-        </div>
+          <div className="mt-5">
+            <label className="label" htmlFor="pay-confirm">
+              Type <span className="text-foreground font-semibold">record</span> to confirm
+            </label>
+            <input
+              id="pay-confirm"
+              autoFocus
+              autoComplete="off"
+              className="input"
+              value={typed}
+              onChange={(event) => setTyped(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && typed.trim().toLowerCase() === 'record') void save();
+              }}
+            />
+          </div>
 
-        <div>
-          <label className="label" htmlFor="pay-date">
-            Date received
-          </label>
-          <input
-            id="pay-date"
-            type="date"
-            className="input"
-            value={paidAt}
-            onChange={(event) => setPaidAt(event.target.value)}
-          />
-          <p className="text-muted mt-1.5 text-xs">Left empty, it is today.</p>
-        </div>
+          {error && <p className="field-error mt-4">{error}</p>}
+        </>
+      ) : (
+        <>
+          <p className="text-muted text-sm">
+            Outstanding{' '}
+            <span className="text-foreground font-medium tabular-nums">
+              {formatMoney(invoice.balanceCents, currency)}
+            </span>
+          </p>
 
-        <div>
-          <label className="label" htmlFor="pay-reference">
-            Reference
-          </label>
-          <input
-            id="pay-reference"
-            className="input"
-            value={reference}
-            onChange={(event) => setReference(event.target.value)}
-          />
-        </div>
-      </div>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="label" htmlFor="pay-amount">
+                Amount
+              </label>
+              <input
+                id="pay-amount"
+                className="input"
+                inputMode="decimal"
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+              />
+            </div>
 
-      {error && <p className="field-error mt-4">{error}</p>}
+            <div>
+              <label className="label" htmlFor="pay-method">
+                Method
+              </label>
+              <Select id="pay-method" value={method} options={METHODS} onChange={setMethod} />
+            </div>
+
+            <div>
+              <label className="label" htmlFor="pay-date">
+                Date received
+              </label>
+              <input
+                id="pay-date"
+                type="date"
+                className="input"
+                value={paidAt}
+                onChange={(event) => setPaidAt(event.target.value)}
+              />
+              <p className="text-muted mt-1.5 text-xs">Left empty, it is today.</p>
+            </div>
+
+            <div>
+              <label className="label" htmlFor="pay-reference">
+                Reference
+              </label>
+              <input
+                id="pay-reference"
+                className="input"
+                value={reference}
+                onChange={(event) => setReference(event.target.value)}
+              />
+            </div>
+          </div>
+
+          {error && <p className="field-error mt-4">{error}</p>}
+        </>
+      )}
     </Dialog>
+  );
+}
+
+/** One line of the read-back, before a payment goes on the record. */
+function Line({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex items-center justify-between py-2.5">
+      <dt className="text-muted">{label}</dt>
+      <dd className={`tabular-nums ${strong ? 'text-base font-semibold' : ''}`}>{value}</dd>
+    </div>
   );
 }
 
