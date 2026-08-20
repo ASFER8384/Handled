@@ -7,6 +7,9 @@ import { FormSelect } from '@/components/form-select';
 import { formatMoney, formatRate, parseMoneyToCents } from '@/lib/money';
 import { api } from '@/lib/client-fetch';
 import { InvoiceSheet } from '@/components/invoice-sheet';
+import { Select } from '@/components/select';
+import { ConfirmDialog } from '@/components/confirm';
+import { dueDateFromNow } from '@/lib/invoice-templates';
 import {
   DEFAULT_COLOUR,
   DEFAULT_FONT,
@@ -34,6 +37,15 @@ type Values = {
 
 const BLANK_ITEM = { description: '', quantity: 1, unitPrice: '' };
 
+/** A template as the editor needs it, to write this draft again from. */
+export type FormTemplate = {
+  id: string;
+  name: string;
+  dueInDays: number;
+  notes: string;
+  items: { description: string; quantity: number }[];
+};
+
 /** What the form opens with, when it was opened from somewhere in particular. */
 export type InvoiceStart = {
   clientId: string | null;
@@ -57,6 +69,7 @@ export type InvoiceStart = {
 export function InvoiceForm({
   clients,
   currency,
+  templates = [],
   from,
   fromEmail,
   fromAddress,
@@ -82,6 +95,8 @@ export function InvoiceForm({
     payNotes: string | null;
   };
   start?: InvoiceStart;
+  /** What this draft can be rewritten from. Empty is fine: it is optional. */
+  templates?: FormTemplate[];
   /** Set when an invoice that already exists is being rewritten. */
   invoiceId?: string;
   number?: string;
@@ -99,6 +114,8 @@ export function InvoiceForm({
     register,
     control,
     handleSubmit,
+    getValues,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<Values>({
     defaultValues: {
@@ -113,6 +130,37 @@ export function InvoiceForm({
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+
+  // Swapping a draft onto another template rewrites its lines and terms. The
+  // client, the project and the prices already typed are the work; the lines
+  // are the part a template is for, so those are what it replaces, and it asks
+  // first if there is anything there to lose.
+  const [swapping, setSwapping] = useState<FormTemplate | null>(null);
+
+  function applyTemplate(template: FormTemplate) {
+    const current = getValues();
+    reset({
+      ...current,
+      dueAt: dueDateFromNow(template.dueInDays),
+      notes: template.notes,
+      items: template.items.map((item) => ({
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: '',
+      })),
+    });
+    setSwapping(null);
+  }
+
+  function askToApply(id: string) {
+    const template = templates.find((entry) => entry.id === id);
+    if (!template) return;
+    const written = getValues('items').some(
+      (item) => item.description.trim() || item.unitPrice.trim(),
+    );
+    if (written) setSwapping(template);
+    else applyTemplate(template);
+  }
   const watched = useWatch({ control, name: 'items' }) ?? [];
   const selectedClientId = useWatch({ control, name: 'clientId' });
   const client = clients.find((entry) => entry.id === selectedClientId);
@@ -434,7 +482,24 @@ export function InvoiceForm({
           </button>
         </div>
 
-        <p className="text-muted mt-5 text-xs tracking-widest uppercase">Colour</p>
+        {templates.length > 0 && (
+          <>
+            <p className="text-muted mt-5 text-xs tracking-widest uppercase">Template</p>
+            <Select
+              ariaLabel="Write this invoice from a template"
+              className="mt-2.5"
+              value={null}
+              placeholder="Start from…"
+              options={templates.map((entry) => ({ value: entry.id, label: entry.name }))}
+              onChange={askToApply}
+            />
+            <p className="text-muted mt-2 text-xs leading-relaxed">
+              Replaces the lines and terms. Your client, project and prices stay.
+            </p>
+          </>
+        )}
+
+        <p className="text-muted mt-6 text-xs tracking-widest uppercase">Colour</p>
         <div className="mt-2.5 flex flex-wrap gap-2.5">
           {INVOICE_COLOURS.map((entry) => (
             <button
@@ -476,6 +541,16 @@ export function InvoiceForm({
           Kept with this invoice, so the one you send stays the one they see.
         </p>
       </aside>
+
+      {swapping && (
+        <ConfirmDialog
+          title={`Write this from ${swapping.name}`}
+          body={`The lines and terms on this draft are replaced by the ones in ${swapping.name}, and any prices you have typed go with them. The client, the project and the colours stay as they are.`}
+          confirmLabel="Replace the lines"
+          onConfirm={() => applyTemplate(swapping)}
+          onClose={() => setSwapping(null)}
+        />
+      )}
     </form>
   );
 }

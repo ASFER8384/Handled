@@ -3,7 +3,8 @@ import { requireWorkspace } from '@/lib/session';
 import { EmptyState, PageHeader } from '@/components/ui';
 import { dueDateFromNow, findTemplate } from '@/lib/invoice-templates';
 import { companyBrand } from '@/lib/company';
-import { InvoiceForm } from './invoice-form';
+import { INVOICE_TEMPLATES } from '@/lib/invoice-templates';
+import { InvoiceForm, type FormTemplate } from './invoice-form';
 
 export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) {
   const ctx = await requireWorkspace();
@@ -30,6 +31,32 @@ export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) 
       : null);
 
   const brand = await companyBrand(ctx.workspaceId, ctx.userEmail);
+
+  // Everything this draft could be written from: the three that ship with
+  // Handled, then anything this workspace has saved.
+  const mine = await prisma.invoiceTemplate.findMany({
+    where: { workspaceId: ctx.workspaceId },
+    orderBy: { name: 'asc' },
+  });
+  const templates: FormTemplate[] = [
+    ...INVOICE_TEMPLATES.map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      dueInDays: entry.dueInDays,
+      notes: entry.notes,
+      items: entry.items.map((item) => ({
+        description: item.description,
+        quantity: item.quantity,
+      })),
+    })),
+    ...mine.map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      dueInDays: entry.dueInDays,
+      notes: entry.notes,
+      items: entry.items as { description: string; quantity: number }[],
+    })),
+  ];
 
   const clients = await prisma.client.findMany({
     where: { workspaceId: ctx.workspaceId },
@@ -63,6 +90,7 @@ export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) 
       ) : (
         <InvoiceForm
           clients={clients}
+          templates={templates}
           currency={ctx.currency}
           from={brand.name || ctx.workspaceName}
           fromEmail={brand.contact}
