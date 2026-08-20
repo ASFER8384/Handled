@@ -233,7 +233,7 @@ export function InvoiceForm({
         </div>
       </div>
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_190px]">
+      <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_220px]">
         <div className="min-w-0">
           <div className="mb-3 flex items-center justify-end gap-2">
             <PartsMenu hidden={hidden} onToggle={toggle} />
