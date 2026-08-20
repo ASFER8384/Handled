@@ -14,6 +14,7 @@ import { AddPersonButton } from './add-person-button';
 import { TaskTable } from '@/components/task-table';
 import { AboutPanel } from './about-panel';
 import { DetailsTab } from './details-tab';
+import { CreateFileButton } from './create-file-button';
 import { TabLinks } from './tab-links';
 
 const TABS = ['Email', 'Files', 'Tasks', 'Financials', 'Notes', 'Details'] as const;
@@ -208,9 +209,7 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
               Attach
             </Link>
 
-            <Link href={`/invoices/new?project=${project.id}`} className="btn-primary px-5 py-2.5">
-              Create file
-            </Link>
+            <CreateFileButton projectId={project.id} />
           </div>
         </div>
 
