@@ -180,7 +180,7 @@ export function TemplateGallery({
         />
       )}
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {shown.map((template) => (
           // A div, not a button: the card holds a whole invoice, and a document
           // is not phrasing content. The name below is the real button, and it

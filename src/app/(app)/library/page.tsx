@@ -34,12 +34,15 @@ export default async function LibraryPage() {
   return (
     <>
       {/* Stays put while the gallery scrolls under it, so you always know
-          which page you are on and the filters never lose their heading. */}
-      <div className="border-line bg-background sticky top-14 z-20 -mx-8 -mt-8 border-b px-8 py-5">
-        <h1 className="text-2xl font-semibold tracking-tight">Library</h1>
+          which page you are on. Its heading sits in the same column as the
+          cards, so the word starts where the first invoice starts. */}
+      <div className="bg-background sticky top-14 z-20 -mx-8 -mt-8 px-8 py-5">
+        <div className="mx-auto w-full max-w-[1060px]">
+          <h1 className="font-display text-3xl font-bold tracking-tight">Library</h1>
+        </div>
       </div>
 
-      <section className="mt-6">
+      <section className="mx-auto mt-6 w-full max-w-[1060px]">
         <TemplateGallery
           templates={templates}
           brand={{
