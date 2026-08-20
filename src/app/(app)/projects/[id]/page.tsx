@@ -4,9 +4,10 @@ import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
 import { sweepDueEmails } from '@/lib/messages';
 import { balanceCents, formatMoney, paidCents, totalCents } from '@/lib/money';
-import { EmptyState, StatusBadge, formatDate } from '@/components/ui';
+import { EmptyState, formatDate } from '@/components/ui';
 import { LEAD_SOURCES, PROJECT_TYPES } from '@/lib/stages';
 import { TypeSelect } from './type-select';
+import { ProjectInvoices } from './project-invoices';
 import { NotesTab } from './notes-tab';
 import { FilesTab } from './files-tab';
 import { ActivityTab } from './activity-tab';
@@ -331,33 +332,19 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
                   body="Invoices raised against this project appear here."
                 />
               ) : (
-                <ul className="card divide-line divide-y p-0">
-                  {project.invoices.map((invoice) => (
-                    <li key={invoice.id} className="flex items-center justify-between px-5 py-4">
-                      <div>
-                        <Link
-                          href={`/invoices/${invoice.id}`}
-                          className="font-medium hover:underline"
-                        >
-                          {invoice.number}
-                        </Link>
-                        <p className="text-muted text-sm">
-                          Balance{' '}
-                          {formatMoney(
-                            balanceCents(invoice.items, invoice.payments, invoice.taxRateBp),
-                            ctx.currency,
-                          )}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <StatusBadge status={invoice.status} />
-                        <span className="font-medium tabular-nums">
-                          {formatMoney(totalCents(invoice.items, invoice.taxRateBp), ctx.currency)}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                <ProjectInvoices
+                  currency={ctx.currency}
+                  invoices={project.invoices.map((invoice) => ({
+                    id: invoice.id,
+                    number: invoice.number,
+                    status: invoice.status,
+                    issuedAt: invoice.issuedAt ? invoice.issuedAt.toISOString() : null,
+                    dueAt: invoice.dueAt ? invoice.dueAt.toISOString() : null,
+                    totalCents: totalCents(invoice.items, invoice.taxRateBp),
+                    balanceCents: balanceCents(invoice.items, invoice.payments, invoice.taxRateBp),
+                    hasPayments: invoice.payments.length > 0,
+                  }))}
+                />
               )}
             </div>
           )}
