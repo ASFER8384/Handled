@@ -16,6 +16,9 @@ import { CONTACT_COLUMNS, type ContactSort } from '@/lib/contact-columns';
 /** How long a chip stays asking before it goes back to being a chip. */
 const ARM_SECONDS = 5;
 
+/** How many contacts a page holds. */
+const PER_PAGE = 10;
+
 export type ContactRow = {
   id: string;
   name: string;
@@ -67,6 +70,7 @@ export function ContactsTable({
     { contactId: string; project: { id: string; name: string; role: 'client' | 'contact' } }[]
   >([]);
   const [justRemoved, setJustRemoved] = useState<string[]>([]);
+  const [pageWanted, setPageWanted] = useState(1);
 
   /** A contact's projects as they stand, server plus whatever is in flight. */
   function projectsOf(contact: ContactRow) {
@@ -125,10 +129,22 @@ export function ContactsTable({
       )
     : contacts;
 
-  const shown = order.field ? [...found].sort(byColumn(order)) : found;
+  const sorted = order.field ? [...found].sort(byColumn(order)) : found;
 
-  const picked = chosen.filter((id) => shown.some((contact) => contact.id === id));
-  const allPicked = shown.length > 0 && picked.length === shown.length;
+  // A page of the list, and the page it is. Searching or re-sorting changes
+  // what page one even means, so the number is clamped rather than kept: it
+  // is derived here so it can never point past the end.
+  const pages = Math.max(1, Math.ceil(sorted.length / PER_PAGE));
+  const page = Math.min(pageWanted, pages);
+  const from = (page - 1) * PER_PAGE;
+  const shown = sorted.slice(from, from + PER_PAGE);
+
+  // Selection and Select all are about the page in front of you, not the
+  // whole book: ticking the box must not quietly pick up people you cannot
+  // see. The bar says which it is.
+  const picked = chosen.filter((id) => sorted.some((contact) => contact.id === id));
+  const pickedHere = shown.filter((contact) => picked.includes(contact.id));
+  const allPicked = shown.length > 0 && pickedHere.length === shown.length;
 
   /** Every change to the table's shape is saved as it is made. */
   async function savePrefs(body: {
@@ -215,8 +231,9 @@ export function ContactsTable({
 
       <div className="mt-6 flex items-center justify-between gap-4">
         <p className="text-muted text-sm">
-          {shown.length} {shown.length === 1 ? 'item' : 'items'}
+          {sorted.length} {sorted.length === 1 ? 'item' : 'items'}
           {term && ` of ${contacts.length}`}
+          {pages > 1 && ` · showing ${from + 1}–${from + shown.length}`}
         </p>
 
         <label className="border-line focus-within:border-accent flex h-9 w-[280px] items-center gap-2 rounded-full border px-3 transition-colors">
@@ -224,7 +241,10 @@ export function ContactsTable({
           <SearchIcon />
           <input
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPageWanted(1);
+            }}
             placeholder="Search contacts"
             className="w-full bg-transparent text-sm outline-none"
           />
@@ -242,8 +262,15 @@ export function ContactsTable({
                 <input
                   type="checkbox"
                   checked={allPicked}
-                  onChange={() => setChosen(allPicked ? [] : shown.map((contact) => contact.id))}
-                  aria-label={allPicked ? 'Deselect all' : 'Select all'}
+                  onChange={() =>
+                    setChosen((current) => {
+                      const here = shown.map((contact) => contact.id);
+                      return allPicked
+                        ? current.filter((id) => !here.includes(id))
+                        : [...new Set([...current, ...here])];
+                    })
+                  }
+                  aria-label={allPicked ? 'Deselect all on this page' : 'Select all on this page'}
                   className="accent-brand-ink h-4 w-4 align-middle"
                 />
               </th>
@@ -487,11 +514,37 @@ export function ContactsTable({
         )}
       </div>
 
+      {pages > 1 && (
+        <nav aria-label="Contact pages" className="mt-4 flex items-center justify-center gap-1">
+          <Step label="Previous page" disabled={page === 1} onClick={() => setPageWanted(page - 1)}>
+            <Chevron />
+          </Step>
+
+          {Array.from({ length: pages }, (_, index) => index + 1).map((number) => (
+            <button
+              key={number}
+              type="button"
+              onClick={() => setPageWanted(number)}
+              aria-current={number === page ? 'page' : undefined}
+              className={`h-9 min-w-9 rounded-lg px-3 text-sm font-medium transition-colors ${
+                number === page ? 'bg-brand-ink text-white' : 'hover:bg-black/[0.05]'
+              }`}
+            >
+              {number}
+            </button>
+          ))}
+
+          <Step label="Next page" disabled={page === pages} onClick={() => setPageWanted(page + 1)}>
+            <Chevron next />
+          </Step>
+        </nav>
+      )}
+
       {/* ---- what you can do with a selection --------------------------- */}
       {picked.length > 0 && (
         <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-lg bg-white py-2 pr-2 pl-5 shadow-2xl ring-1 ring-black/10">
           <span className="text-sm font-medium">
-            {picked.length} of {shown.length} selected
+            {picked.length} of {sorted.length} selected
           </span>
           <button
             type="button"
@@ -509,7 +562,7 @@ export function ContactsTable({
           </BarButton>
           <BarButton
             onClick={() => {
-              const to = shown
+              const to = sorted
                 .filter((contact) => picked.includes(contact.id) && contact.email)
                 .map((contact) => contact.email)
                 .join(',');
@@ -798,6 +851,48 @@ function Value({ text }: { text: string | null }) {
     <span className="inline-block max-w-[280px] truncate align-middle" title={filled}>
       {filled}
     </span>
+  );
+}
+
+/** One step either side of the page numbers. */
+function Step({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="text-muted hover:text-foreground flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-black/[0.05] disabled:opacity-30 disabled:hover:bg-transparent"
+    >
+      {children}
+    </button>
+  );
+}
+
+function Chevron({ next }: { next?: boolean }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      className={`h-4 w-4 ${next ? 'rotate-180' : ''}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M14 6l-6 6 6 6" />
+    </svg>
   );
 }
 
