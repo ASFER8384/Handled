@@ -125,6 +125,7 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
           businessContact: brand.contact,
           businessAddress: brand.address,
           clientName: project.client.name,
+          senderName: ctx.userName,
           clientCompany: project.client.company,
           clientEmail: project.client.email,
           issuedAt: composing.issuedAt,

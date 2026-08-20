@@ -20,6 +20,8 @@ export type InvoiceEmailInput = {
   businessContact: string;
   businessAddress: string | null;
   clientName: string;
+  /** Who is writing it, from the account settings. Signed as-is. */
+  senderName: string;
   clientCompany: string | null;
   clientEmail: string | null;
   issuedAt: Date | null;
@@ -71,7 +73,16 @@ export function invoiceEmailHtml(input: InvoiceEmailInput): string {
   if (input.payNotes) lines.push(`<p>${esc(input.payNotes)}</p>`);
 
   lines.push('<p>Any questions, just reply to this email.</p>');
-  lines.push('<p>Thank you,<br>{{my_name}}</p>');
+
+  // Signed with the name and business from settings rather than a token: a
+  // placeholder in the middle of a written message reads as unfinished, and
+  // the two are already known by the time this is put in front of you.
+  const signature = [input.senderName, input.business]
+    .map((line) => line.trim())
+    .filter((line, index, all) => line && all.indexOf(line) === index)
+    .map(esc)
+    .join('<br>');
+  lines.push(`<p>Thank you,<br>${signature}</p>`);
   return lines.join('');
 }
 
