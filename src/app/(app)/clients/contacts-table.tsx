@@ -58,6 +58,29 @@ export function ContactsTable({
   // The chip whose × has been pressed once. Taking somebody off a project is
   // one click in a row of chips that all look alike, so it asks first.
   const [armed, setArmed] = useState<string | null>(null);
+  // What has changed since the server last spoke. This page is rendered on
+  // the server, and a refresh of it takes a moment to come back; until it
+  // does, a chip just added would be missing and a chip just taken off would
+  // still be sitting there. Both read as nothing having happened, so the row
+  // shows the change now and the refresh confirms it.
+  const [justAdded, setJustAdded] = useState<
+    { contactId: string; project: { id: string; name: string; role: 'client' | 'contact' } }[]
+  >([]);
+  const [justRemoved, setJustRemoved] = useState<string[]>([]);
+
+  /** A contact's projects as they stand, server plus whatever is in flight. */
+  function projectsOf(contact: ContactRow) {
+    const added = justAdded
+      .filter(
+        (entry) =>
+          entry.contactId === contact.id &&
+          !contact.projects.some((project) => project.id === entry.project.id),
+      )
+      .map((entry) => entry.project);
+    return [...contact.projects, ...added].filter(
+      (project) => !justRemoved.includes(`${contact.id}:${project.id}`),
+    );
+  }
 
   // A click anywhere but that chip, Escape, or simply leaving it a moment
   // calls it off — an armed chip left armed is a trap for whatever is
@@ -150,12 +173,17 @@ export function ContactsTable({
 
   /** Takes a contact off one project, leaving the contact and the project. */
   async function unlink(projectId: string, contactId: string) {
+    const key = `${contactId}:${projectId}`;
     setBusy(true);
+    setJustRemoved((current) => [...current, key]);
+
     const { error: failure } = await api(`/api/projects/${projectId}/contacts/${contactId}`, {
       method: 'DELETE',
     });
     setBusy(false);
     if (failure) {
+      // Put it back: it is still there, whatever the row briefly said.
+      setJustRemoved((current) => current.filter((item) => item !== key));
       setNotice(failure.error);
       return;
     }
@@ -274,11 +302,11 @@ export function ContactsTable({
                 {columns.map((column) => (
                   <td key={column.key} className="text-muted">
                     {column.key === 'projects' ? (
-                      contact.projects.length === 0 ? (
+                      projectsOf(contact).length === 0 ? (
                         '—'
                       ) : (
                         <span className="flex gap-1.5">
-                          {contact.projects.map((project) => (
+                          {projectsOf(contact).map((project) => (
                             <span
                               key={project.id}
                               data-arm
@@ -536,7 +564,10 @@ export function ContactsTable({
         <AddToProjectDialog
           contactId={placing.id}
           contactName={placing.name}
-          already={placing.projects.map((project) => project.id)}
+          already={projectsOf(placing).map((project) => project.id)}
+          onAdded={(project) =>
+            setJustAdded((current) => [...current, { contactId: placing.id, project }])
+          }
           onClose={() => setPlacing(null)}
         />
       )}

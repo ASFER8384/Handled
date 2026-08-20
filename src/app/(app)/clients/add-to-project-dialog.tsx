@@ -18,12 +18,20 @@ export function AddToProjectDialog({
   contactId,
   contactName,
   already,
+  onAdded,
   onClose,
 }: {
   contactId: string;
   contactName: string;
   /** Projects they are on, which cannot be picked twice. */
   already: string[];
+  /**
+   * The project they were just put on, so the row can show it at once. The
+   * page behind this is rendered on the server and takes a moment to catch
+   * up; without this the chip is simply missing until it does, which reads
+   * as nothing having happened.
+   */
+  onAdded?: (project: { id: string; name: string; role: 'client' | 'contact' }) => void;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -49,22 +57,33 @@ export function AddToProjectDialog({
     setBusy(true);
     setError(null);
 
-    const { error: failure } =
-      mode === 'existing'
-        ? await api(`/api/projects/${picked}/contacts`, {
-            method: 'POST',
-            body: { clientId: contactId },
-          })
-        : await api('/api/projects', {
-            method: 'POST',
-            body: { name: name.trim(), clientId: contactId },
-          });
-
-    setBusy(false);
-    if (failure) {
-      setError(failure.error);
-      return;
+    if (mode === 'existing') {
+      const { error: failure } = await api(`/api/projects/${picked}/contacts`, {
+        method: 'POST',
+        body: { clientId: contactId },
+      });
+      setBusy(false);
+      if (failure) {
+        setError(failure.error);
+        return;
+      }
+      // They join a project that already has a client, so they are on it.
+      const project = open.find((entry) => entry.id === picked);
+      if (project) onAdded?.({ ...project, role: 'contact' });
+    } else {
+      const { data, error: failure } = await api<{ project: { id: string; name: string } }>(
+        '/api/projects',
+        { method: 'POST', body: { name: name.trim(), clientId: contactId } },
+      );
+      setBusy(false);
+      if (failure || !data) {
+        setError(failure?.error ?? 'Could not open that project');
+        return;
+      }
+      // A project opened here is opened for them: they are its client.
+      onAdded?.({ id: data.project.id, name: data.project.name, role: 'client' });
     }
+
     router.refresh();
     onClose();
   }
