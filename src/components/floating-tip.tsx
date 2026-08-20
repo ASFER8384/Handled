@@ -23,11 +23,20 @@ export function FloatingTip({
 
   function show(event: React.SyntheticEvent<HTMLElement>) {
     const box = event.currentTarget.getBoundingClientRect();
-    setAt(
-      side === 'right'
-        ? { left: box.right + 8, top: box.top + box.height / 2 }
-        : { left: box.left + box.width / 2, top: box.top - 8 },
+    if (side === 'right') {
+      setAt({ left: box.right + 8, top: box.top + box.height / 2 });
+      return;
+    }
+    // Centred on what it names, but not so far over that it leaves the
+    // window: near an edge it slides back in rather than being cut off.
+    const margin = 12;
+    const half = Math.min(label.length * 4 + 24, 160);
+    const view = document.documentElement.clientWidth;
+    const centre = Math.min(
+      Math.max(box.left + box.width / 2, half + margin),
+      view - half - margin,
     );
+    setAt({ left: centre, top: box.top - 8 });
   }
 
   return (

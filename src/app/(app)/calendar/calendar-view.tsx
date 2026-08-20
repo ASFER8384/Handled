@@ -55,7 +55,7 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
   }, [picked]);
 
   return (
-    <>
+    <div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button
@@ -79,7 +79,10 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
           </span>
         </div>
 
-        <Tip label="Every time on this page is read in this zone">
+        {/* Floating: this sits at the right-hand edge, and a tooltip drawn
+            beside it is part of the page's width even while invisible, which
+            is enough to push the whole page sideways. */}
+        <Tip label="Every time on this page is read in this zone" floating>
           <span className="text-muted flex items-center gap-2 text-sm">
             <svg
               aria-hidden
@@ -137,7 +140,7 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
         </aside>
 
         {/* --- the month ----------------------------------------------- */}
-        <div className="card overflow-hidden">
+        <div className="card min-w-0 overflow-hidden">
           <div className="border-line text-muted grid grid-cols-7 border-b text-sm">
             {WEEKDAYS.map((name) => (
               <span key={name} className="px-3 py-2.5 text-center font-medium">
@@ -154,7 +157,7 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
                 <div
                   key={day.key}
                   data-day-menu
-                  className={`border-line relative min-h-[112px] border-r border-b p-1.5 ${
+                  className={`border-line relative min-h-[112px] overflow-hidden border-r border-b p-1.5 ${
                     index % 7 === 6 ? 'border-r-0' : ''
                   } ${index >= 35 ? 'border-b-0' : ''} ${day.inMonth ? '' : 'bg-black/[0.015]'}`}
                 >
@@ -250,7 +253,7 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
       </div>
 
       {creating && <NewProjectOnDay startDate={creating} onClose={() => setCreating(null)} />}
-    </>
+    </div>
   );
 }
 
