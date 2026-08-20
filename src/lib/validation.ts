@@ -20,10 +20,7 @@ const optionalDate = z
 export const signUpSchema = z.object({
   name: z.string().trim().min(1, 'Tell us your name').max(80),
   email: z.email('Enter a valid email').max(160),
-  password: z
-    .string()
-    .min(10, 'Use at least 10 characters')
-    .max(200, 'That password is too long'),
+  password: z.string().min(10, 'Use at least 10 characters').max(200, 'That password is too long'),
 });
 
 export const signInSchema = z.object({
@@ -293,23 +290,24 @@ export const automationSchema = z
     status: z.enum(['ACTIVE', 'INACTIVE']).default('INACTIVE'),
     steps: z.array(automationStepSchema).max(40).default([]),
   })
-  .refine(
-    (value) => value.trigger !== 'PROJECT_STAGE_CHANGED' || Boolean(value.triggerStageId),
-    { message: 'Pick the stage that should set this off', path: ['triggerStageId'] },
-  )
-  .refine((value) => value.steps.every((step) => step.action !== 'MOVE_STAGE' || step.targetStageId), {
-    message: 'A move-stage step needs a target stage',
-    path: ['steps'],
+  .refine((value) => value.trigger !== 'PROJECT_STAGE_CHANGED' || Boolean(value.triggerStageId), {
+    message: 'Pick the stage that should set this off',
+    path: ['triggerStageId'],
   })
+  .refine(
+    (value) => value.steps.every((step) => step.action !== 'MOVE_STAGE' || step.targetStageId),
+    {
+      message: 'A move-stage step needs a target stage',
+      path: ['steps'],
+    },
+  )
   .refine(
     (value) => value.steps.every((step) => step.action === 'MOVE_STAGE' || Boolean(step.subject)),
     { message: 'Give every email and task step a subject', path: ['steps'] },
   );
 
 /** Strict: a body carrying anything besides `status` is an edit, not a toggle. */
-export const automationStatusSchema = z
-  .object({ status: z.enum(['ACTIVE', 'INACTIVE']) })
-  .strict();
+export const automationStatusSchema = z.object({ status: z.enum(['ACTIVE', 'INACTIVE']) }).strict();
 
 export type ClientInput = z.input<typeof clientSchema>;
 export type AutomationInput = z.input<typeof automationSchema>;
@@ -318,3 +316,13 @@ export type ProjectInput = z.input<typeof projectSchema>;
 export type InvoiceInput = z.input<typeof invoiceSchema>;
 export type PaymentInput = z.input<typeof paymentSchema>;
 export type TaskInput = z.input<typeof taskSchema>;
+
+// --- The Contacts table -----------------------------------------------------
+
+export const contactPrefsPatchSchema = z
+  .object({
+    hiddenColumns: z.array(z.string().max(40)).max(20).optional(),
+    sortField: z.string().max(40).nullable().optional(),
+    sortDir: z.enum(['asc', 'desc']).optional(),
+  })
+  .strict();

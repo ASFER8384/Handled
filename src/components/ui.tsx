@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { InvoiceStatus } from '@/generated/prisma/enums';
+import { FloatingTip } from './floating-tip';
 
 export function PageHeader({
   title,
@@ -42,7 +43,13 @@ export function InfoHint({ text }: { text: string }) {
         aria-label={text}
         className="text-muted/60 hover:text-foreground focus-visible:text-foreground flex h-4 w-4 items-center justify-center rounded-full transition-colors"
       >
-        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <svg
+          viewBox="0 0 24 24"
+          className="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        >
           <circle cx="12" cy="12" r="9" />
           <path d="M12 11v5" strokeLinecap="round" />
           <circle cx="12" cy="7.75" r="0.9" fill="currentColor" stroke="none" />
@@ -50,7 +57,7 @@ export function InfoHint({ text }: { text: string }) {
       </button>
       <span
         role="tooltip"
-        className="bg-brand-ink pointer-events-none absolute bottom-full left-1/2 z-30 mb-2.5 w-56 -translate-x-1/2 rounded-lg px-3.5 py-2.5 text-sm leading-snug text-white opacity-0 transition-opacity duration-150 group-hover/hint:opacity-100 group-focus-within/hint:opacity-100"
+        className="bg-brand-ink pointer-events-none absolute bottom-full left-1/2 z-30 mb-2.5 w-56 -translate-x-1/2 rounded-lg px-3.5 py-2.5 text-sm leading-snug text-white opacity-0 transition-opacity duration-150 group-focus-within/hint:opacity-100 group-hover/hint:opacity-100"
       >
         {text}
         <span
@@ -111,16 +118,32 @@ export function formatDate(value: Date | string | null | undefined): string {
  * A dark label on hover, with a notch pointing back at what it names. Use this
  * rather than the `title` attribute: the browser's own tooltip is a pale system
  * box that arrives a second late and cannot be styled to match anything here.
+ *
+ * Pass `floating` inside anything that scrolls. A box that scrolls clips what
+ * grows out of it — a table that scrolls sideways clips upwards too, because
+ * overflow in one axis forces it in the other — and a tooltip drawn inside one
+ * comes out sliced. The floating one is drawn on the page instead and told
+ * where to sit, at the cost of following the hover in JavaScript.
  */
 export function Tip({
   label,
   side = 'top',
+  floating,
   children,
 }: {
   label: string;
   side?: 'top' | 'right';
+  floating?: boolean;
   children: React.ReactNode;
 }) {
+  if (floating) {
+    return (
+      <FloatingTip label={label} side={side}>
+        {children}
+      </FloatingTip>
+    );
+  }
+
   return (
     <span className="group/tip relative inline-flex">
       {children}

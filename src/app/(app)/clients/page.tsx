@@ -4,6 +4,12 @@ import { ContactsTable, type ContactRow } from './contacts-table';
 
 export default async function ContactsPage() {
   const ctx = await requireWorkspace();
+  // The table's own settings live on the workspace, so it opens the way it
+  // was left rather than the way this browser remembers it.
+  const workspace = await prisma.workspace.findUniqueOrThrow({
+    where: { id: ctx.workspaceId },
+    select: { contactHiddenColumns: true, contactSortField: true, contactSortDir: true },
+  });
   const clients = await prisma.client.findMany({
     where: { workspaceId: ctx.workspaceId },
     orderBy: { name: 'asc' },
@@ -40,5 +46,14 @@ export default async function ContactsPage() {
     };
   });
 
-  return <ContactsTable contacts={contacts} />;
+  return (
+    <ContactsTable
+      contacts={contacts}
+      hiddenColumns={workspace.contactHiddenColumns}
+      sort={{
+        field: workspace.contactSortField,
+        dir: workspace.contactSortDir === 'desc' ? 'desc' : 'asc',
+      }}
+    />
+  );
 }

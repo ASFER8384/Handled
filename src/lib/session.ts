@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { DEFAULT_STAGES } from '@/lib/stages';
+import { DEFAULT_HIDDEN_CONTACT_COLUMNS } from '@/lib/contact-columns';
 import { slugify } from '@/lib/slug';
 
 export const getSession = cache(async () => {
@@ -45,6 +46,7 @@ export const getWorkspaceContext = cache(async (): Promise<WorkspaceContext | nu
         // A workspace without a pipeline has nowhere to put a project.
         stages: { create: DEFAULT_STAGES },
         views: { create: { name: 'Main view', position: 0, isDefault: true } },
+        contactHiddenColumns: DEFAULT_HIDDEN_CONTACT_COLUMNS,
       },
     }));
 

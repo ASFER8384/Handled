@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
@@ -10,6 +11,7 @@ import { NewContactDialog } from '@/components/new-contact-dialog';
 import { EditContactDialog } from './edit-contact-dialog';
 import { AddToProjectDialog } from './add-to-project-dialog';
 import { DeleteContactDialog } from './delete-contact-dialog';
+import { CONTACT_COLUMNS, type ContactSort } from '@/lib/contact-columns';
 
 export type ContactRow = {
   id: string;
@@ -26,7 +28,15 @@ export type ContactRow = {
 };
 
 /** The address book: everyone you work with, and the work they are attached to. */
-export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
+export function ContactsTable({
+  contacts,
+  hiddenColumns,
+  sort,
+}: {
+  contacts: ContactRow[];
+  hiddenColumns: string[];
+  sort: ContactSort;
+}) {
   const router = useRouter();
   const { menu, toggle, close } = useMenu();
   const [search, setSearch] = useState('');
@@ -37,13 +47,27 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
   const [removing, setRemoving] = useState<ContactRow | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // The table's own settings, held here so a tick lands before the round trip.
+  const [hidden, setHidden] = useState(hiddenColumns);
+  const [order, setOrder] = useState(sort);
+  // Where a row's menu was asked for, so it can be drawn clear of the table.
+  const [menuAt, setMenuAt] = useState<Placement | null>(null);
+
+  const columns = CONTACT_COLUMNS.filter((column) => !hidden.includes(column.key));
 
   const term = search.trim().toLowerCase();
-  const shown = term
+  const found = term
     ? contacts.filter((contact) =>
-        [contact.name, contact.email, contact.phone, contact.jobTitle, contact.website,
-          contact.address, ...contact.tags,
-          ...contact.projects.map((project) => project.name)]
+        [
+          contact.name,
+          contact.email,
+          contact.phone,
+          contact.jobTitle,
+          contact.website,
+          contact.address,
+          ...contact.tags,
+          ...contact.projects.map((project) => project.name),
+        ]
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
@@ -51,8 +75,35 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
       )
     : contacts;
 
+  const shown = order.field ? [...found].sort(byColumn(order)) : found;
+
   const picked = chosen.filter((id) => shown.some((contact) => contact.id === id));
   const allPicked = shown.length > 0 && picked.length === shown.length;
+
+  /** Every change to the table's shape is saved as it is made. */
+  async function savePrefs(body: {
+    hiddenColumns?: string[];
+    sortField?: string | null;
+    sortDir?: 'asc' | 'desc';
+  }) {
+    await api('/api/contact-prefs', { method: 'PATCH', body });
+  }
+
+  function toggleColumn(key: string) {
+    const next = hidden.includes(key) ? hidden.filter((item) => item !== key) : [...hidden, key];
+    setHidden(next);
+    void savePrefs({ hiddenColumns: next });
+  }
+
+  /** First click orders by a column, the next turns it round. */
+  function sortBy(field: string) {
+    const next: ContactSort =
+      order.field === field
+        ? { field, dir: order.dir === 'asc' ? 'desc' : 'asc' }
+        : { field, dir: 'asc' };
+    setOrder(next);
+    void savePrefs({ sortField: next.field, sortDir: next.dir });
+  }
 
   async function bulk(action: 'delete' | 'addTags' | 'removeTags', tags: string[] = []) {
     setBusy(true);
@@ -91,7 +142,10 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
         ? 'Tags to add, separated by commas'
         : 'Tags to remove, separated by commas',
     );
-    const tags = (typed ?? '').split(',').map((tag) => tag.trim()).filter(Boolean);
+    const tags = (typed ?? '')
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean);
     if (tags.length > 0) void bulk(action, tags);
   }
 
@@ -122,10 +176,13 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
         </label>
       </div>
 
+      {/* Nothing wraps: a column keeps its line and the table scrolls sideways
+          under it, so a narrow window shortens the table rather than folding
+          every heading in two. */}
       <div className="card mt-4 overflow-x-auto">
-        <table className="w-full min-w-[1240px] text-left text-sm">
+        <table className="w-max min-w-full text-left text-sm">
           <thead className="text-muted border-line border-b">
-            <tr className="[&>th]:px-5 [&>th]:py-3 [&>th]:font-medium">
+            <tr className="[&>th]:px-5 [&>th]:py-3 [&>th]:font-medium [&>th]:whitespace-nowrap">
               <th className="w-10 pr-0">
                 <input
                   type="checkbox"
@@ -135,21 +192,38 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
                   className="accent-brand-ink h-4 w-4 align-middle"
                 />
               </th>
-              <th>Name</th>
-              <th>Projects</th>
-              <th>Job title</th>
-              <th>Email</th>
-              <th>Phone</th>
-              <th>Website</th>
-              <th>Mailing address</th>
-              <th>Last interaction</th>
-              <th>Tags</th>
-              <th className="w-20" />
+
+              <Heading column="name" label="Name" sortable order={order} onSort={sortBy} />
+              {columns.map((column) => (
+                <Heading
+                  key={column.key}
+                  column={column.key}
+                  label={column.label}
+                  sortable={column.sortable}
+                  order={order}
+                  onSort={sortBy}
+                />
+              ))}
+
+              <th className="bg-surface sticky right-0 w-16 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]">
+                <span className="flex justify-end" data-menu>
+                  <TablePrefsButton
+                    open={menu === 'table-prefs'}
+                    hidden={hidden}
+                    onOpen={() => toggle('table-prefs')}
+                    onToggleColumn={toggleColumn}
+                  />
+                </span>
+              </th>
             </tr>
           </thead>
+
           <tbody className="divide-line divide-y">
             {shown.map((contact) => (
-              <tr key={contact.id} className="group/row [&>td]:px-5 [&>td]:py-4">
+              <tr
+                key={contact.id}
+                className="group/row [&>td]:px-5 [&>td]:py-4 [&>td]:whitespace-nowrap"
+              >
                 <td className="pr-0">
                   <input
                     type="checkbox"
@@ -165,81 +239,79 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
                     className="accent-brand-ink h-4 w-4 align-middle"
                   />
                 </td>
+
                 <td>
                   <span className="font-medium">{contact.name}</span>
                 </td>
-                <td>
-                  {contact.projects.length === 0 ? (
-                    <span className="text-muted">—</span>
-                  ) : (
-                    <span className="flex flex-wrap gap-1.5">
-                      {contact.projects.map((project) => (
-                        <span
-                          key={project.id}
-                          className="group/chip flex items-center gap-1 rounded-full bg-black/[0.05] py-1 pr-1.5 pl-2.5 text-xs"
-                        >
-                          <Link href={`/projects/${project.id}`} className="hover:underline">
-                            {project.name}
-                          </Link>
-                          {project.role === 'contact' ? (
-                            <Tip label={`Take ${contact.name} off ${project.name}`}>
-                              <button
-                                type="button"
-                                disabled={busy}
-                                onClick={() => void unlink(project.id, contact.id)}
-                                aria-label={`Take ${contact.name} off ${project.name}`}
-                                className="text-muted hover:text-accent opacity-0 transition-opacity group-hover/chip:opacity-100 disabled:opacity-30"
-                              >
-                                <CrossIcon />
-                              </button>
-                            </Tip>
-                          ) : (
-                            <Tip label={`${contact.name} is the client this project is for`}>
-                              <span aria-label="Client of this project" className="text-muted">
-                                <LockIcon />
-                              </span>
-                            </Tip>
-                          )}
+
+                {columns.map((column) => (
+                  <td key={column.key} className="text-muted">
+                    {column.key === 'projects' ? (
+                      contact.projects.length === 0 ? (
+                        '—'
+                      ) : (
+                        <span className="flex gap-1.5">
+                          {contact.projects.map((project) => (
+                            <span
+                              key={project.id}
+                              className="group/chip flex items-center gap-1 rounded-full bg-black/[0.05] py-1 pr-1.5 pl-2.5 text-xs"
+                            >
+                              <Link href={`/projects/${project.id}`} className="hover:underline">
+                                {project.name}
+                              </Link>
+                              {project.role === 'contact' ? (
+                                <Tip label={`Take ${contact.name} off ${project.name}`} floating>
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => void unlink(project.id, contact.id)}
+                                    aria-label={`Take ${contact.name} off ${project.name}`}
+                                    className="text-muted hover:text-accent opacity-0 transition-opacity group-hover/chip:opacity-100 disabled:opacity-30"
+                                  >
+                                    <CrossIcon />
+                                  </button>
+                                </Tip>
+                              ) : (
+                                <Tip
+                                  label={`${contact.name} is the client this project is for`}
+                                  floating
+                                >
+                                  <span aria-label="Client of this project" className="text-muted">
+                                    <LockIcon />
+                                  </span>
+                                </Tip>
+                              )}
+                            </span>
+                          ))}
                         </span>
-                      ))}
-                    </span>
-                  )}
-                </td>
-                <Cell value={contact.jobTitle} />
-                <Cell value={contact.email} />
-                <Cell value={contact.phone} nowrap />
-                <Cell value={contact.website} />
-                <Cell value={contact.address} />
-                <Cell
-                  nowrap
-                  value={
-                    contact.lastInteractionAt
-                      ? new Date(contact.lastInteractionAt).toLocaleDateString('en-GB', {
-                          dateStyle: 'medium',
-                        })
-                      : null
-                  }
-                />
-                <td>
-                  {contact.tags.length === 0 ? (
-                    <span className="text-muted">—</span>
-                  ) : (
-                    <span className="flex flex-wrap gap-1.5">
-                      {contact.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="bg-accent-soft text-accent rounded-full px-2.5 py-1 text-xs"
-                        >
-                          {tag}
+                      )
+                    ) : column.key === 'tags' ? (
+                      contact.tags.length === 0 ? (
+                        '—'
+                      ) : (
+                        <span className="flex gap-1.5">
+                          {contact.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="bg-accent-soft text-accent rounded-full px-2.5 py-1 text-xs"
+                            >
+                              {tag}
+                            </span>
+                          ))}
                         </span>
-                      ))}
-                    </span>
-                  )}
-                </td>
-                <td>
-                  <span className="flex items-center justify-end gap-1">
+                      )
+                    ) : (
+                      <Value text={cellText(contact, column.key)} />
+                    )}
+                  </td>
+                ))}
+
+                {/* Pinned to the right, so the two things you do with a row are
+                    where you left them however far the table is scrolled. */}
+                <td className="bg-surface sticky right-0 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]">
+                  <span className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
                     {contact.email && (
-                      <Tip label="Send email">
+                      <Tip label="Send email" floating>
                         <a
                           href={`mailto:${contact.email}`}
                           aria-label={`Send email to ${contact.name}`}
@@ -250,52 +322,64 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
                       </Tip>
                     )}
 
-                    <span className="relative" data-menu>
+                    <span data-menu>
                       <button
                         type="button"
-                        onClick={() => toggle(contact.id)}
+                        onClick={(event) => {
+                          setMenuAt(placeUnder(event.currentTarget.getBoundingClientRect()));
+                          toggle(contact.id);
+                        }}
+                        aria-expanded={menu === contact.id}
                         aria-label={`Actions for ${contact.name}`}
                         className="text-muted hover:text-foreground flex h-8 w-8 items-center justify-center rounded transition-colors hover:bg-black/[0.05]"
                       >
                         <DotsIcon className="h-5 w-5" />
                       </button>
-                      {menu === contact.id && (
-                        <div className="border-line bg-surface absolute top-full right-0 z-30 mt-1 w-[200px] rounded-md border py-1 text-sm shadow-lg">
-                          <MenuItem
-                            onClick={() => {
-                              close();
-                              setEditing(contact);
-                            }}
+                      {menu === contact.id &&
+                        menuAt &&
+                        typeof document !== 'undefined' &&
+                        createPortal(
+                          <div
+                            data-menu
+                            style={menuAt.style}
+                            className="border-line bg-surface fixed z-50 w-[200px] overflow-y-auto rounded-md border py-1 text-sm shadow-lg"
                           >
-                            <span className="flex items-center gap-2.5">
-                              <PenIcon className="h-4 w-4" />
-                              Edit contact info
-                            </span>
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() => {
-                              close();
-                              setPlacing(contact);
-                            }}
-                          >
-                            <span className="flex items-center gap-2.5">
-                              <PlusSquareIcon />
-                              Add to project
-                            </span>
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() => {
-                              close();
-                              setRemoving(contact);
-                            }}
-                          >
-                            <span className="text-accent flex items-center gap-2.5">
-                              <TrashIcon className="h-4 w-4" />
-                              Delete contact
-                            </span>
-                          </MenuItem>
-                        </div>
-                      )}
+                            <MenuItem
+                              onClick={() => {
+                                close();
+                                setEditing(contact);
+                              }}
+                            >
+                              <span className="flex items-center gap-2.5">
+                                <PenIcon className="h-4 w-4" />
+                                Edit contact info
+                              </span>
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() => {
+                                close();
+                                setPlacing(contact);
+                              }}
+                            >
+                              <span className="flex items-center gap-2.5">
+                                <PlusSquareIcon />
+                                Add to project
+                              </span>
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() => {
+                                close();
+                                setRemoving(contact);
+                              }}
+                            >
+                              <span className="text-accent flex items-center gap-2.5">
+                                <TrashIcon className="h-4 w-4" />
+                                Delete contact
+                              </span>
+                            </MenuItem>
+                          </div>,
+                          document.body,
+                        )}
                     </span>
                   </span>
                 </td>
@@ -408,6 +492,216 @@ export function ContactsTable({ contacts }: { contacts: ContactRow[] }) {
   );
 }
 
+/** A heading, and where it can be ordered by, the control that does it. */
+function Heading({
+  column,
+  label,
+  sortable,
+  order,
+  onSort,
+}: {
+  column: string;
+  label: string;
+  sortable: boolean;
+  order: ContactSort;
+  onSort: (field: string) => void;
+}) {
+  const active = order.field === column;
+
+  if (!sortable) return <th>{label}</th>;
+
+  return (
+    <th aria-sort={active ? (order.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button
+        type="button"
+        onClick={() => onSort(column)}
+        className={`hover:text-foreground group/sort flex items-center gap-1.5 transition-colors ${
+          active ? 'text-foreground' : ''
+        }`}
+      >
+        {label}
+        <ArrowIcon
+          className={`h-3.5 w-3.5 transition ${active ? '' : 'opacity-0 group-hover/sort:opacity-40'} ${
+            active && order.dir === 'desc' ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+    </th>
+  );
+}
+
+/** The sliders in the top right: which columns this table is made of. */
+function TablePrefsButton({
+  open,
+  hidden,
+  onOpen,
+  onToggleColumn,
+}: {
+  open: boolean;
+  hidden: string[];
+  onOpen: () => void;
+  onToggleColumn: (key: string) => void;
+}) {
+  // The table scrolls sideways, which would clip a panel drawn inside it, so
+  // the panel is drawn on the page and told where to sit. Where that is gets
+  // worked out when the button is pressed: under it if the list fits below,
+  // above it if not, and never taller than the room it has.
+  const [box, setBox] = useState<Placement | null>(null);
+
+  return (
+    <>
+      <Tip label="Table preferences" floating>
+        <button
+          type="button"
+          onClick={(event) => {
+            setBox(placeUnder(event.currentTarget.getBoundingClientRect()));
+            onOpen();
+          }}
+          aria-expanded={open}
+          aria-label="Table preferences"
+          className={`text-muted hover:text-foreground flex h-8 w-8 items-center justify-center rounded transition-colors hover:bg-black/[0.05] ${
+            open ? 'bg-black/[0.06]' : ''
+          }`}
+        >
+          <SlidersIcon />
+        </button>
+      </Tip>
+
+      {open &&
+        box &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            data-menu
+            className="bg-surface fixed z-50 w-60 overflow-y-auto rounded-xl py-2 shadow-2xl ring-1 ring-black/10"
+            style={box.style}
+          >
+            <p className="text-muted px-4 pt-1 pb-2 text-xs font-medium tracking-wide uppercase">
+              Columns
+            </p>
+
+            <label
+              title="Name always shows"
+              className="text-muted flex h-10 cursor-default items-center gap-3 px-4 text-sm"
+            >
+              <input
+                type="checkbox"
+                checked
+                disabled
+                className="accent-brand-ink h-4 w-4"
+                readOnly
+              />
+              Name
+            </label>
+
+            {CONTACT_COLUMNS.map((column) => (
+              <label
+                key={column.key}
+                className="hover:bg-accent-soft/50 flex h-10 items-center gap-3 px-4 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  className="accent-brand-ink h-4 w-4"
+                  checked={!hidden.includes(column.key)}
+                  onChange={() => onToggleColumn(column.key)}
+                />
+                {column.label}
+              </label>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}
+
+type Placement = { style: React.CSSProperties };
+
+/**
+ * Puts the panel under the button, or over it when the window runs out below.
+ * Whichever way round, it is capped at the room it has and scrolls inside
+ * that, so the last column on the list is always reachable.
+ */
+function placeUnder(button: DOMRect): Placement {
+  const gap = 8;
+  const margin = 16;
+  // Measured off the document element, not the window: `window.innerWidth`
+  // counts the scrollbar, which a fixed panel does not sit under, and the
+  // difference is exactly how far off the button it would land.
+  const view = document.documentElement;
+  const right = Math.max(margin, view.clientWidth - button.right);
+  const below = view.clientHeight - button.bottom - gap - margin;
+  const above = button.top - gap - margin;
+
+  // Only go up when below is genuinely too tight and up is the better half.
+  if (below < 240 && above > below) {
+    return { style: { bottom: view.clientHeight - button.top + gap, right, maxHeight: above } };
+  }
+  return { style: { top: button.bottom + gap, right, maxHeight: below } };
+}
+
+/** What one column of one contact reads as, before it is drawn. */
+function cellText(contact: ContactRow, key: string): string | null {
+  switch (key) {
+    case 'jobTitle':
+      return contact.jobTitle;
+    case 'email':
+      return contact.email;
+    case 'phone':
+      return contact.phone;
+    case 'website':
+      return contact.website;
+    case 'address':
+      return contact.address;
+    case 'lastInteraction':
+      return contact.lastInteractionAt
+        ? new Date(contact.lastInteractionAt).toLocaleDateString('en-GB', { dateStyle: 'medium' })
+        : null;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Orders by one column. Empty stays at the bottom whichever way round it is:
+ * turning a column over is a question about the contacts that have a value,
+ * and the ones that do not have no place at the top.
+ */
+function byColumn({ field, dir }: ContactSort) {
+  return (a: ContactRow, b: ContactRow) => {
+    const left = sortKey(a, field);
+    const right = sortKey(b, field);
+    if (left === null && right === null) return 0;
+    if (left === null) return 1;
+    if (right === null) return -1;
+
+    const order =
+      typeof left === 'number' && typeof right === 'number'
+        ? left - right
+        : String(left).localeCompare(String(right), undefined, { sensitivity: 'base' });
+    return dir === 'desc' ? -order : order;
+  };
+}
+
+function sortKey(contact: ContactRow, field: string | null): string | number | null {
+  if (field === 'name') return contact.name.trim() || null;
+  if (field === 'lastInteraction') {
+    return contact.lastInteractionAt ? new Date(contact.lastInteractionAt).getTime() : null;
+  }
+  return cellText(contact, field ?? '')?.trim() || null;
+}
+
+/** Anything unfilled reads the same way, so a row scans as a row. */
+function Value({ text }: { text: string | null }) {
+  const filled = text?.trim();
+  if (!filled) return <>—</>;
+  return (
+    <span className="inline-block max-w-[280px] truncate align-middle" title={filled}>
+      {filled}
+    </span>
+  );
+}
+
 function BarButton({
   onClick,
   busy,
@@ -426,6 +720,40 @@ function BarButton({
     >
       {children}
     </button>
+  );
+}
+
+function ArrowIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 5v14M6 13l6 6 6-6" />
+    </svg>
+  );
+}
+
+function SlidersIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      className="h-4.5 w-4.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    >
+      <path d="M4 7h3M11 7h9M4 12h9M17 12h3M4 17h3M11 17h9" />
+      <path d="M9 5v4M15 10v4M9 15v4" />
+    </svg>
   );
 }
 
@@ -460,16 +788,6 @@ function LockIcon() {
       <rect x="5" y="10.5" width="14" height="9" rx="2" />
       <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
     </svg>
-  );
-}
-
-/** Anything unfilled reads the same way, so a row scans as a row. */
-function Cell({ value, nowrap }: { value: string | null; nowrap?: boolean }) {
-  const filled = value?.trim();
-  return (
-    <td className={`text-muted ${nowrap ? 'whitespace-nowrap' : ''}`}>
-      {filled ? <span className="max-w-[220px] truncate">{filled}</span> : '—'}
-    </td>
   );
 }
 

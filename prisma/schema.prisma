@@ -96,6 +96,12 @@ model Workspace {
   name      String
   slug      String   @unique
   currency  String   @default("AED")
+  /// The Contacts table, remembered for the whole workspace: the columns it
+  /// leaves off, and the column it is ordered by. Names come from
+  /// CONTACT_COLUMNS.
+  contactHiddenColumns String[] @default([])
+  contactSortField     String?
+  contactSortDir       String   @default("asc")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
