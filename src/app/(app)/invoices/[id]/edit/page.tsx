@@ -2,10 +2,8 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
-import { PageHeader } from '@/components/ui';
 import { companyBrand } from '@/lib/company';
-import { INVOICE_TEMPLATES } from '@/lib/invoice-templates';
-import { InvoiceForm, type FormTemplate } from '../../new/invoice-form';
+import { InvoiceForm } from '../../new/invoice-form';
 
 /**
  * The invoice, opened again on the same page it was written on.
@@ -40,47 +38,17 @@ export default async function EditInvoicePage({ params }: PageProps<'/invoices/[
 
   const brand = await companyBrand(ctx.workspaceId, ctx.userEmail);
 
-  // Everything this draft could be written from: the three that ship with
-  // Handled, then anything this workspace has saved.
-  const saved = await prisma.invoiceTemplate.findMany({
-    where: { workspaceId: ctx.workspaceId },
-    orderBy: { name: 'asc' },
-  });
-  const templates: FormTemplate[] = [
-    ...INVOICE_TEMPLATES.map((entry) => ({
-      id: entry.id,
-      name: entry.name,
-      dueInDays: entry.dueInDays,
-      notes: entry.notes,
-      items: entry.items.map((item) => ({
-        description: item.description,
-        quantity: item.quantity,
-      })),
-    })),
-    ...saved.map((entry) => ({
-      id: entry.id,
-      name: entry.name,
-      dueInDays: entry.dueInDays,
-      notes: entry.notes,
-      items: entry.items as { description: string; quantity: number }[],
-    })),
-  ];
-
   return (
     <>
-      <PageHeader
-        title={`Editing ${invoice.number}`}
-        subtitle="Still a draft. Nothing has been sent."
-      />
-
       <Link href={`/invoices/${id}`} className="text-muted text-sm hover:underline">
         ← Back to the invoice
       </Link>
 
       <div className="mt-6">
         <InvoiceForm
+          title={`Editing ${invoice.number}`}
+          subtitle="Still a draft. Nothing has been sent."
           clients={clients}
-          templates={templates}
           currency={ctx.currency}
           from={brand.name || ctx.workspaceName}
           fromEmail={brand.contact}

@@ -1,8 +1,8 @@
-import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
 import { balanceCents, totalCents } from '@/lib/money';
 import { EmptyState, PageHeader } from '@/components/ui';
+import { CreateFileButton } from '../projects/[id]/create-file-button';
 import { InvoicesTable, type InvoiceRow } from './invoices-table';
 
 export default async function InvoicesPage() {
@@ -49,11 +49,7 @@ export default async function InvoicesPage() {
       <PageHeader
         title="Invoices"
         subtitle="Raise it, send it, record what lands."
-        action={
-          <Link href="/invoices/new" className="btn-primary">
-            New invoice
-          </Link>
-        }
+        action={<CreateFileButton label="New invoice" className="btn-primary" />}
       />
 
       {rows.length === 0 ? (

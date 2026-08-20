@@ -13,19 +13,31 @@ import { INVOICE_TEMPLATES } from '@/lib/invoice-templates';
  * first. Blank is still there, one line down, for the invoice that is nothing
  * like the last one.
  */
-export function CreateFileButton({ projectId }: { projectId: string }) {
+export function CreateFileButton({
+  projectId,
+  label = 'Create file',
+  className = 'btn-primary px-5 py-2.5',
+}: {
+  /** Left out on the Invoices page: the invoice is filed later, or never. */
+  projectId?: string;
+  label?: string;
+  className?: string;
+}) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
   function start(template?: string) {
-    const query = template ? `?project=${projectId}&start=${template}` : `?project=${projectId}`;
-    router.push(`/invoices/new${query}`);
+    const query = new URLSearchParams();
+    if (projectId) query.set('project', projectId);
+    if (template) query.set('start', template);
+    const asked = query.toString();
+    router.push(`/invoices/new${asked ? `?${asked}` : ''}`);
   }
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="btn-primary px-5 py-2.5">
-        Create file
+      <button type="button" onClick={() => setOpen(true)} className={className}>
+        {label}
       </button>
 
       {open && (

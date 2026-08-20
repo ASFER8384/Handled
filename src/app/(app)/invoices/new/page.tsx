@@ -1,10 +1,9 @@
 import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
-import { EmptyState, PageHeader } from '@/components/ui';
+import { EmptyState } from '@/components/ui';
 import { dueDateFromNow, findTemplate } from '@/lib/invoice-templates';
 import { companyBrand } from '@/lib/company';
-import { INVOICE_TEMPLATES } from '@/lib/invoice-templates';
-import { InvoiceForm, type FormTemplate } from './invoice-form';
+import { InvoiceForm } from './invoice-form';
 
 export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) {
   const ctx = await requireWorkspace();
@@ -32,32 +31,6 @@ export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) 
 
   const brand = await companyBrand(ctx.workspaceId, ctx.userEmail);
 
-  // Everything this draft could be written from: the three that ship with
-  // Handled, then anything this workspace has saved.
-  const mine = await prisma.invoiceTemplate.findMany({
-    where: { workspaceId: ctx.workspaceId },
-    orderBy: { name: 'asc' },
-  });
-  const templates: FormTemplate[] = [
-    ...INVOICE_TEMPLATES.map((entry) => ({
-      id: entry.id,
-      name: entry.name,
-      dueInDays: entry.dueInDays,
-      notes: entry.notes,
-      items: entry.items.map((item) => ({
-        description: item.description,
-        quantity: item.quantity,
-      })),
-    })),
-    ...mine.map((entry) => ({
-      id: entry.id,
-      name: entry.name,
-      dueInDays: entry.dueInDays,
-      notes: entry.notes,
-      items: entry.items as { description: string; quantity: number }[],
-    })),
-  ];
-
   const clients = await prisma.client.findMany({
     where: { workspaceId: ctx.workspaceId },
     select: {
@@ -77,20 +50,17 @@ export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) 
 
   return (
     <>
-      <PageHeader
-        title={template ? `New invoice · ${template.name}` : 'New invoice'}
-        subtitle={
-          template
-            ? 'The lines are filled in. Put your prices against them.'
-            : 'It starts as a draft. Nothing is sent yet.'
-        }
-      />
       {clients.length === 0 ? (
         <EmptyState title="Add a client first" body="An invoice has to be addressed to someone." />
       ) : (
         <InvoiceForm
+          title={template ? `New invoice · ${template.name}` : 'New invoice'}
+          subtitle={
+            template
+              ? 'The lines are filled in. Put your prices against them.'
+              : 'It starts as a draft. Nothing is sent yet.'
+          }
           clients={clients}
-          templates={templates}
           currency={ctx.currency}
           from={brand.name || ctx.workspaceName}
           fromEmail={brand.contact}
