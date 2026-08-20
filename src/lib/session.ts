@@ -46,7 +46,14 @@ export const getWorkspaceContext = cache(async (): Promise<WorkspaceContext | nu
         // A workspace without a pipeline has nowhere to put a project.
         stages: { create: DEFAULT_STAGES },
         views: { create: { name: 'Main view', position: 0, isDefault: true } },
-        contactHiddenColumns: DEFAULT_HIDDEN_CONTACT_COLUMNS,
+        contactViews: {
+          create: {
+            name: 'Main view',
+            position: 0,
+            isDefault: true,
+            hiddenColumns: DEFAULT_HIDDEN_CONTACT_COLUMNS,
+          },
+        },
       },
     }));
 

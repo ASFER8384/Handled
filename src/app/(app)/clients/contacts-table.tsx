@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -34,14 +34,26 @@ export type ContactRow = {
 };
 
 /** The address book: everyone you work with, and the work they are attached to. */
+export type ContactViewPrefs = {
+  id: string;
+  hiddenColumns: string[];
+  sortField: string | null;
+  sortDir: 'asc' | 'desc';
+  filters: { field: string; value: string }[];
+};
+
 export function ContactsTable({
   contacts,
-  hiddenColumns,
-  sort,
+  view,
+  filterFields,
+  tabs,
 }: {
   contacts: ContactRow[];
-  hiddenColumns: string[];
-  sort: ContactSort;
+  /** The saved view this is being looked at through. */
+  view: ContactViewPrefs;
+  /** What can be narrowed by, and the values there are to narrow to. */
+  filterFields: { key: string; label: string; values: string[] }[];
+  tabs: React.ReactNode;
 }) {
   const router = useRouter();
   const { menu, toggle, close } = useMenu();
@@ -53,9 +65,13 @@ export function ContactsTable({
   const [removing, setRemoving] = useState<ContactRow | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  // The table's own settings, held here so a tick lands before the round trip.
-  const [hidden, setHidden] = useState(hiddenColumns);
-  const [order, setOrder] = useState(sort);
+  // The view's settings, held here so a tick lands before the round trip.
+  const [hidden, setHidden] = useState(view.hiddenColumns);
+  const [order, setOrder] = useState<ContactSort>({
+    field: view.sortField,
+    dir: view.sortDir,
+  });
+  const [filters, setFilters] = useState(view.filters);
   // Where a row's menu was asked for, so it can be drawn clear of the table.
   const [menuAt, setMenuAt] = useState<Placement | null>(null);
   // The chip whose × has been pressed once. Taking somebody off a project is
@@ -109,9 +125,22 @@ export function ContactsTable({
 
   const columns = CONTACT_COLUMNS.filter((column) => !hidden.includes(column.key));
 
+  // Every filter the view carries has to match.
+  const narrowed = filters.reduce(
+    (rows, { field, value }) =>
+      rows.filter((contact) =>
+        field === 'project'
+          ? contact.projects.some((project) => project.name === value)
+          : field === 'tag'
+            ? contact.tags.includes(value)
+            : true,
+      ),
+    contacts,
+  );
+
   const term = search.trim().toLowerCase();
   const found = term
-    ? contacts.filter((contact) =>
+    ? narrowed.filter((contact) =>
         [
           contact.name,
           contact.email,
@@ -127,7 +156,7 @@ export function ContactsTable({
           .toLowerCase()
           .includes(term),
       )
-    : contacts;
+    : narrowed;
 
   const sorted = order.field ? [...found].sort(byColumn(order)) : found;
 
@@ -146,13 +175,30 @@ export function ContactsTable({
   const pickedHere = shown.filter((contact) => picked.includes(contact.id));
   const allPicked = shown.length > 0 && pickedHere.length === shown.length;
 
-  /** Every change to the table's shape is saved as it is made. */
+  /** Every change to the view is saved as it is made. */
   async function savePrefs(body: {
     hiddenColumns?: string[];
     sortField?: string | null;
     sortDir?: 'asc' | 'desc';
+    filters?: { field: string; value: string }[];
   }) {
-    await api('/api/contact-prefs', { method: 'PATCH', body });
+    await api(`/api/contact-views/${view.id}`, { method: 'PATCH', body });
+    router.refresh();
+  }
+
+  function addFilter(field: string, value: string) {
+    // The same field twice would fight itself, so a repeat replaces the old.
+    const next = [...filters.filter((entry) => entry.field !== field), { field, value }];
+    setFilters(next);
+    setPageWanted(1);
+    void savePrefs({ filters: next });
+  }
+
+  function dropFilter(field: string) {
+    const next = filters.filter((entry) => entry.field !== field);
+    setFilters(next);
+    setPageWanted(1);
+    void savePrefs({ filters: next });
   }
 
   function toggleColumn(key: string) {
@@ -224,15 +270,80 @@ export function ContactsTable({
     <>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-3xl font-semibold tracking-tight">Contacts</h1>
-        <button type="button" onClick={() => setCreating(true)} className="btn-primary px-5">
-          Create new
-        </button>
+        <span className="flex items-center gap-2" data-menu>
+          <button type="button" onClick={() => setCreating(true)} className="btn-primary px-5">
+            Create new
+          </button>
+
+          <span className="relative">
+            <Tip label="More">
+              <button
+                type="button"
+                onClick={() => toggle('contacts-more')}
+                aria-expanded={menu === 'contacts-more'}
+                aria-label="More contact actions"
+                className="text-muted hover:text-foreground flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-black/[0.06]"
+              >
+                <DotsIcon className="h-5 w-5" />
+              </button>
+            </Tip>
+
+            {menu === 'contacts-more' && (
+              <div className="bg-surface absolute top-full right-0 z-40 mt-1.5 w-[230px] overflow-hidden rounded-xl py-1.5 shadow-2xl ring-1 ring-black/10">
+                <button
+                  type="button"
+                  onClick={() => {
+                    close();
+                    downloadSpreadsheet(sorted, columns);
+                  }}
+                  disabled={sorted.length === 0}
+                  className="hover:bg-accent-soft/60 flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-sm transition-colors disabled:opacity-40"
+                >
+                  <DownloadIcon />
+                  Download spreadsheet
+                </button>
+              </div>
+            )}
+          </span>
+        </span>
       </div>
 
-      <div className="mt-6 flex items-center justify-between gap-4">
+      {tabs}
+
+      {/* What this view is narrowed to, and the way to narrow it further. */}
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        {filters.map((entry) => {
+          const label = filterFields.find((item) => item.key === entry.field)?.label ?? entry.field;
+          return (
+            <span
+              key={entry.field}
+              className="border-accent text-accent flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm"
+            >
+              {label}: {entry.value}
+              <Tip label={`Stop narrowing by ${label.toLowerCase()}`}>
+                <button
+                  type="button"
+                  onClick={() => dropFilter(entry.field)}
+                  aria-label={`Remove the ${label.toLowerCase()} filter`}
+                  className="hover:text-foreground"
+                >
+                  <CrossIcon />
+                </button>
+              </Tip>
+            </span>
+          );
+        })}
+
+        <FilterMenu
+          fields={filterFields.filter((item) => !filters.some((entry) => entry.field === item.key))}
+          onPick={addFilter}
+        />
+      </div>
+
+      <div className="mt-5 flex items-center justify-between gap-4">
         <p className="text-muted text-sm">
           {sorted.length} {sorted.length === 1 ? 'item' : 'items'}
-          {term && ` of ${contacts.length}`}
+          {term && ` of ${narrowed.length}`}
           {pages > 1 && ` · showing ${from + 1}–${from + shown.length}`}
         </p>
 
@@ -843,6 +954,73 @@ function sortKey(contact: ContactRow, field: string | null): string | number | n
   return cellText(contact, field ?? '')?.trim() || null;
 }
 
+/** Excel reads a file without this as the local codepage, not UTF-8. */
+const BOM = '\ufeff';
+/** Spreadsheets expect CRLF between rows, whatever the platform. */
+const CRLF = '\r\n';
+const NEEDS_QUOTES = /[",\r\n]/;
+const QUOTES = /"/g;
+
+/**
+ * Writes what is on screen out as a spreadsheet: the columns this view shows,
+ * the order it is in, and everything the filters left in — every page of it,
+ * not just the one being looked at.
+ *
+ * Comma-separated, because every spreadsheet on earth opens it. The leading
+ * BOM is for Excel, which otherwise reads UTF-8 as the local codepage and
+ * turns any name with an accent in it into rubble.
+ */
+function downloadSpreadsheet(
+  rows: ContactRow[],
+  columns: readonly { key: string; label: string }[],
+) {
+  const headers = ['Name', ...columns.map((column) => column.label)];
+  const line = (cells: string[]) => cells.map(csv).join(',');
+
+  const body = rows.map((contact) =>
+    line([
+      contact.name,
+      ...columns.map((column) =>
+        column.key === 'projects'
+          ? contact.projects.map((project) => project.name).join('; ')
+          : column.key === 'tags'
+            ? contact.tags.join('; ')
+            : (cellText(contact, column.key) ?? ''),
+      ),
+    ]),
+  );
+
+  const csvText = BOM + [line(headers), ...body].join(CRLF);
+  const url = URL.createObjectURL(new Blob([csvText], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+/** One cell, quoted where it has to be, and quotes inside doubled. */
+function csv(value: string): string {
+  return NEEDS_QUOTES.test(value) ? '"' + value.replace(QUOTES, '""') + '"' : value;
+}
+
+function DownloadIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      className="h-4 w-4 shrink-0"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 3v12M7 11l5 5 5-5M4 20h16" />
+    </svg>
+  );
+}
+
 /** Anything unfilled reads the same way, so a row scans as a row. */
 function Value({ text }: { text: string | null }) {
   const filled = text?.trim();
@@ -851,6 +1029,113 @@ function Value({ text }: { text: string | null }) {
     <span className="inline-block max-w-[280px] truncate align-middle" title={filled}>
       {filled}
     </span>
+  );
+}
+
+/**
+ * Add filter, the same two-step it is on the project board: the fields
+ * first, then the values that field actually holds. A field with nothing in
+ * it is offered greyed rather than hidden, so the list of what can be
+ * narrowed by does not change shape as the data does.
+ */
+function FilterMenu({
+  fields,
+  onPick,
+}: {
+  fields: { key: string; label: string; values: string[] }[];
+  onPick: (field: string, value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [field, setField] = useState<{ key: string; label: string; values: string[] } | null>(null);
+  const wrapper = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function away(event: MouseEvent) {
+      if (wrapper.current?.contains(event.target as Node)) return;
+      setOpen(false);
+      setField(null);
+    }
+    document.addEventListener('mousedown', away);
+    return () => document.removeEventListener('mousedown', away);
+  }, [open]);
+
+  if (fields.length === 0) return null;
+
+  return (
+    <div ref={wrapper} className="relative">
+      <button
+        type="button"
+        onClick={() => {
+          setField(null);
+          setOpen(!open);
+        }}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="hover:text-accent flex h-8 items-center gap-2 text-sm font-medium transition-colors"
+      >
+        <svg
+          aria-hidden
+          viewBox="0 0 24 24"
+          className="h-3.5 w-3.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.8"
+          strokeLinecap="round"
+        >
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+        Add filter
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute top-full left-0 z-50 mt-1.5 max-h-[220px] w-[220px] overflow-y-auto rounded-lg bg-white py-1 shadow-xl ring-1 ring-black/10"
+        >
+          {field === null ? (
+            fields.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                role="menuitem"
+                disabled={item.values.length === 0}
+                onClick={() => setField(item)}
+                className="hover:bg-accent-soft/60 flex h-8 w-full items-center justify-between px-3 text-left text-[13px] transition-colors disabled:opacity-40"
+              >
+                {item.label}
+                <span className="text-muted">›</span>
+              </button>
+            ))
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setField(null)}
+                className="text-muted hover:bg-accent-soft/60 flex h-8 w-full items-center gap-1 px-3 text-left text-[13px] transition-colors"
+              >
+                ‹ {field.label}
+              </button>
+              {field.values.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    setField(null);
+                    onPick(field.key, value);
+                  }}
+                  className="hover:bg-accent-soft/60 flex h-8 w-full items-center px-3 text-left text-[13px] transition-colors"
+                >
+                  {value}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

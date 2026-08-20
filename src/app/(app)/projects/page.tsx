@@ -5,7 +5,7 @@ import { CreateProjectButton } from '@/components/create-new';
 import { BoardToolbar } from './board-toolbar';
 import { Board } from './board';
 import { TableView } from './table-view';
-import { ViewTabs } from './view-tabs';
+import { ViewTabs } from '@/components/view-tabs';
 import { DEFAULT_HIDDEN_PROPS } from '@/lib/board-prefs';
 
 export default async function ProjectsPage(props: PageProps<'/projects'>) {
@@ -160,6 +160,8 @@ export default async function ProjectsPage(props: PageProps<'/projects'>) {
           isDefault: item.isDefault,
         }))}
         activeId={active.id}
+        basePath="/projects"
+        endpoint="/api/project-views"
       />
 
       <BoardToolbar

@@ -610,10 +610,15 @@ export function EyeIcon({ className }: IconProps) {
   );
 }
 
+/**
+ * Vertical, like the ⋮ the board cards and the view tabs already draw. This
+ * one was the only horizontal set of dots in the app, which made the same
+ * menu look like two different controls depending on where it was opened.
+ */
 export function DotsIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden {...stroke}>
-      <path d="M6 12h.01M12 12h.01M18 12h.01" strokeWidth="2.6" />
+      <path d="M12 6h.01M12 12h.01M12 18h.01" strokeWidth="2.6" />
     </svg>
   );
 }

@@ -96,12 +96,6 @@ model Workspace {
   name      String
   slug      String   @unique
   currency  String   @default("AED")
-  /// The Contacts table, remembered for the whole workspace: the columns it
-  /// leaves off, and the column it is ordered by. Names come from
-  /// CONTACT_COLUMNS.
-  contactHiddenColumns String[] @default([])
-  contactSortField     String?
-  contactSortDir       String   @default("asc")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -109,6 +103,7 @@ model Workspace {
   clients     Client[]
   stages      PipelineStage[]
   views       ProjectView[]
+  contactViews ContactView[]
   projects    Project[]
   invoices    Invoice[]
   tasks       Task[]
@@ -203,6 +198,31 @@ model ProjectView {
 
   @@index([workspaceId, position])
   @@map("project_view")
+}
+
+/// A saved way of looking at the Contacts table: which columns it shows, how
+/// it is ordered, and what it is narrowed to. The same idea as ProjectView,
+/// kept separate because the two lists have nothing in common but the shape.
+model ContactView {
+  id       String @id @default(cuid())
+  name     String
+  position Int
+  /// Columns this view leaves off. Names come from CONTACT_COLUMNS.
+  hiddenColumns String[] @default([])
+  sortField     String?
+  sortDir       String   @default("asc")
+  /// What this view narrows by, as [{ field, value }]. All must match.
+  filters       Json     @default("[]")
+  /// The first view a workspace gets. It cannot be renamed or deleted.
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, position])
+  @@map("contact_view")
 }
 
 /// Opportunities are work you might win; Projects are work you are doing.

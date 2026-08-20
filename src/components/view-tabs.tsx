@@ -3,14 +3,33 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
+import { Tip } from '@/components/ui';
 
-export type ProjectViewTab = { id: string; name: string; isDefault: boolean };
+export type ViewTab = { id: string; name: string; isDefault: boolean };
 
 /**
- * One tab per saved view. The default view is fixed — it is the one a
- * workspace can always fall back to, so it cannot be renamed or deleted.
+ * One tab per saved view, above whatever list the view is of. The default
+ * view is fixed: it is the one a workspace can always fall back to, so it
+ * cannot be renamed or deleted.
+ *
+ * The tabs know nothing about what they are tabs of. Projects and Contacts
+ * both keep saved views, and they should not drift into two ideas of what a
+ * view is, so the page says where its list lives and which endpoint owns its
+ * views, and this draws the rest.
  */
-export function ViewTabs({ views, activeId }: { views: ProjectViewTab[]; activeId: string }) {
+export function ViewTabs({
+  views,
+  activeId,
+  basePath,
+  endpoint,
+}: {
+  views: ViewTab[];
+  activeId: string;
+  /** Where the list lives, e.g. `/projects`. */
+  basePath: string;
+  /** Which API owns these views, e.g. `/api/project-views`. */
+  endpoint: string;
+}) {
   const router = useRouter();
   const [menu, setMenu] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -28,12 +47,12 @@ export function ViewTabs({ views, activeId }: { views: ProjectViewTab[]; activeI
   }, [menu]);
 
   function open(id: string) {
-    router.push(`/projects?view=${id}`);
+    router.push(`${basePath}?view=${id}`);
   }
 
   async function add(duplicateOf?: string) {
     setBusy(true);
-    const { data, error } = await api<{ view: { id: string } }>('/api/project-views', {
+    const { data, error } = await api<{ view: { id: string } }>(endpoint, {
       method: 'POST',
       body: duplicateOf ? { duplicateOf } : {},
     });
@@ -41,7 +60,7 @@ export function ViewTabs({ views, activeId }: { views: ProjectViewTab[]; activeI
     setMenu(null);
     if (error || !data) return;
     router.refresh();
-    router.push(`/projects?view=${data.view.id}`);
+    router.push(`${basePath}?view=${data.view.id}`);
   }
 
   async function rename(id: string) {
@@ -49,20 +68,20 @@ export function ViewTabs({ views, activeId }: { views: ProjectViewTab[]; activeI
     setRenaming(null);
     if (!name) return;
     setBusy(true);
-    await api(`/api/project-views/${id}`, { method: 'PATCH', body: { name } });
+    await api(`${endpoint}/${id}`, { method: 'PATCH', body: { name } });
     setBusy(false);
     router.refresh();
   }
 
   async function remove(id: string) {
     setBusy(true);
-    const { error } = await api(`/api/project-views/${id}`, { method: 'DELETE' });
+    const { error } = await api(`${endpoint}/${id}`, { method: 'DELETE' });
     setBusy(false);
     setMenu(null);
     if (error) return;
     const fallback = views.find((view) => view.isDefault) ?? views[0];
     router.refresh();
-    router.push(`/projects?view=${fallback.id}`);
+    router.push(`${basePath}?view=${fallback.id}`);
   }
 
   return (
@@ -193,15 +212,15 @@ function Item({
   onClick: () => void;
   disabled?: boolean;
   danger?: boolean;
+  /** Why it cannot be pressed, in the dark tooltip rather than the browser's. */
   hint?: string;
 }) {
-  return (
+  const button = (
     <button
       type="button"
       role="menuitem"
       onClick={onClick}
       disabled={disabled}
-      title={hint}
       className={`hover:bg-accent-soft/60 flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm transition-colors disabled:pointer-events-auto disabled:opacity-40 ${
         danger ? 'text-accent' : ''
       }`}
@@ -220,5 +239,13 @@ function Item({
       </svg>
       {label}
     </button>
+  );
+
+  return hint ? (
+    <Tip label={hint} side="right">
+      {button}
+    </Tip>
+  ) : (
+    button
   );
 }

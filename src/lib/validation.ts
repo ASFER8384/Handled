@@ -317,12 +317,22 @@ export type InvoiceInput = z.input<typeof invoiceSchema>;
 export type PaymentInput = z.input<typeof paymentSchema>;
 export type TaskInput = z.input<typeof taskSchema>;
 
-// --- The Contacts table -----------------------------------------------------
+// --- Views of the Contacts table --------------------------------------------
 
-export const contactPrefsPatchSchema = z
+export const contactViewCreateSchema = z.object({
+  name: viewName.optional(),
+  duplicateOf: optionalText(40),
+});
+
+export const contactViewPatchSchema = z
   .object({
+    name: viewName.optional(),
     hiddenColumns: z.array(z.string().max(40)).max(20).optional(),
     sortField: z.string().max(40).nullable().optional(),
     sortDir: z.enum(['asc', 'desc']).optional(),
+    filters: z
+      .array(z.object({ field: z.string().max(40), value: z.string().max(120) }))
+      .max(10)
+      .optional(),
   })
   .strict();
