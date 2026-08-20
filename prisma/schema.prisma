@@ -405,6 +405,10 @@ model Invoice {
   id        String        @id @default(cuid())
   number    String
   status    InvoiceStatus @default(DRAFT)
+  /// How it is painted when it is read: a colour and a typeface, kept with the
+  /// invoice so the one you send stays the one they see.
+  themeColor String       @default("ink")
+  themeFont  String       @default("sans")
   issuedAt  DateTime?
   dueAt     DateTime?
   notes     String?

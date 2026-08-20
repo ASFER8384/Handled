@@ -6,7 +6,7 @@ import { balanceCents, formatMoney, paidCents, subtotalCents } from '@/lib/money
 import { PageHeader, StatusBadge, formatDate } from '@/components/ui';
 import { InvoiceActions } from './invoice-actions';
 import { SaveAsTemplate } from './save-as-template';
-import { InvoiceSheet } from './invoice-sheet';
+import { InvoiceSheet } from '@/components/invoice-sheet';
 import { PrintButton } from './print-button';
 import { PaymentForm } from './payment-form';
 
@@ -36,6 +36,11 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
         subtitle={`${invoice.client.name}${invoice.project ? ` · ${invoice.project.name}` : ''}`}
         action={
           <div className="flex flex-wrap items-start justify-end gap-2">
+            {invoice.status === 'DRAFT' && (
+              <Link href={`/invoices/${invoice.id}/edit`} className="btn-ghost">
+                Edit
+              </Link>
+            )}
             <PrintButton />
             <SaveAsTemplate
               suggestedName={invoice.project?.name ?? invoice.client.name}
@@ -83,6 +88,8 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
             balance={balance}
             currency={ctx.currency}
             notes={invoice.notes}
+            themeColor={invoice.themeColor}
+            themeFont={invoice.themeFont}
           />
 
           <div className="card p-5" data-print-hide>

@@ -1,11 +1,71 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handler, HttpError, notFound, parseBody } from '@/lib/api';
-import { invoiceStatusSchema } from '@/lib/validation';
+import { invoiceEditSchema, invoiceStatusSchema } from '@/lib/validation';
 import { resyncInvoiceStatus } from '@/lib/invoices';
 import { fireTrigger } from '@/lib/automations';
 
 type Params = { params: Promise<{ id: string }> };
+
+/**
+ * A whole invoice, rewritten. The lines are replaced rather than reconciled:
+ * an invoice is one document, and half-updating it is how the paper and the
+ * total stop agreeing.
+ *
+ * A sent invoice is not editable here. What the client has is what they have.
+ */
+export const PUT = handler(async (ctx, request: Request, { params }: Params) => {
+  const { id } = await params;
+  const data = await parseBody(request, invoiceEditSchema);
+
+  const invoice = await prisma.invoice.findFirst({
+    where: { id, workspaceId: ctx.workspaceId },
+    select: { id: true, status: true },
+  });
+  if (!invoice) notFound('Invoice');
+  if (invoice.status !== 'DRAFT') {
+    throw new HttpError(409, 'This invoice has been sent. Void it and write another.');
+  }
+
+  const client = await prisma.client.findFirst({
+    where: { id: data.clientId, workspaceId: ctx.workspaceId },
+    select: { id: true },
+  });
+  if (!client) throw new HttpError(422, 'That client is not in this workspace');
+
+  if (data.projectId) {
+    const project = await prisma.project.findFirst({
+      where: { id: data.projectId, workspaceId: ctx.workspaceId, clientId: client.id },
+      select: { id: true },
+    });
+    if (!project) throw new HttpError(422, "That project doesn't belong to this client");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.invoiceItem.deleteMany({ where: { invoiceId: id } });
+    await tx.invoice.update({
+      where: { id },
+      data: {
+        clientId: client.id,
+        projectId: data.projectId ?? null,
+        dueAt: data.dueAt ?? null,
+        notes: data.notes ?? null,
+        themeColor: data.themeColor ?? 'ink',
+        themeFont: data.themeFont ?? 'sans',
+        items: {
+          create: data.items.map((item, position) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPriceCents: item.unitPriceCents,
+            position,
+          })),
+        },
+      },
+    });
+  });
+
+  return NextResponse.json({ invoice: { id } });
+});
 
 export const PATCH = handler(async (ctx, request: Request, { params }: Params) => {
   const { id } = await params;

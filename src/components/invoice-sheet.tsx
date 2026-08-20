@@ -1,5 +1,6 @@
 import { formatMoney } from '@/lib/money';
 import { formatDate } from '@/components/ui';
+import { invoiceTheme } from '@/lib/invoice-theme';
 
 type Line = {
   id: string;
@@ -28,6 +29,8 @@ export function InvoiceSheet({
   balance,
   currency,
   notes,
+  themeColor,
+  themeFont,
 }: {
   number: string;
   from: string;
@@ -41,16 +44,26 @@ export function InvoiceSheet({
   balance: number;
   currency: string;
   notes: string | null;
+  /** How it is painted, as chosen when it was written. */
+  themeColor?: string | null;
+  themeFont?: string | null;
 }) {
+  const theme = invoiceTheme(themeColor ?? null, themeFont ?? null);
+
   return (
-    <article className="invoice-sheet card p-8 sm:p-10">
+    <article className="invoice-sheet card p-8 sm:p-10" style={{ fontFamily: theme.stack }}>
       {/* who it is from */}
       <header>
         <p className="text-lg font-semibold">{from}</p>
         <p className="text-muted mt-0.5 text-sm">{fromEmail}</p>
       </header>
 
-      <h2 className="mt-8 bg-black/[0.05] px-4 py-3 text-2xl font-bold tracking-tight">INVOICE</h2>
+      <h2
+        className="mt-8 px-4 py-3 text-2xl font-bold tracking-tight"
+        style={{ backgroundColor: `${theme.hex}14`, color: theme.hex }}
+      >
+        INVOICE
+      </h2>
 
       {/* who it is to, and which invoice this is */}
       <div className="mt-8 grid gap-8 sm:grid-cols-[1fr_auto]">
@@ -79,7 +92,9 @@ export function InvoiceSheet({
           </div>
           <div>
             <dt className="text-muted">Balance due</dt>
-            <dd className="mt-1 font-semibold tabular-nums">{formatMoney(balance, currency)}</dd>
+            <dd className="mt-1 font-semibold tabular-nums" style={{ color: theme.hex }}>
+              {formatMoney(balance, currency)}
+            </dd>
           </div>
         </dl>
       </div>
@@ -123,7 +138,9 @@ export function InvoiceSheet({
           </div>
           <div className="border-line mt-1.5 flex justify-between border-t pt-3 text-base">
             <dt className="font-medium">Balance due</dt>
-            <dd className="font-semibold tabular-nums">{formatMoney(balance, currency)}</dd>
+            <dd className="font-semibold tabular-nums" style={{ color: theme.hex }}>
+              {formatMoney(balance, currency)}
+            </dd>
           </div>
         </dl>
       </div>

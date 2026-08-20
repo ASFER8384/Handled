@@ -223,8 +223,13 @@ export const invoiceSchema = z.object({
   projectId: optionalText(40),
   dueAt: optionalDate,
   notes: optionalText(2000),
+  themeColor: z.string().max(20).optional(),
+  themeFont: z.string().max(20).optional(),
   items: z.array(invoiceItemSchema).min(1, 'Add at least one line item'),
 });
+
+/** An edit replaces the lines wholesale, so it is the same shape as a create. */
+export const invoiceEditSchema = invoiceSchema;
 
 export const invoiceStatusSchema = z.object({
   status: z.enum(['DRAFT', 'SENT', 'VOID']),

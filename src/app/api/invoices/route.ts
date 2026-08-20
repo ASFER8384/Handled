@@ -37,6 +37,8 @@ export const POST = handler(async (ctx, request: Request) => {
         clientId: client.id,
         projectId: data.projectId ?? null,
         number: await nextInvoiceNumber(tx, ctx.workspaceId),
+        themeColor: data.themeColor ?? 'ink',
+        themeFont: data.themeFont ?? 'sans',
         dueAt: data.dueAt ?? null,
         notes: data.notes ?? null,
         items: {
