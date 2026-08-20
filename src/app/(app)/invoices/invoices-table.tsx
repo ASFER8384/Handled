@@ -24,6 +24,8 @@ export type InvoiceRow = {
   totalCents: number;
   balanceCents: number;
   hasPayments: boolean;
+  /** An email carrying it has gone out, so 'sent' can no longer be undone. */
+  emailed: boolean;
   /** Both needed before it can be emailed: it is sent from the project. */
   projectId: string | null;
   clientEmail: string | null;
@@ -109,11 +111,11 @@ export function InvoicesTable({ rows, currency }: { rows: InvoiceRow[]; currency
   const openAt = (row: InvoiceRow) =>
     row.status === 'DRAFT' ? `/invoices/${row.id}/edit` : `/invoices/${row.id}`;
 
-  async function send(row: InvoiceRow) {
+  async function moveTo(row: InvoiceRow, status: 'SENT' | 'DRAFT') {
     setMenu(null);
     const { error } = await api(`/api/invoices/${row.id}`, {
       method: 'PATCH',
-      body: { status: 'SENT' },
+      body: { status },
     });
     if (error) {
       alert(error.error);
@@ -190,7 +192,8 @@ export function InvoicesTable({ rows, currency }: { rows: InvoiceRow[]; currency
                 <td className="px-5 py-3 text-right">
                   {(() => {
                     const actions = invoiceActions(row, {
-                      onSend: () => send(row),
+                      onSend: () => moveTo(row, 'SENT'),
+                      onUnsend: () => moveTo(row, 'DRAFT'),
                       onDelete: () => setDoomed(row),
                     });
                     return (

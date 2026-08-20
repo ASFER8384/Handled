@@ -75,7 +75,12 @@ export const PATCH = handler(async (ctx, request: Request, { params }: Params) =
 
   const invoice = await prisma.invoice.findFirst({
     where: { id, workspaceId: ctx.workspaceId },
-    include: { payments: true },
+    include: {
+      payments: true,
+      // Anything that actually left, or is on its way. A draft message was
+      // written but never handed to anybody.
+      messages: { where: { status: { not: 'DRAFT' } }, select: { id: true } },
+    },
   });
   if (!invoice) notFound('Invoice');
 
@@ -83,13 +88,32 @@ export const PATCH = handler(async (ctx, request: Request, { params }: Params) =
     throw new HttpError(409, 'Refund the recorded payments before voiding this invoice');
   }
 
+  // Marking an invoice sent by hand is a click, and a click can be a mistake.
+  // Taking it back is allowed right up until it stops being only ours: once
+  // it has been emailed, or once money has been recorded against it, the
+  // client's copy is out there and the record has to match it.
+  if (status === 'DRAFT') {
+    if (invoice.payments.length > 0) {
+      throw new HttpError(409, 'A payment has been recorded against this invoice');
+    }
+    if (invoice.messages.length > 0) {
+      throw new HttpError(409, 'This invoice has been emailed to the client');
+    }
+  }
+
   const updated = await prisma.$transaction(async (tx) => {
     await tx.invoice.update({
       where: { id },
       data: {
         status,
-        // Sending is what dates an invoice; re-sending keeps the original date.
-        issuedAt: status === 'SENT' ? (invoice.issuedAt ?? new Date()) : invoice.issuedAt,
+        // Sending is what dates an invoice; re-sending keeps the original
+        // date, and taking it back to a draft means it was never issued.
+        issuedAt:
+          status === 'SENT'
+            ? (invoice.issuedAt ?? new Date())
+            : status === 'DRAFT'
+              ? null
+              : invoice.issuedAt,
       },
     });
     const settled = await resyncInvoiceStatus(tx, id);

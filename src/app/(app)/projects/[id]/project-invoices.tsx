@@ -23,6 +23,8 @@ export type ProjectInvoice = {
   totalCents: number;
   balanceCents: number;
   hasPayments: boolean;
+  /** An email carrying it has gone out, so 'sent' can no longer be undone. */
+  emailed: boolean;
 };
 
 /**
@@ -74,12 +76,12 @@ export function ProjectInvoices({
     };
   }, [menu]);
 
-  async function send(invoice: ProjectInvoice) {
+  async function moveTo(invoice: ProjectInvoice, status: 'SENT' | 'DRAFT') {
     setMenu(null);
     setBusy(true);
     const { error } = await api(`/api/invoices/${invoice.id}`, {
       method: 'PATCH',
-      body: { status: 'SENT' },
+      body: { status },
     });
     setBusy(false);
     if (error) {
@@ -142,7 +144,8 @@ export function ProjectInvoices({
                   const actions = invoiceActions(
                     { ...invoice, projectId, clientEmail },
                     {
-                      onSend: () => send(invoice),
+                      onSend: () => moveTo(invoice, 'SENT'),
+                      onUnsend: () => moveTo(invoice, 'DRAFT'),
                       onRecordPayment: () => setPaying(invoice),
                       onDelete: () => setDoomed(invoice),
                     },

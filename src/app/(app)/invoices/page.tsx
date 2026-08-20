@@ -14,6 +14,7 @@ export default async function InvoicesPage() {
       project: { select: { name: true } },
       items: true,
       payments: true,
+      messages: { where: { status: { not: 'DRAFT' } }, select: { id: true } },
     },
     orderBy: { updatedAt: 'desc' },
   });
@@ -31,6 +32,7 @@ export default async function InvoicesPage() {
     totalCents: totalCents(invoice.items, invoice.taxRateBp),
     balanceCents: balanceCents(invoice.items, invoice.payments, invoice.taxRateBp),
     hasPayments: invoice.payments.length > 0,
+    emailed: invoice.messages.length > 0,
   }));
 
   return (

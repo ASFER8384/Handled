@@ -26,6 +26,8 @@ export type InvoiceFacts = {
   /** The email is written on the project, so an invoice without one cannot. */
   projectId: string | null;
   clientEmail: string | null;
+  /** Whether an email carrying it has gone out. Undoing 'sent' turns on this. */
+  emailed: boolean;
 };
 
 export type InvoiceAction =
@@ -40,6 +42,8 @@ export function invoiceActions(
   handlers: {
     /** Drafts only. Left out where marking sent makes no sense. */
     onSend?: () => void;
+    /** Undoes the click above, while nothing has gone out. */
+    onUnsend?: () => void;
     /** Offered when there is a balance left to record against. */
     onRecordPayment?: () => void;
     onDelete?: () => void;
@@ -77,7 +81,26 @@ export function invoiceActions(
   }
 
   if (draft && handlers.onSend) {
-    actions.push({ kind: 'do', label: 'Mark as sent', run: handlers.onSend });
+    actions.push({ kind: 'do', label: 'Mark as sent (no email)', run: handlers.onSend });
+  }
+
+  // The click above is undoable while the invoice is still only ours.
+  if (invoice.status === 'SENT' && handlers.onUnsend) {
+    if (invoice.emailed) {
+      actions.push({
+        kind: 'off',
+        label: 'Back to draft',
+        why: 'It has already been emailed',
+      });
+    } else if (invoice.hasPayments) {
+      actions.push({
+        kind: 'off',
+        label: 'Back to draft',
+        why: 'A payment is recorded against it',
+      });
+    } else {
+      actions.push({ kind: 'do', label: 'Back to draft', run: handlers.onUnsend });
+    }
   }
 
   if (!draft && invoice.balanceCents > 0 && handlers.onRecordPayment) {
