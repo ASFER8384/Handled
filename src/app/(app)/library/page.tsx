@@ -5,27 +5,6 @@ import { INVOICE_TEMPLATES } from '@/lib/invoice-templates';
 import { companyBrand } from '@/lib/company';
 import { TemplateGallery, type GalleryTemplate } from './template-gallery';
 
-/**
- * What each kind of file will hold, in the order the work usually happens.
- *
- * The empty ones are listed rather than hidden: knowing what is coming, and
- * that it is not here yet, beats finding out by looking for it.
- */
-const COMING = [
-  {
-    kind: 'Contracts',
-    body: 'The terms you send to be signed, with the names and dates filled in from the project.',
-  },
-  {
-    kind: 'Questionnaires',
-    body: 'What you ask before a job — the run of the day, who is who, where to be.',
-  },
-  {
-    kind: 'Brochures',
-    body: 'What you offer and what it costs, sent as one page rather than an email of prices.',
-  },
-];
-
 export default async function LibraryPage() {
   const ctx = await requireWorkspace();
 
@@ -77,18 +56,6 @@ export default async function LibraryPage() {
             currency: ctx.currency,
           }}
         />
-      </section>
-
-      <section className="mt-10">
-        <h2 className="text-[15px] font-semibold">Still to come</h2>
-        <div className="mt-4 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {COMING.map((entry) => (
-            <div key={entry.kind} className="border-line rounded-xl border border-dashed p-5">
-              <p className="text-muted font-semibold">{entry.kind}</p>
-              <p className="text-muted mt-1 text-sm">{entry.body}</p>
-            </div>
-          ))}
-        </div>
       </section>
     </>
   );
