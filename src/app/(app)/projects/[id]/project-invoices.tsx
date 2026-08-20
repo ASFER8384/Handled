@@ -23,8 +23,8 @@ export type ProjectInvoice = {
   hasPayments: boolean;
 };
 
-/** Five rows and the padding around them: which way the panel opens. */
-const MENU_HEIGHT = 5 * 36 + 12;
+/** Six rows and the padding around them: which way the panel opens. */
+const MENU_HEIGHT = 6 * 36 + 12;
 
 /**
  * The invoices raised against this project, newest first.
@@ -171,6 +171,14 @@ export function ProjectInvoices({
                       >
                         Open
                       </Link>
+
+                      <a
+                        href={`/api/invoices/${invoice.id}/pdf?download`}
+                        className="hover:bg-accent-soft/60 block px-4 py-2"
+                        onClick={() => setMenu(null)}
+                      >
+                        Download PDF
+                      </a>
 
                       {invoice.status === 'DRAFT' && (
                         <>

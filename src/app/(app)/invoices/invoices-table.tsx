@@ -33,8 +33,8 @@ const STATUSES = [
   { value: 'VOID', label: 'Void' },
 ];
 
-/** Three rows and the padding around them: which way the panel opens. */
-const MENU_HEIGHT = 3 * 36 + 12;
+/** Four rows and the padding around them: which way the panel opens. */
+const MENU_HEIGHT = 4 * 36 + 12;
 
 const WHENS = [
   { value: 'all', label: 'Any time' },
@@ -210,6 +210,13 @@ export function InvoicesTable({ rows, currency }: { rows: InvoiceRow[]; currency
                         >
                           Open
                         </Link>
+                        <a
+                          href={`/api/invoices/${row.id}/pdf?download`}
+                          onClick={() => setMenu(null)}
+                          className="hover:bg-accent-soft/60 block px-4 py-2"
+                        >
+                          Download PDF
+                        </a>
                         {row.status === 'DRAFT' && (
                           <Link
                             href={`/invoices/${row.id}/edit`}
