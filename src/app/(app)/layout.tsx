@@ -10,7 +10,7 @@ const RAIL = [
   { href: '/clients', label: 'Contacts', icon: 'clients' },
   { href: '/calendar', label: 'Calendar', icon: 'calendar' },
   { href: '/invoices', label: 'Invoices', icon: 'invoices' },
-  { href: '/templates', label: 'Templates', icon: 'templates' },
+  { href: '/library', label: 'Library', icon: 'library' },
   { href: '/tasks', label: 'Tasks', icon: 'tasks' },
   { href: '/automations', label: 'Automations', icon: 'automations' },
 ] as const;

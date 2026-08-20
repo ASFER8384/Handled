@@ -39,7 +39,7 @@ export function SaveAsTemplate({
       return;
     }
     setOpen(false);
-    router.push('/templates');
+    router.push('/library');
   }
 
   return (

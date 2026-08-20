@@ -13,7 +13,7 @@ const ICONS: Record<string, string> = {
   invoices: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',
   tasks: 'M4 7l2.5 2.5L11 5M4 17l2.5 2.5L11 15M14 7.5h6M14 17.5h6',
   automations: 'M4 7h6l4 10h6M4 17h4M16 7h4',
-  templates: 'M4 4.5h16v15H4zM4 9h16M9 9v10.5',
+  library: 'M5 4h5v16H5zM12 4h4l3 16h-4z',
 };
 
 export type RailItem = { href: string; label: string; icon: string };
