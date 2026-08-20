@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { Select } from '@/components/select';
 import { EmptyState } from '@/components/ui';
@@ -348,6 +349,8 @@ function Preview({
   onDelete: () => void;
   onClose: () => void;
 }) {
+  const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
+
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key === 'Escape') onClose();
@@ -449,12 +452,38 @@ function Preview({
         </div>
 
         {/* --- the invoice itself ---------------------------------------- */}
-        <div className="bg-background min-w-0 flex-1 overflow-y-auto p-8">
-          <div className="mx-auto max-w-[640px]">
-            <Sheet template={template} brand={brand} />
-            <p className="text-muted mt-4 text-center text-xs">
-              The prices are an example. Yours are asked for when you write the invoice.
-            </p>
+        <div className="bg-background flex min-w-0 flex-1 flex-col">
+          <div className="flex shrink-0 justify-center gap-1 pt-5">
+            <DeviceButton
+              label="Desktop"
+              active={device === 'desktop'}
+              onClick={() => setDevice('desktop')}
+            >
+              <rect x="2.5" y="4" width="19" height="13" rx="1.5" />
+              <path d="M9 20h6M12 17v3" strokeLinecap="round" />
+            </DeviceButton>
+            <DeviceButton
+              label="Mobile"
+              active={device === 'mobile'}
+              onClick={() => setDevice('mobile')}
+            >
+              <rect x="7" y="2.5" width="10" height="19" rx="2" />
+              <path d="M10.5 5.5h3" strokeLinecap="round" />
+            </DeviceButton>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-8">
+            {/* The sheet lays itself out from the width of this box rather than
+                the window, so the narrow one is the real narrow invoice. */}
+            <div
+              className="mx-auto transition-[max-width] duration-200"
+              style={{ maxWidth: device === 'mobile' ? 390 : 640 }}
+            >
+              <Sheet template={template} brand={brand} />
+              <p className="text-muted mt-4 text-center text-xs">
+                The prices are an example. Yours are asked for when you write the invoice.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -470,5 +499,43 @@ function Dot() {
       aria-hidden
       className="border-accent mt-1.5 h-2 w-2 shrink-0 rounded-full border-2 bg-white"
     />
+  );
+}
+
+/** Desktop or phone, drawn as the thing itself rather than named. */
+function DeviceButton({
+  label,
+  active,
+  onClick,
+  children,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`${label} width`}
+      aria-pressed={active}
+      className={`relative px-5 pt-2 pb-3 transition-colors after:absolute after:inset-x-2 after:bottom-0 after:h-[3px] after:rounded-full ${
+        active
+          ? 'text-foreground after:bg-accent'
+          : 'text-muted hover:text-foreground after:bg-transparent'
+      }`}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden
+        className="h-6 w-6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
+        {children}
+      </svg>
+    </button>
   );
 }

@@ -72,7 +72,10 @@ export function InvoiceSheet({
   const theme = invoiceTheme(themeColor ?? null, themeFont ?? null);
 
   return (
-    <article className="invoice-sheet card p-8 sm:p-10" style={{ fontFamily: theme.stack }}>
+    <article
+      className="invoice-sheet card @container p-8 @lg:p-10"
+      style={{ fontFamily: theme.stack }}
+    >
       {/* who it is from */}
       <header>
         {/* Plain img: served by a route that checks the workspace, not a
@@ -94,7 +97,7 @@ export function InvoiceSheet({
       </h2>
 
       {/* who it is to, and which invoice this is */}
-      <div className="mt-8 grid gap-8 sm:grid-cols-[1fr_auto]">
+      <div className="mt-8 grid gap-8 @lg:grid-cols-[1fr_auto]">
         <div>
           <p className="text-muted text-sm">Bill to</p>
           <p className="mt-1.5 font-medium">{billTo.name}</p>
@@ -105,7 +108,7 @@ export function InvoiceSheet({
           {billTo.email && <p className="text-muted text-sm">{billTo.email}</p>}
         </div>
 
-        <dl className="grid grid-cols-2 gap-x-10 gap-y-4 text-sm sm:text-right">
+        <dl className="grid grid-cols-2 gap-x-10 gap-y-4 text-sm @lg:text-right">
           <div>
             <dt className="text-muted">Invoice #</dt>
             <dd className="mt-1 font-medium tabular-nums">{number}</dd>
@@ -132,20 +135,29 @@ export function InvoiceSheet({
         <thead>
           <tr className="text-muted border-line border-b text-xs tracking-widest uppercase">
             <th className="py-3 text-left font-medium">Service info</th>
-            <th className="py-3 text-right font-medium">Qty</th>
-            <th className="py-3 text-right font-medium">Unit price</th>
+            <th className="hidden py-3 text-right font-medium @lg:table-cell">Qty</th>
+            <th className="hidden py-3 text-right font-medium @lg:table-cell">Unit price</th>
             <th className="py-3 text-right font-medium">Total</th>
           </tr>
         </thead>
         <tbody className="divide-line divide-y">
           {items.map((item) => (
             <tr key={item.id}>
-              <td className="py-3.5 pr-4">{item.description}</td>
-              <td className="py-3.5 text-right tabular-nums">{item.quantity}</td>
-              <td className="py-3.5 text-right tabular-nums">
+              <td className="py-3.5 pr-4">
+                {item.description}
+                {/* Narrow enough that the two middle columns had to go, so
+                    what they said is written under the line instead. */}
+                <span className="text-muted mt-0.5 block tabular-nums @lg:hidden">
+                  {item.quantity} × {formatMoney(item.unitPriceCents, currency)}
+                </span>
+              </td>
+              <td className="hidden py-3.5 pl-3 text-right tabular-nums @lg:table-cell">
+                {item.quantity}
+              </td>
+              <td className="hidden py-3.5 pl-3 text-right tabular-nums @lg:table-cell">
                 {formatMoney(item.unitPriceCents, currency)}
               </td>
-              <td className="py-3.5 text-right tabular-nums">
+              <td className="py-3.5 pl-3 text-right tabular-nums">
                 {formatMoney(item.quantity * item.unitPriceCents, currency)}
               </td>
             </tr>
@@ -184,7 +196,7 @@ export function InvoiceSheet({
       {(pay?.length || payNotes) && (
         <section className="border-line mt-10 border-t pt-5">
           <p className="text-muted text-xs tracking-widest uppercase">How to pay</p>
-          <dl className="mt-2 grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
+          <dl className="mt-2 grid gap-x-8 gap-y-1 text-sm @lg:grid-cols-2">
             {pay?.map(([label, value]) => (
               <div key={label} className="flex justify-between gap-4">
                 <dt className="text-muted">{label}</dt>
