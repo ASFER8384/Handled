@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -12,6 +12,9 @@ import { EditContactDialog } from './edit-contact-dialog';
 import { AddToProjectDialog } from './add-to-project-dialog';
 import { DeleteContactDialog } from './delete-contact-dialog';
 import { CONTACT_COLUMNS, type ContactSort } from '@/lib/contact-columns';
+
+/** How long a chip stays asking before it goes back to being a chip. */
+const ARM_SECONDS = 5;
 
 export type ContactRow = {
   id: string;
@@ -52,6 +55,30 @@ export function ContactsTable({
   const [order, setOrder] = useState(sort);
   // Where a row's menu was asked for, so it can be drawn clear of the table.
   const [menuAt, setMenuAt] = useState<Placement | null>(null);
+  // The chip whose × has been pressed once. Taking somebody off a project is
+  // one click in a row of chips that all look alike, so it asks first.
+  const [armed, setArmed] = useState<string | null>(null);
+
+  // A click anywhere but that chip, Escape, or simply leaving it a moment
+  // calls it off — an armed chip left armed is a trap for whatever is
+  // clicked next.
+  useEffect(() => {
+    if (!armed) return;
+    function elsewhere(event: MouseEvent) {
+      if (!(event.target as HTMLElement).closest('[data-arm]')) setArmed(null);
+    }
+    function escape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setArmed(null);
+    }
+    const timer = window.setTimeout(() => setArmed(null), ARM_SECONDS * 1000);
+    document.addEventListener('mousedown', elsewhere);
+    document.addEventListener('keydown', escape);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('mousedown', elsewhere);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [armed]);
 
   const columns = CONTACT_COLUMNS.filter((column) => !hidden.includes(column.key));
 
@@ -254,23 +281,43 @@ export function ContactsTable({
                           {contact.projects.map((project) => (
                             <span
                               key={project.id}
-                              className="group/chip flex items-center gap-1 rounded-full bg-black/[0.05] py-1 pr-1.5 pl-2.5 text-xs"
+                              data-arm
+                              className={`group/chip flex items-center gap-1 rounded-full py-1 pr-1.5 pl-2.5 text-xs transition-colors ${
+                                armed === `${contact.id}:${project.id}`
+                                  ? 'bg-accent-soft text-accent'
+                                  : 'bg-black/[0.05]'
+                              }`}
                             >
                               <Link href={`/projects/${project.id}`} className="hover:underline">
                                 {project.name}
                               </Link>
                               {project.role === 'contact' ? (
-                                <Tip label={`Take ${contact.name} off ${project.name}`} floating>
+                                armed === `${contact.id}:${project.id}` ? (
                                   <button
                                     type="button"
                                     disabled={busy}
-                                    onClick={() => void unlink(project.id, contact.id)}
-                                    aria-label={`Take ${contact.name} off ${project.name}`}
-                                    className="text-muted hover:text-accent opacity-0 transition-opacity group-hover/chip:opacity-100 disabled:opacity-30"
+                                    autoFocus
+                                    onClick={() => {
+                                      setArmed(null);
+                                      void unlink(project.id, contact.id);
+                                    }}
+                                    className="text-accent ml-0.5 font-semibold underline underline-offset-2 disabled:opacity-40"
                                   >
-                                    <CrossIcon />
+                                    Remove?
                                   </button>
-                                </Tip>
+                                ) : (
+                                  <Tip label={`Take ${contact.name} off ${project.name}`} floating>
+                                    <button
+                                      type="button"
+                                      disabled={busy}
+                                      onClick={() => setArmed(`${contact.id}:${project.id}`)}
+                                      aria-label={`Take ${contact.name} off ${project.name}`}
+                                      className="text-muted hover:text-accent opacity-0 transition-opacity group-hover/chip:opacity-100 disabled:opacity-30"
+                                    >
+                                      <CrossIcon />
+                                    </button>
+                                  </Tip>
+                                )
                               ) : (
                                 <Tip
                                   label={`${contact.name} is the client this project is for`}
