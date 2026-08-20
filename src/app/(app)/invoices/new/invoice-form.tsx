@@ -210,10 +210,10 @@ export function InvoiceForm({
   const notes = useWatch({ control, name: 'notes' });
 
   return (
-    <form id="invoice-form" onSubmit={handleSubmit(onSubmit)} noValidate>
+    <form id="invoice-form" className="-mr-2" onSubmit={handleSubmit(onSubmit)} noValidate>
       {/* Stays put while a long invoice scrolls under it: saving is the one
           thing you reach for from anywhere on the page. */}
-      <div className="bg-background sticky top-14 z-30 -mx-8 -mt-8 mb-6 flex flex-wrap items-start justify-between gap-4 px-8 py-5">
+      <div className="bg-background sticky top-14 z-30 -mt-8 mr-0 mb-6 -ml-8 flex flex-wrap items-start justify-between gap-4 py-5 pr-0 pl-8">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
           {subtitle && <p className="text-muted mt-1 text-sm">{subtitle}</p>}
@@ -233,7 +233,7 @@ export function InvoiceForm({
         </div>
       </div>
 
-      <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_220px]">
+      <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0">
           <div className="mb-3 flex items-center justify-end gap-2">
             <PartsMenu hidden={hidden} onToggle={toggle} />
@@ -530,7 +530,7 @@ export function InvoiceForm({
         </div>
 
         {/* --- how it will look ---------------------------------------- */}
-        <aside className="xl:sticky xl:top-20">
+        <aside className="card p-5 xl:sticky xl:top-32">
           <h2 className="text-[15px] font-semibold">Customise</h2>
 
           <p className="text-muted mt-6 text-xs tracking-widest uppercase">Colour</p>
