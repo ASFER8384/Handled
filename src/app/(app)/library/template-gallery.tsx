@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog } from '@/components/dialog';
 import { EmptyState } from '@/components/ui';
+import { InvoiceSheet } from '@/components/invoice-sheet';
 import { api } from '@/lib/client-fetch';
 
 export type GalleryTemplate = {
@@ -12,19 +13,43 @@ export type GalleryTemplate = {
   blurb: string;
   dueInDays: number;
   notes: string;
-  items: { description: string; quantity: number }[];
+  items: { description: string; quantity: number; sampleCents?: number }[];
   /** Saved by this workspace, so it can be thrown away again. */
   mine: boolean;
 };
 
+/** The letterhead the previews wear, so they look like your invoices. */
+export type GalleryBrand = {
+  name: string;
+  contact: string;
+  address: string | null;
+  logo: string | null;
+  themeColor: string;
+  themeFont: string;
+  taxLabel: string;
+  taxRateBp: number;
+  currency: string;
+};
+
+/** The width a sheet is drawn at before it is scaled down into a card. */
+const SHEET_WIDTH = 780;
+
 /**
- * The templates you can start an invoice from, and what each one says.
+ * The templates you can start an invoice from, each shown as the invoice it
+ * makes.
  *
- * A card is a look at the lines rather than a name to guess from: what a
- * template is worth knowing is what it will write for you, which is short
- * enough to simply show.
+ * A card is the thing itself, shrunk — your letterhead, your colours, its
+ * lines priced as an example. A name and a list of line descriptions tells you
+ * what a template contains; only a picture of it tells you what a client will
+ * be looking at.
  */
-export function TemplateGallery({ templates }: { templates: GalleryTemplate[] }) {
+export function TemplateGallery({
+  templates,
+  brand,
+}: {
+  templates: GalleryTemplate[];
+  brand: GalleryBrand;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState<GalleryTemplate | null>(null);
   const [gone, setGone] = useState<string[]>([]);
@@ -58,65 +83,50 @@ export function TemplateGallery({ templates }: { templates: GalleryTemplate[] })
 
   return (
     <>
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {shown.map((template) => (
-          <button
+          // A div, not a button: the card holds a whole invoice, and a document
+          // is not phrasing content. The name below is the real button, and it
+          // stretches over the card so the picture is clickable too.
+          <div
             key={template.id}
-            type="button"
-            onClick={() => setOpen(template)}
-            className="card hover:border-accent flex flex-col p-5 text-left transition-colors"
+            className="border-line hover:border-accent relative overflow-hidden rounded-xl border transition-colors"
           >
-            <span className="flex items-center gap-2">
-              <span className="font-semibold">{template.name}</span>
-              {template.mine && (
-                <span className="bg-accent-soft text-accent rounded-full px-2 py-0.5 text-xs font-medium">
-                  Yours
-                </span>
-              )}
-            </span>
-            <span className="text-muted mt-1 text-sm">{template.blurb}</span>
+            <Thumbnail template={template} brand={brand} />
 
-            <span className="border-line mt-4 block space-y-1.5 border-t pt-4">
-              {template.items.slice(0, 3).map((item, index) => (
-                <span key={index} className="flex justify-between gap-3 text-sm">
-                  <span className="truncate">{item.description}</span>
-                  <span className="text-muted shrink-0 tabular-nums">×{item.quantity}</span>
-                </span>
-              ))}
-              {template.items.length > 3 && (
-                <span className="text-muted block text-sm">
-                  +{template.items.length - 3} more lines
-                </span>
-              )}
-            </span>
-
-            <span className="text-muted mt-4 text-xs">
-              Due {template.dueInDays} days after it is written
-            </span>
-          </button>
+            <div className="border-line bg-surface border-t px-4 py-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOpen(template)}
+                  className="font-semibold after:absolute after:inset-0"
+                >
+                  {template.name}
+                </button>
+                {template.mine && (
+                  <span className="bg-accent-soft text-accent rounded-full px-2 py-0.5 text-xs font-medium">
+                    Yours
+                  </span>
+                )}
+              </div>
+              <p className="text-muted mt-0.5 text-sm">{template.blurb}</p>
+            </div>
+          </div>
         ))}
       </div>
 
       {open && (
-        <Dialog title={open.name} onClose={() => setOpen(null)} width={540} fit>
-          <ul className="space-y-2">
-            {open.items.map((item, index) => (
-              <li key={index} className="border-line flex justify-between gap-4 border-b pb-2">
-                <span>{item.description}</span>
-                <span className="text-muted shrink-0 tabular-nums">×{item.quantity}</span>
-              </li>
-            ))}
-          </ul>
+        <Dialog title={open.name} onClose={() => setOpen(null)} width={860}>
+          <Sheet template={open} brand={brand} />
 
-          {open.notes && <p className="text-muted mt-4 text-sm">{open.notes}</p>}
-
-          <p className="text-muted mt-4 text-sm">
-            Due {open.dueInDays} days out. Prices are yours to fill in.
+          <p className="text-muted mt-5 text-sm">
+            Due {open.dueInDays} days out. The prices above are an example — yours are asked for
+            when you write the invoice.
           </p>
 
           {error && <p className="field-error">{error}</p>}
 
-          <div className="mt-6 flex items-center gap-3">
+          <div className="mt-5 flex items-center gap-3">
             <button
               type="button"
               onClick={() => router.push(`/invoices/new?start=${open.id}`)}
@@ -138,5 +148,73 @@ export function TemplateGallery({ templates }: { templates: GalleryTemplate[] })
         </Dialog>
       )}
     </>
+  );
+}
+
+/** The top of the invoice, shrunk to fit a card and not clickable inside it. */
+function Thumbnail({ template, brand }: { template: GalleryTemplate; brand: GalleryBrand }) {
+  return (
+    <div className="h-[280px] overflow-hidden bg-white">
+      <div className="origin-top-left" style={{ width: SHEET_WIDTH, transform: 'scale(0.46)' }}>
+        <Sheet template={template} brand={brand} plain />
+      </div>
+    </div>
+  );
+}
+
+/** One template drawn as the invoice it makes, priced with its example. */
+function Sheet({
+  template,
+  brand,
+  plain,
+}: {
+  template: GalleryTemplate;
+  brand: GalleryBrand;
+  /** Inside a card: no border or shadow of its own, and nothing to click. */
+  plain?: boolean;
+}) {
+  const items = template.items.map((item, index) => ({
+    id: String(index),
+    description: item.description,
+    quantity: item.quantity,
+    unitPriceCents: item.sampleCents ?? 100000,
+  }));
+
+  const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0);
+  const tax = Math.round((subtotal * brand.taxRateBp) / 10000);
+
+  const due = new Date();
+  due.setDate(due.getDate() + template.dueInDays);
+
+  return (
+    <div
+      className={
+        plain
+          ? 'pointer-events-none [&_.invoice-sheet]:rounded-none [&_.invoice-sheet]:border-0'
+          : ''
+      }
+    >
+      <InvoiceSheet
+        number="INV-0000"
+        from={brand.name}
+        fromEmail={brand.contact}
+        fromAddress={brand.address}
+        logo={brand.logo}
+        billTo={{ name: 'Your client', company: null, address: null, email: null }}
+        issuedAt={new Date()}
+        dueAt={due}
+        items={items}
+        subtotal={subtotal}
+        tax={tax}
+        taxLabel={brand.taxLabel}
+        taxRateBp={brand.taxRateBp}
+        paid={0}
+        balance={subtotal + tax}
+        currency={brand.currency}
+        notes={template.notes}
+        themeColor={brand.themeColor}
+        themeFont={brand.themeFont}
+      />
+    </div>
   );
 }

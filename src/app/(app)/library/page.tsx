@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
 import { PageHeader } from '@/components/ui';
 import { INVOICE_TEMPLATES } from '@/lib/invoice-templates';
+import { companyBrand } from '@/lib/company';
 import { TemplateGallery, type GalleryTemplate } from './template-gallery';
 
 /**
@@ -27,6 +28,8 @@ const COMING = [
 
 export default async function LibraryPage() {
   const ctx = await requireWorkspace();
+
+  const brand = await companyBrand(ctx.workspaceId, ctx.userEmail);
 
   const saved = await prisma.invoiceTemplate.findMany({
     where: { workspaceId: ctx.workspaceId },
@@ -60,7 +63,20 @@ export default async function LibraryPage() {
         <p className="text-muted mt-1 mb-4 text-sm">
           Lines and terms without the prices. Starting an invoice from one fills it in.
         </p>
-        <TemplateGallery templates={templates} />
+        <TemplateGallery
+          templates={templates}
+          brand={{
+            name: brand.name,
+            contact: brand.contact,
+            address: brand.address,
+            logo: brand.logo,
+            themeColor: brand.themeColor,
+            themeFont: brand.themeFont,
+            taxLabel: brand.taxLabel,
+            taxRateBp: brand.taxRateBp,
+            currency: ctx.currency,
+          }}
+        />
       </section>
 
       <section className="mt-10">

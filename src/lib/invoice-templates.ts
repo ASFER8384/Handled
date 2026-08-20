@@ -14,7 +14,8 @@ export type InvoiceTemplate = {
   /** How long after today it falls due, when it is made from this. */
   dueInDays: number;
   notes: string;
-  items: { description: string; quantity: number }[];
+  /** `sampleCents` is only ever drawn in a preview, never saved on an invoice. */
+  items: { description: string; quantity: number; sampleCents?: number }[];
 };
 
 export const INVOICE_TEMPLATES: InvoiceTemplate[] = [
@@ -24,7 +25,7 @@ export const INVOICE_TEMPLATES: InvoiceTemplate[] = [
     blurb: 'A retainer that holds the date, with the rest to follow.',
     dueInDays: 7,
     notes: 'This retainer holds your date. The balance is due before the day itself.',
-    items: [{ description: 'Retainer to hold the date', quantity: 1 }],
+    items: [{ description: 'Retainer to hold the date', quantity: 1, sampleCents: 250000 }],
   },
   {
     id: 'balance',
@@ -33,8 +34,8 @@ export const INVOICE_TEMPLATES: InvoiceTemplate[] = [
     dueInDays: 14,
     notes: 'The balance of the agreed fee, less the retainer already paid.',
     items: [
-      { description: 'Balance of agreed fee', quantity: 1 },
-      { description: 'Less retainer already paid', quantity: 1 },
+      { description: 'Balance of agreed fee', quantity: 1, sampleCents: 750000 },
+      { description: 'Less retainer already paid', quantity: 1, sampleCents: -250000 },
     ],
   },
   {
@@ -44,9 +45,9 @@ export const INVOICE_TEMPLATES: InvoiceTemplate[] = [
     dueInDays: 14,
     notes: 'Payable in full by the due date above.',
     items: [
-      { description: 'Coverage on the day', quantity: 1 },
-      { description: 'Editing and delivery', quantity: 1 },
-      { description: 'Travel', quantity: 1 },
+      { description: 'Coverage on the day', quantity: 1, sampleCents: 600000 },
+      { description: 'Editing and delivery', quantity: 1, sampleCents: 150000 },
+      { description: 'Travel', quantity: 1, sampleCents: 50000 },
     ],
   },
 ];
