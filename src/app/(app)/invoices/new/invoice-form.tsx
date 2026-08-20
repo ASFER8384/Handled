@@ -225,7 +225,7 @@ export function InvoiceForm({
             onClick={() => setFiling(true)}
             className="border-line hover:border-accent bg-surface rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
           >
-            Client, project and dates
+            Select project and save
           </button>
           <button type="submit" className="btn-primary" disabled={isSubmitting}>
             {isSubmitting ? 'Saving…' : invoiceId ? 'Save changes' : 'Save as draft'}
