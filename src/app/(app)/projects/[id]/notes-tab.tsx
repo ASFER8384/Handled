@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-fetch';
 import { Select } from '@/components/select';
 import { EyeIcon, EyeOffIcon, FilterIcon, TrashIcon } from './editor-kit';
+import { ConfirmDialog } from '@/components/confirm';
 import { NoteEditor } from './note-editor';
 
 export type ProjectNote = {
@@ -33,6 +34,7 @@ export function NotesTab({ projectId, notes }: { projectId: string; notes: Proje
   const [sort, setSort] = useState<(typeof SORTS)[number]['key']>('edited');
   const [openId, setOpenId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const ordered = [...cards].sort((a, b) => {
     if (sort === 'title') return (a.title ?? '').localeCompare(b.title ?? '');
@@ -64,15 +66,22 @@ export function NotesTab({ projectId, notes }: { projectId: string; notes: Proje
     router.refresh();
   }
 
-  async function remove(id: string) {
-    // Notes are small and often empty; a confirm on every one is noise. This
-    // is the only door out, though, so an accidental click should not be the
-    // end of something written.
+  /**
+   * Notes are small and often empty, so an empty one goes without a word.
+   * Anything written in it is asked about first, and typed out: this is the
+   * only door out of a note, and there is no bringing one back.
+   */
+  function askToRemove(id: string) {
     const note = cards.find((entry) => entry.id === id);
     if (note && ((note.title ?? '').trim() || note.body.trim())) {
-      const named = (note.title ?? '').trim() || 'this note';
-      if (!confirm(`Delete ${named}? It cannot be brought back.`)) return;
+      setDeleting(id);
+      return;
     }
+    void remove(id);
+  }
+
+  async function remove(id: string) {
+    setDeleting(null);
 
     setCards((current) => current.filter((note) => note.id !== id));
     setOpenId(null);
@@ -81,6 +90,7 @@ export function NotesTab({ projectId, notes }: { projectId: string; notes: Proje
   }
 
   const open = cards.find((note) => note.id === openId) ?? null;
+  const doomed = cards.find((note) => note.id === deleting) ?? null;
 
   return (
     <div className="mt-6">
@@ -120,7 +130,7 @@ export function NotesTab({ projectId, notes }: { projectId: string; notes: Proje
           >
             <button
               type="button"
-              onClick={() => remove(note.id)}
+              onClick={() => askToRemove(note.id)}
               aria-label={`Delete ${note.title || 'this note'}`}
               className="text-muted absolute top-3 right-3 z-10 rounded p-1.5 opacity-0 transition group-hover:opacity-100 hover:bg-black/[0.05] hover:text-red-700 focus-visible:opacity-100"
             >
@@ -155,6 +165,16 @@ export function NotesTab({ projectId, notes }: { projectId: string; notes: Proje
 
       {error && <p className="field-error mt-4">{error}</p>}
 
+      {doomed && (
+        <ConfirmDialog
+          title="Delete this note"
+          body={`“${(doomed.title ?? '').trim() || 'Untitled note'}” will be gone for good. Nothing else on the project changes.`}
+          word="delete"
+          onConfirm={() => void remove(doomed.id)}
+          onClose={() => setDeleting(null)}
+        />
+      )}
+
       {open && (
         <NoteEditor
           projectId={projectId}
@@ -163,7 +183,7 @@ export function NotesTab({ projectId, notes }: { projectId: string; notes: Proje
             setCards((current) => current.map((note) => (note.id === saved.id ? saved : note)))
           }
           onDuplicate={(from) => void create(from)}
-          onDelete={() => void remove(open.id)}
+          onDelete={() => askToRemove(open.id)}
           onClose={() => {
             setOpenId(null);
             router.refresh();

@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Dialog } from '@/components/dialog';
+import { ConfirmDialog } from '@/components/confirm';
 import { Select } from '@/components/select';
 import { StatusBadge, formatDate } from '@/components/ui';
 import { formatMoney, parseMoneyToCents } from '@/lib/money';
@@ -51,6 +52,7 @@ export function ProjectInvoices({
   const [menuAt, setMenuAt] = useState<Placement | null>(null);
   const [busy, setBusy] = useState(false);
   const [paying, setPaying] = useState<ProjectInvoice | null>(null);
+  const [doomed, setDoomed] = useState<ProjectInvoice | null>(null);
 
   const shown = invoices.filter((invoice) => !gone.includes(invoice.id));
 
@@ -88,7 +90,6 @@ export function ProjectInvoices({
   }
 
   async function remove(invoice: ProjectInvoice) {
-    setMenu(null);
     setBusy(true);
     const { error } = await api(`/api/invoices/${invoice.id}`, { method: 'DELETE' });
     setBusy(false);
@@ -96,6 +97,7 @@ export function ProjectInvoices({
       alert(error.error);
       return;
     }
+    setDoomed(null);
     setGone((current) => [...current, invoice.id]);
     router.refresh();
   }
@@ -142,7 +144,7 @@ export function ProjectInvoices({
                     {
                       onSend: () => send(invoice),
                       onRecordPayment: () => setPaying(invoice),
-                      onDelete: () => remove(invoice),
+                      onDelete: () => setDoomed(invoice),
                     },
                   );
                   return (
@@ -195,6 +197,17 @@ export function ProjectInvoices({
           ))}
         </ul>
       </section>
+
+      {doomed && (
+        <ConfirmDialog
+          title={`Delete ${doomed.number}`}
+          body={`${doomed.number} will be gone for good. Only a draft can be deleted, so nothing has been sent to anyone.`}
+          word="delete"
+          busy={busy}
+          onConfirm={() => void remove(doomed)}
+          onClose={() => setDoomed(null)}
+        />
+      )}
 
       {paying && (
         <PaymentDialog

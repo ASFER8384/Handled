@@ -9,6 +9,7 @@ import { StatusBadge, formatDate } from '@/components/ui';
 import { formatMoney } from '@/lib/money';
 import { api } from '@/lib/client-fetch';
 import { placeUnder, type Placement } from '@/lib/place-under';
+import { ConfirmDialog } from '@/components/confirm';
 import { InvoiceMenuPanel, invoiceActions, menuHeight } from '@/components/invoice-menu';
 import type { InvoiceStatus } from '@/generated/prisma/enums';
 
@@ -59,6 +60,8 @@ export function InvoicesTable({ rows, currency }: { rows: InvoiceRow[]; currency
   const [gone, setGone] = useState<string[]>([]);
   const [menu, setMenu] = useState<string | null>(null);
   const [menuAt, setMenuAt] = useState<Placement | null>(null);
+  const [doomed, setDoomed] = useState<InvoiceRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const shown = useMemo(() => {
     const now = new Date();
@@ -120,8 +123,10 @@ export function InvoicesTable({ rows, currency }: { rows: InvoiceRow[]; currency
   }
 
   async function remove(row: InvoiceRow) {
-    setMenu(null);
+    setDeleting(true);
     const { error } = await api(`/api/invoices/${row.id}`, { method: 'DELETE' });
+    setDeleting(false);
+    setDoomed(null);
     if (error) {
       alert(error.error);
       return;
@@ -186,7 +191,7 @@ export function InvoicesTable({ rows, currency }: { rows: InvoiceRow[]; currency
                   {(() => {
                     const actions = invoiceActions(row, {
                       onSend: () => send(row),
-                      onDelete: () => remove(row),
+                      onDelete: () => setDoomed(row),
                     });
                     return (
                       <>
@@ -238,6 +243,17 @@ export function InvoicesTable({ rows, currency }: { rows: InvoiceRow[]; currency
             ))}
           </tbody>
         </table>
+
+        {doomed && (
+          <ConfirmDialog
+            title={`Delete ${doomed.number}`}
+            body={`${doomed.number} for ${doomed.client} will be gone for good. Only a draft can be deleted, so nothing has been sent to anyone.`}
+            word="delete"
+            busy={deleting}
+            onConfirm={() => void remove(doomed)}
+            onClose={() => setDoomed(null)}
+          />
+        )}
 
         {shown.length === 0 && (
           <p className="text-muted px-5 py-8 text-center text-sm">
