@@ -71,7 +71,7 @@ export function ConfirmDialog({
             id="confirm-word"
             autoFocus
             autoComplete="off"
-            className="input"
+            className="input-soft"
             value={typed}
             onChange={(event) => setTyped(event.target.value)}
             onKeyDown={(event) => {

@@ -58,7 +58,7 @@ export function SaveAsTemplate({
             value={name}
             maxLength={80}
             onChange={(event) => setName(event.target.value)}
-            className="input"
+            className="input-soft"
           />
 
           <p className="text-muted mt-4 text-sm">

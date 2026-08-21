@@ -148,7 +148,18 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
               <p className="text-muted mt-2 text-sm">Settled in full.</p>
             )}
             {invoice.status !== 'DRAFT' && invoice.status !== 'VOID' && balance > 0 && (
-              <PaymentForm invoiceId={invoice.id} outstanding={balance} currency={ctx.currency} />
+              <PaymentForm
+                invoiceId={invoice.id}
+                outstanding={balance}
+                currency={ctx.currency}
+                schedule={scheduleRows(invoice.instalments, paid).map((step) => ({
+                  label: step.label,
+                  amountCents: step.amountCents,
+                  paidCents: step.paidCents,
+                  dueAt: step.dueAt ? step.dueAt.toISOString() : null,
+                  state: step.state,
+                }))}
+              />
             )}
           </div>
         </aside>

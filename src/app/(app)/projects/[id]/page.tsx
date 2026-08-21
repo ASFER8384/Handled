@@ -15,6 +15,7 @@ import { EmptyState, formatDate } from '@/components/ui';
 import { LEAD_SOURCES, PROJECT_TYPES } from '@/lib/stages';
 import { TypeSelect } from './type-select';
 import { ProjectInvoices } from './project-invoices';
+import { scheduleRows } from '@/lib/invoice-schedule';
 import { MoneySummary } from './money-summary';
 import { companyBrand } from '@/lib/company';
 import { invoiceEmailHtml, invoiceEmailSubject } from '@/lib/invoice-email';
@@ -54,6 +55,7 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
             include: {
               items: true,
               payments: true,
+              instalments: { orderBy: { position: 'asc' } },
               messages: { where: { status: { not: 'DRAFT' } }, select: { id: true } },
             },
           },
@@ -406,6 +408,15 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
                     balanceCents: balanceCents(invoice.items, invoice.payments, invoice.taxRateBp),
                     hasPayments: invoice.payments.length > 0,
                     emailed: invoice.messages.length > 0,
+                    schedule: scheduleRows(invoice.instalments, paidCents(invoice.payments)).map(
+                      (step) => ({
+                        label: step.label,
+                        amountCents: step.amountCents,
+                        paidCents: step.paidCents,
+                        dueAt: step.dueAt ? step.dueAt.toISOString() : null,
+                        state: step.state,
+                      }),
+                    ),
                   }))}
                 />
               )}

@@ -26,6 +26,15 @@ export type ProjectInvoice = {
   hasPayments: boolean;
   /** An email carrying it has gone out, so 'sent' can no longer be undone. */
   emailed: boolean;
+  /** The steps it is paid in, already read against the money in. Empty is the
+      ordinary invoice, paid once. */
+  schedule: {
+    label: string;
+    amountCents: number;
+    paidCents: number;
+    dueAt: string | null;
+    state: string;
+  }[];
 };
 
 /**
@@ -254,10 +263,18 @@ function PaymentDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const [amount, setAmount] = useState((invoice.balanceCents / 100).toFixed(2));
+  // With a schedule, what turned up is almost always the step that is next,
+  // so that is what the form opens on. Without one, it is the whole balance:
+  // saying an invoice is paid should be one click.
+  const owed = invoice.schedule.filter((step) => step.paidCents < step.amountCents);
+  const next = owed[0] ?? null;
+  const [step, setStep] = useState<string | null>(next?.label ?? null);
+  const [amount, setAmount] = useState(
+    ((next ? next.amountCents - next.paidCents : invoice.balanceCents) / 100).toFixed(2),
+  );
   const [method, setMethod] = useState('BANK_TRANSFER');
   const [paidAt, setPaidAt] = useState('');
-  const [reference, setReference] = useState('');
+  const [reference, setReference] = useState(next?.label ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Written first, then read back. A payment cannot be taken off an invoice
@@ -268,6 +285,15 @@ function PaymentDialog({
 
   const cents = parseMoneyToCents(amount);
   const settles = cents !== null && cents >= invoice.balanceCents;
+
+  function pick(label: string | null) {
+    setStep(label);
+    const chosen = owed.find((entry) => entry.label === label);
+    setAmount(
+      ((chosen ? chosen.amountCents - chosen.paidCents : invoice.balanceCents) / 100).toFixed(2),
+    );
+    setReference(chosen ? chosen.label : '');
+  }
 
   function check() {
     if (cents === null || cents <= 0) {
@@ -335,7 +361,8 @@ function PaymentDialog({
               value={METHODS.find((entry) => entry.value === method)?.label ?? method}
             />
             <Line label="Date received" value={paidAt || 'Today'} />
-            {reference.trim() && <Line label="Reference" value={reference.trim()} />}
+            {step && <Line label="Covers" value={step} />}
+            {reference.trim() && !step && <Line label="Reference" value={reference.trim()} />}
             <Line
               label="Leaves outstanding"
               value={formatMoney(Math.max(0, invoice.balanceCents - (cents ?? 0)), currency)}
@@ -346,7 +373,7 @@ function PaymentDialog({
             {settles
               ? `${invoice.number} will be marked paid in full.`
               : `${invoice.number} will be marked part paid.`}{' '}
-            A payment cannot be taken off an invoice afterwards.
+            Recorded by mistake, it can be taken off again from the invoice.
           </p>
 
           <div className="mt-5">
@@ -357,7 +384,7 @@ function PaymentDialog({
               id="pay-confirm"
               autoFocus
               autoComplete="off"
-              className="input"
+              className="input-soft"
               value={typed}
               onChange={(event) => setTyped(event.target.value)}
               onKeyDown={(event) => {
@@ -377,6 +404,55 @@ function PaymentDialog({
             </span>
           </p>
 
+          {owed.length > 1 && (
+            <fieldset className="mt-5">
+              <legend className="label">Which step is this?</legend>
+              {/* Only worth asking when there is a choice: one step left, or
+                  none at all, and the amount is already the answer. The money
+                  still lands on the invoice as a whole — the steps fill from
+                  the top — so this only fills the amount in. */}
+              <div className="space-y-1.5">
+                {owed.map((entry) => {
+                  const left = entry.amountCents - entry.paidCents;
+                  const chosen = step === entry.label;
+                  return (
+                    <button
+                      key={entry.label}
+                      type="button"
+                      onClick={() => pick(entry.label)}
+                      aria-pressed={chosen}
+                      className={`border-line flex w-full items-center justify-between gap-4 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                        chosen ? 'border-accent bg-accent-soft/40' : 'hover:border-accent'
+                      }`}
+                    >
+                      <span>
+                        <span className="font-medium">{entry.label}</span>
+                        <span className="text-muted block text-xs">
+                          {entry.dueAt ? `Due ${formatDate(entry.dueAt)}` : 'No date'}
+                          {entry.paidCents > 0
+                            ? ` · ${formatMoney(entry.paidCents, currency)} of ${formatMoney(entry.amountCents, currency)} in`
+                            : ''}
+                          {entry.state === 'OVERDUE' ? ' · overdue' : ''}
+                        </span>
+                      </span>
+                      <span className="tabular-nums">{formatMoney(left, currency)}</span>
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => pick(null)}
+                  aria-pressed={step === null}
+                  className={`border-line block w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                    step === null ? 'border-accent bg-accent-soft/40' : 'hover:border-accent'
+                  }`}
+                >
+                  Some other amount
+                </button>
+              </div>
+            </fieldset>
+          )}
+
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <div>
               <label className="label" htmlFor="pay-amount">
@@ -384,7 +460,7 @@ function PaymentDialog({
               </label>
               <input
                 id="pay-amount"
-                className="input"
+                className="input-soft"
                 inputMode="decimal"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
@@ -405,7 +481,7 @@ function PaymentDialog({
               <input
                 id="pay-date"
                 type="date"
-                className="input"
+                className="input-soft"
                 value={paidAt}
                 onChange={(event) => setPaidAt(event.target.value)}
               />
@@ -418,7 +494,7 @@ function PaymentDialog({
               </label>
               <input
                 id="pay-reference"
-                className="input"
+                className="input-soft"
                 value={reference}
                 onChange={(event) => setReference(event.target.value)}
               />
