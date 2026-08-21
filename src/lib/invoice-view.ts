@@ -4,6 +4,7 @@ import { storagePath } from '@/lib/uploads';
 import { companyBrand } from '@/lib/company';
 import { balanceCents, paidCents, subtotalCents, taxCents } from '@/lib/money';
 import { shows } from '@/lib/invoice-parts';
+import { scheduleRows, type InstalmentRow } from '@/lib/invoice-schedule';
 
 /**
  * One invoice, gathered into the shape anything outside the app needs it in.
@@ -38,10 +39,14 @@ export type InvoiceView = {
   currency: string;
   notes: string | null;
   themeColor: string | null;
+  /** The sheet design it was written in, so the file matches the screen. */
+  design: string;
   /** Bank details from the company settings: label and value, in order. */
   pay: [string, string][];
   payNotes: string | null;
   taxNumber: string | null;
+  /** The steps it is paid in, read against the money already in. */
+  schedule: InstalmentRow[];
 };
 
 export async function invoiceView(
@@ -52,7 +57,12 @@ export async function invoiceView(
 ): Promise<InvoiceView | null> {
   const invoice = await prisma.invoice.findFirst({
     where: { id: invoiceId, workspaceId },
-    include: { items: { orderBy: { position: 'asc' } }, payments: true, client: true },
+    include: {
+      items: { orderBy: { position: 'asc' } },
+      instalments: { orderBy: { position: 'asc' } },
+      payments: true,
+      client: true,
+    },
   });
   if (!invoice) return null;
 
@@ -95,9 +105,11 @@ export async function invoiceView(
     currency,
     notes: shows(off, 'notes') ? invoice.notes : null,
     themeColor: invoice.themeColor,
+    design: invoice.design,
     pay: shows(off, 'pay') ? brand.pay : [],
     payNotes: shows(off, 'pay') ? brand.payNotes : null,
     taxNumber: shows(off, 'taxNumber') ? brand.taxNumber : null,
+    schedule: scheduleRows(invoice.instalments, paidCents(invoice.payments)),
   };
 }
 

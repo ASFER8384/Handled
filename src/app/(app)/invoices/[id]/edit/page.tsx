@@ -19,7 +19,10 @@ export default async function EditInvoicePage({ params }: PageProps<'/invoices/[
   const [invoice, clients] = await Promise.all([
     prisma.invoice.findFirst({
       where: { id, workspaceId: ctx.workspaceId },
-      include: { items: { orderBy: { position: 'asc' } } },
+      include: {
+        items: { orderBy: { position: 'asc' } },
+        instalments: { orderBy: { position: 'asc' } },
+      },
     }),
     prisma.client.findMany({
       where: { workspaceId: ctx.workspaceId },
@@ -69,12 +72,18 @@ export default async function EditInvoicePage({ params }: PageProps<'/invoices/[
             dueAt: invoice.dueAt ? invoice.dueAt.toLocaleDateString('en-CA') : '',
             notes: invoice.notes ?? '',
             hidden: invoice.hidden,
+            design: invoice.design,
             themeColor: invoice.themeColor,
             themeFont: invoice.themeFont,
             items: invoice.items.map((item) => ({
               description: item.description,
               quantity: item.quantity,
               unitPrice: (item.unitPriceCents / 100).toFixed(2),
+            })),
+            schedule: invoice.instalments.map((step) => ({
+              label: step.label,
+              dueAt: step.dueAt ? step.dueAt.toLocaleDateString('en-CA') : '',
+              amount: (step.amountCents / 100).toFixed(2),
             })),
           }}
         />

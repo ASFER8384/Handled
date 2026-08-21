@@ -43,6 +43,9 @@ export const PUT = handler(async (ctx, request: Request, { params }: Params) => 
 
   await prisma.$transaction(async (tx) => {
     await tx.invoiceItem.deleteMany({ where: { invoiceId: id } });
+    // The schedule is rewritten with the lines: it is part of the same
+    // document, and half of an old one left behind would not add up.
+    await tx.invoiceInstalment.deleteMany({ where: { invoiceId: id } });
     await tx.invoice.update({
       where: { id },
       data: {
@@ -50,6 +53,7 @@ export const PUT = handler(async (ctx, request: Request, { params }: Params) => 
         projectId: data.projectId ?? null,
         dueAt: data.dueAt ?? null,
         notes: data.notes ?? null,
+        design: data.design ?? 'classic',
         themeColor: data.themeColor ?? 'ink',
         themeFont: data.themeFont ?? 'sans',
         taxRateBp: data.taxRateBp ?? 0,
@@ -60,6 +64,14 @@ export const PUT = handler(async (ctx, request: Request, { params }: Params) => 
             description: item.description,
             quantity: item.quantity,
             unitPriceCents: item.unitPriceCents,
+            position,
+          })),
+        },
+        instalments: {
+          create: data.schedule.map((step, position) => ({
+            label: step.label,
+            amountCents: step.amountCents,
+            dueAt: step.dueAt ?? null,
             position,
           })),
         },

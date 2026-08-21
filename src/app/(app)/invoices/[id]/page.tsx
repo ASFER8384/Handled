@@ -9,6 +9,7 @@ import { SaveAsTemplate } from './save-as-template';
 import { InvoiceSheet } from '@/components/invoice-sheet';
 import { companyBrand } from '@/lib/company';
 import { shows } from '@/lib/invoice-parts';
+import { scheduleRows } from '@/lib/invoice-schedule';
 import { PrintButton } from './print-button';
 import { PaymentForm } from './payment-form';
 
@@ -23,6 +24,7 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
       project: { select: { id: true, name: true } },
       items: { orderBy: { position: 'asc' } },
       payments: { orderBy: { paidAt: 'desc' } },
+      instalments: { orderBy: { position: 'asc' } },
     },
   });
   if (!invoice) notFound();
@@ -101,6 +103,8 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
             balance={balance}
             currency={ctx.currency}
             notes={shows(invoice.hidden, 'notes') ? invoice.notes : null}
+            schedule={scheduleRows(invoice.instalments, paid)}
+            design={invoice.design}
             themeColor={invoice.themeColor}
             themeFont={invoice.themeFont}
           />

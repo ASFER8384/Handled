@@ -8,6 +8,7 @@ import { Select } from '@/components/select';
 import { EmptyState } from '@/components/ui';
 import { InvoiceSheet } from '@/components/invoice-sheet';
 import { api } from '@/lib/client-fetch';
+import { scheduleRows, splitByShares } from '@/lib/invoice-schedule';
 
 export type GalleryTemplate = {
   id: string;
@@ -20,6 +21,10 @@ export type GalleryTemplate = {
   /** The trades it was written for. */
   industries: string[];
   items: { description: string; quantity: number; sampleCents?: number }[];
+  /** How the total is broken up, for the templates that are paid in steps. */
+  schedule?: { label: string; share: number; days: number }[];
+  /** The sheet design it draws itself in. */
+  design?: string;
   /** Saved by this workspace, so it can be thrown away again. */
   mine: boolean;
 };
@@ -291,6 +296,22 @@ function Sheet({
   const due = new Date();
   due.setDate(due.getDate() + template.dueInDays);
 
+  // Drawn at the sample prices, like everything else in a preview: the shares
+  // are the template's, the amounts are only an illustration of them.
+  const shares = template.schedule ?? [];
+  const amounts = splitByShares(
+    subtotal + tax,
+    shares.map((step) => step.share),
+  );
+  const schedule = scheduleRows(
+    shares.map((step, index) => {
+      const stepDue = new Date();
+      stepDue.setDate(stepDue.getDate() + step.days);
+      return { label: step.label, amountCents: amounts[index], dueAt: stepDue };
+    }),
+    0,
+  );
+
   return (
     <div
       className={
@@ -317,6 +338,8 @@ function Sheet({
         balance={subtotal + tax}
         currency={brand.currency}
         notes={template.notes}
+        schedule={schedule}
+        design={template.design}
         themeColor={brand.themeColor}
         themeFont={brand.themeFont}
       />

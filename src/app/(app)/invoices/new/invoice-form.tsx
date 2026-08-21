@@ -9,6 +9,8 @@ import { formatDate } from '@/components/ui';
 import { Dialog } from '@/components/dialog';
 import { api } from '@/lib/client-fetch';
 import { InvoiceSheet } from '@/components/invoice-sheet';
+import { scheduleRows, splitByShares, splitCents } from '@/lib/invoice-schedule';
+import { BOLD_INK, INVOICE_DESIGNS, invoiceDesign, type InvoiceDesign } from '@/lib/invoice-design';
 import { INVOICE_PARTS, shows, type InvoicePart } from '@/lib/invoice-parts';
 import {
   DEFAULT_COLOUR,
@@ -33,9 +35,14 @@ type Values = {
   dueAt: string;
   notes: string;
   items: { description: string; quantity: number; unitPrice: string }[];
+  /** Empty for the ordinary invoice: one due date, paid once. */
+  schedule: { label: string; dueAt: string; amount: string; share?: number }[];
 };
 
 const BLANK_ITEM = { description: '', quantity: 1, unitPrice: '' };
+
+/** How many steps a schedule starts with when you ask for one. */
+const FIRST_STEPS = 3;
 
 /** A template as the editor needs it, to write this draft again from. */
 export type FormTemplate = {
@@ -58,6 +65,10 @@ export type InvoiceStart = {
   themeFont?: string | null;
   /** Parts of the letterhead this invoice was written without. */
   hidden?: string[];
+  /** The steps it is paid in, if it is paid in steps. */
+  schedule?: { label: string; dueAt: string; amount: string; share?: number }[];
+  /** Which sheet design it is written on. */
+  design?: string | null;
 };
 
 /**
@@ -111,6 +122,11 @@ export function InvoiceForm({
     (start?.themeColor as ColourKey) ?? DEFAULT_COLOUR,
   );
   const [font, setFont] = useState<FontKey>((start?.themeFont as FontKey) ?? DEFAULT_FONT);
+  // The design comes from the template and stays with the invoice: it is the
+  // shape of the document, not a preference to be re-applied later.
+  const [design, setDesign] = useState<InvoiceDesign>(invoiceDesign(start?.design));
+  const bold = design === 'bold';
+  const modern = design === 'modern';
   const [preview, setPreview] = useState(false);
   // What this one invoice shows of your letterhead. Settings say what your
   // business is; this says what belongs on this document.
@@ -139,10 +155,12 @@ export function InvoiceForm({
       items: start?.items?.length
         ? start.items.map((item) => ({ ...BLANK_ITEM, ...item }))
         : [{ ...BLANK_ITEM }],
+      schedule: start?.schedule ?? [],
     },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+  const steps = useFieldArray({ control, name: 'schedule' });
 
   const watched = useWatch({ control, name: 'items' }) ?? [];
   const selectedClientId = useWatch({ control, name: 'clientId' });
@@ -156,6 +174,34 @@ export function InvoiceForm({
   const subtotal = watched.reduce((sum, _item, index) => sum + lineTotal(index), 0);
   const taxDue = Math.round((subtotal * tax.rateBp) / 10000);
   const total = subtotal + taxDue;
+
+  const watchedSteps = useWatch({ control, name: 'schedule' }) ?? [];
+  const stepCents = (index: number) => parseMoneyToCents(watchedSteps[index]?.amount ?? '') ?? 0;
+  const scheduled = watchedSteps.reduce((sum, _step, index) => sum + stepCents(index), 0);
+  // The gap between the schedule and the invoice. Shown rather than enforced:
+  // a deposit that is deliberately not the whole job is a normal thing to
+  // write, and the arithmetic is the client's to check either way.
+  const unscheduled = total - scheduled;
+
+  // A template can say how the job is usually split — half up front, the rest
+  // on delivery — and while every step still carries its share, the button
+  // honours it. Once a step is added or the shares are gone, even it is.
+  const shares = watchedSteps.map((step) => step?.share ?? 0);
+  const byShares = shares.length > 0 && shares.every((share) => share > 0);
+
+  /** The invoice divided across the steps, keeping the names and dates typed. */
+  function splitEvenly(parts: number) {
+    const amounts =
+      byShares && parts === shares.length ? splitByShares(total, shares) : splitCents(total, parts);
+    steps.replace(
+      amounts.map((amount, index) => ({
+        label: watchedSteps[index]?.label || `Milestone ${index + 1}`,
+        dueAt: watchedSteps[index]?.dueAt ?? '',
+        share: watchedSteps[index]?.share,
+        amount: (amount / 100).toFixed(2),
+      })),
+    );
+  }
 
   async function onSubmit(values: Values) {
     setFormError(null);
@@ -174,6 +220,16 @@ export function InvoiceForm({
       });
     }
 
+    const schedule = [];
+    for (const step of values.schedule) {
+      const amountCents = parseMoneyToCents(step.amount);
+      if (amountCents === null || amountCents < 0) {
+        setFormError(`Enter a valid amount for "${step.label || 'a payment step'}"`);
+        return;
+      }
+      schedule.push({ label: step.label, amountCents, dueAt: step.dueAt || undefined });
+    }
+
     const { data, error } = await api<{ invoice: { id: string } }>(
       invoiceId ? `/api/invoices/${invoiceId}` : '/api/invoices',
       {
@@ -183,12 +239,14 @@ export function InvoiceForm({
           projectId: values.projectId || undefined,
           dueAt: values.dueAt,
           notes: values.notes,
+          design,
           themeColor: colour,
           hidden,
           themeFont: font,
           taxRateBp: tax.rateBp,
           taxLabel: tax.label,
           items,
+          schedule,
         },
       },
     );
@@ -278,6 +336,15 @@ export function InvoiceForm({
               balance={total}
               currency={currency}
               notes={shows(hidden, 'notes') ? notes || null : null}
+              design={design}
+              schedule={scheduleRows(
+                watchedSteps.map((step, index) => ({
+                  label: step?.label || `Step ${index + 1}`,
+                  amountCents: stepCents(index),
+                  dueAt: step?.dueAt ? new Date(`${step.dueAt}T00:00`) : null,
+                })),
+                0,
+              )}
               themeColor={colour}
               themeFont={font}
             />
@@ -287,26 +354,71 @@ export function InvoiceForm({
               style={{ fontFamily: theme.stack }}
             >
               {/* who it is from */}
-              <header>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                {logo && shows(hidden, 'logo') && (
-                  <img src={logo} alt="" className="mb-3 max-h-16 max-w-[220px] object-contain" />
-                )}
-                <p className="text-lg font-semibold">{from}</p>
-                {shows(hidden, 'contact') && (
-                  <p className="text-muted mt-0.5 text-sm">{fromEmail}</p>
-                )}
-                {fromAddress && shows(hidden, 'address') && (
-                  <p className="text-muted mt-0.5 text-sm whitespace-pre-line">{fromAddress}</p>
-                )}
-              </header>
+              {modern ? (
+                <header
+                  className="-mx-8 -mt-8 mb-8 flex flex-wrap items-start justify-between gap-6 px-8 py-7 sm:-mx-12 sm:-mt-12 sm:px-12"
+                  style={{ backgroundColor: theme.hex, color: '#ffffff' }}
+                >
+                  <div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {logo && shows(hidden, 'logo') && (
+                      <span className="mb-3 inline-block rounded bg-white p-1.5">
+                        <img src={logo} alt="" className="max-h-10 max-w-[160px] object-contain" />
+                      </span>
+                    )}
+                    <p className="text-lg font-semibold">{from}</p>
+                    {shows(hidden, 'contact') && (
+                      <p className="mt-0.5 text-sm text-white/75">{fromEmail}</p>
+                    )}
+                    {fromAddress && shows(hidden, 'address') && (
+                      <p className="mt-0.5 text-sm whitespace-pre-line text-white/75">
+                        {fromAddress}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold tracking-tight">INVOICE</p>
+                    <p className="mt-1 text-sm text-white/75 tabular-nums">
+                      {number ?? 'Given when saved'}
+                    </p>
+                  </div>
+                </header>
+              ) : (
+                <header>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {logo && shows(hidden, 'logo') && (
+                    <img src={logo} alt="" className="mb-3 max-h-16 max-w-[220px] object-contain" />
+                  )}
+                  <p
+                    className={bold ? 'text-sm font-semibold' : 'text-lg font-semibold'}
+                    style={bold ? { color: theme.hex } : undefined}
+                  >
+                    {from}
+                  </p>
+                  {shows(hidden, 'contact') && (
+                    <p
+                      className={bold ? 'mt-0.5 text-xs' : 'text-muted mt-0.5 text-sm'}
+                      style={bold ? { color: theme.hex } : undefined}
+                    >
+                      {fromEmail}
+                    </p>
+                  )}
+                  {fromAddress && shows(hidden, 'address') && (
+                    <p className="text-muted mt-0.5 text-sm whitespace-pre-line">{fromAddress}</p>
+                  )}
+                </header>
+              )}
 
-              <h2
-                className="mt-8 px-4 py-3 text-2xl font-bold tracking-tight"
-                style={{ backgroundColor: `${theme.hex}14`, color: theme.hex }}
-              >
-                INVOICE
-              </h2>
+              {modern ? null : bold ? (
+                <h2 className="mt-6 text-3xl font-bold tracking-tight">Invoice</h2>
+              ) : (
+                <h2
+                  className="mt-8 px-4 py-3 text-2xl font-bold tracking-tight"
+                  style={{ backgroundColor: `${theme.hex}14`, color: theme.hex }}
+                >
+                  INVOICE
+                </h2>
+              )}
 
               {/* who it is to, and when it falls due */}
               <div className="mt-8 grid gap-8 sm:grid-cols-[minmax(0,1fr)_260px]">
@@ -348,12 +460,27 @@ export function InvoiceForm({
               {/* what is being billed, typed straight into the table */}
               <table className="mt-10 w-full text-sm">
                 <thead>
-                  <tr className="text-muted border-line border-b text-xs tracking-widest uppercase">
+                  <tr
+                    className={
+                      bold
+                        ? 'text-xs tracking-widest text-white uppercase'
+                        : modern
+                          ? 'text-xs tracking-widest uppercase'
+                          : 'text-muted border-line border-b text-xs tracking-widest uppercase'
+                    }
+                    style={
+                      bold
+                        ? { backgroundColor: BOLD_INK }
+                        : modern
+                          ? { backgroundColor: `${theme.hex}14`, color: theme.hex }
+                          : undefined
+                    }
+                  >
                     <th className="py-3 pl-2 text-left font-medium">Service info</th>
                     <th className="w-20 py-3 pr-2 text-right font-medium">Qty</th>
                     <th className="w-36 py-3 pr-2 text-right font-medium">Unit price</th>
                     <th className="w-32 py-3 pr-2 text-right font-medium">Total</th>
-                    <th className="w-8" />
+                    <th className={bold ? 'w-8 rounded-r' : 'w-8'} />
                   </tr>
                 </thead>
                 <tbody className="divide-line divide-y">
@@ -391,7 +518,9 @@ export function InvoiceForm({
                         />
                       </td>
                       <td className="py-2 pr-2 pl-3 text-right tabular-nums">
-                        <span className="block py-1.5">{formatMoney(lineTotal(index), currency)}</span>
+                        <span className="block py-1.5">
+                          {formatMoney(lineTotal(index), currency)}
+                        </span>
                       </td>
                       <td className="py-2 text-right">
                         {fields.length > 1 && (
@@ -440,6 +569,114 @@ export function InvoiceForm({
                   </div>
                 </dl>
               </div>
+
+              {/* how it is paid: nothing at all, or named steps with dates */}
+              {steps.fields.length === 0 ? (
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => splitEvenly(FIRST_STEPS)}
+                    className="text-muted hover:text-foreground text-sm underline underline-offset-4"
+                  >
+                    Pay this in steps
+                  </button>
+                </div>
+              ) : (
+                <section className="border-line mt-10 border-t pt-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-muted text-xs tracking-widest uppercase">Payment schedule</p>
+                    <div className="flex items-center gap-3 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => splitEvenly(steps.fields.length)}
+                        className="text-muted hover:text-foreground underline underline-offset-4"
+                      >
+                        {byShares ? 'Fill in the amounts' : 'Split evenly'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => steps.replace([])}
+                        className="text-muted underline underline-offset-4 hover:text-red-700"
+                      >
+                        Remove schedule
+                      </button>
+                    </div>
+                  </div>
+
+                  <table className="mt-3 w-full text-sm">
+                    <thead>
+                      <tr className="text-muted border-line border-b text-xs tracking-widest uppercase">
+                        <th className="w-40 py-3 pl-2 text-left font-medium">Amount</th>
+                        <th className="py-3 pl-3 text-left font-medium">Step</th>
+                        <th className="w-44 py-3 pl-3 text-left font-medium">Due date</th>
+                        <th className="w-8" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-line divide-y">
+                      {steps.fields.map((step, index) => (
+                        <tr key={step.id} className="align-top">
+                          <td className="py-2 pl-0">
+                            <input
+                              aria-label={`Step ${index + 1} amount`}
+                              inputMode="decimal"
+                              placeholder="0.00"
+                              className="input-plain text-right"
+                              {...register(`schedule.${index}.amount`)}
+                            />
+                          </td>
+                          <td className="py-2 pl-3">
+                            <input
+                              aria-label={`Step ${index + 1} name`}
+                              placeholder="What this payment is"
+                              className="input-plain"
+                              {...register(`schedule.${index}.label`, {
+                                required: 'Name this step',
+                              })}
+                            />
+                          </td>
+                          <td className="py-2 pl-3">
+                            <input
+                              aria-label={`Step ${index + 1} due date`}
+                              type="date"
+                              className="input-plain"
+                              {...register(`schedule.${index}.dueAt`)}
+                            />
+                          </td>
+                          <td className="py-2 text-right">
+                            <button
+                              type="button"
+                              aria-label={`Remove step ${index + 1}`}
+                              className="text-muted block w-full py-1.5 text-sm hover:text-red-700"
+                              onClick={() => steps.remove(index)}
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      onClick={() => steps.append({ label: '', dueAt: '', amount: '' })}
+                    >
+                      Add step
+                    </button>
+                    {/* Said, not enforced: a deposit that is not the whole job
+                        is a normal thing to write. */}
+                    <p className={`text-sm ${unscheduled === 0 ? 'text-muted' : 'text-red-700'}`}>
+                      {unscheduled === 0
+                        ? 'The steps add up to the invoice.'
+                        : unscheduled > 0
+                          ? `${formatMoney(unscheduled, currency)} of the invoice is not in the schedule`
+                          : `The steps come to ${formatMoney(-unscheduled, currency)} more than the invoice`}
+                    </p>
+                  </div>
+                </section>
+              )}
 
               <footer
                 className={`border-line mt-10 border-t pt-5 ${shows(hidden, 'notes') ? '' : 'hidden'}`}
@@ -532,6 +769,26 @@ export function InvoiceForm({
         {/* --- how it will look ---------------------------------------- */}
         <aside className="card p-5 xl:sticky xl:top-32">
           <h2 className="text-[15px] font-semibold">Customise</h2>
+
+          <p className="text-muted mt-6 text-xs tracking-widest uppercase">Design</p>
+          <div className="mt-2.5 space-y-1.5">
+            {(Object.keys(INVOICE_DESIGNS) as InvoiceDesign[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setDesign(key)}
+                aria-pressed={design === key}
+                className={`border-line block w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                  design === key ? 'border-accent bg-accent-soft/40' : 'hover:border-accent'
+                }`}
+              >
+                <span className="font-medium">{INVOICE_DESIGNS[key].label}</span>
+                <span className="text-muted mt-0.5 block text-xs">
+                  {INVOICE_DESIGNS[key].blurb}
+                </span>
+              </button>
+            ))}
+          </div>
 
           <p className="text-muted mt-6 text-xs tracking-widest uppercase">Colour</p>
           <div className="mt-2.5 flex flex-wrap gap-2.5">

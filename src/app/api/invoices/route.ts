@@ -37,6 +37,7 @@ export const POST = handler(async (ctx, request: Request) => {
         clientId: client.id,
         projectId: data.projectId ?? null,
         number: await nextInvoiceNumber(tx, ctx.workspaceId),
+        design: data.design ?? 'classic',
         themeColor: data.themeColor ?? 'ink',
         themeFont: data.themeFont ?? 'sans',
         taxRateBp: data.taxRateBp ?? 0,
@@ -52,8 +53,16 @@ export const POST = handler(async (ctx, request: Request) => {
             position,
           })),
         },
+        instalments: {
+          create: data.schedule.map((step, position) => ({
+            label: step.label,
+            amountCents: step.amountCents,
+            dueAt: step.dueAt ?? null,
+            position,
+          })),
+        },
       },
-      include: { items: true },
+      include: { items: true, instalments: true },
     });
   });
 

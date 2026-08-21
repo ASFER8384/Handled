@@ -27,6 +27,7 @@ export default async function LibraryPage() {
       kind: 'Invoice',
       industries: ['Any business'],
       items: template.items as { description: string; quantity: number }[],
+      design: 'classic',
       mine: true,
     })),
   ];

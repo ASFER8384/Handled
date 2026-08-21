@@ -26,6 +26,9 @@ export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) 
           dueInDays: saved.dueInDays,
           notes: saved.notes,
           items: saved.items as { description: string; quantity: number }[],
+          // A saved template is one of your own invoices, which had no shares
+          // written on it — only the ones that ship here are paid in steps.
+          schedule: undefined,
         }
       : null);
 
@@ -79,6 +82,16 @@ export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) 
             dueAt: template ? dueDateFromNow(template.dueInDays) : '',
             notes: template?.notes ?? '',
             items: template?.items ?? null,
+            design: template && 'design' in template ? template.design : null,
+            // The steps and their dates come from the template; the amounts
+            // wait for prices, and 'Split evenly' fills them in once there are
+            // some. Better an empty column than three invented figures.
+            schedule: (template?.schedule ?? []).map((step) => ({
+              label: step.label,
+              dueAt: dueDateFromNow(step.days),
+              share: step.share,
+              amount: '',
+            })),
             themeColor: brand.themeColor,
             themeFont: brand.themeFont,
           }}

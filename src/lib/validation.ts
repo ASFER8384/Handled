@@ -221,11 +221,23 @@ export const invoiceItemSchema = z.object({
   unitPriceCents: z.coerce.number().int().min(0).max(1_000_000_000),
 });
 
+/**
+ * One step of a payment schedule. The amount is stored, not a percentage, so
+ * that what the client agreed to cannot be restated by a later edit.
+ */
+export const instalmentSchema = z.object({
+  label: z.string().trim().min(1, 'Name this step').max(60),
+  amountCents: z.coerce.number().int().min(0).max(1_000_000_000),
+  dueAt: optionalDate,
+});
+
 export const invoiceSchema = z.object({
   clientId: z.string().min(1, 'Pick a client'),
   projectId: optionalText(40),
   dueAt: optionalDate,
   notes: optionalText(2000),
+  /// Which sheet design it is drawn in, kept with the invoice.
+  design: z.string().max(20).optional(),
   themeColor: z.string().max(20).optional(),
   themeFont: z.string().max(20).optional(),
   /// Snapshotted from the workspace when written, so a later rate change does
@@ -235,6 +247,8 @@ export const invoiceSchema = z.object({
   /// Parts of the letterhead this invoice leaves off.
   hidden: z.array(z.enum(INVOICE_PART_KEYS as [string, ...string[]])).default([]),
   items: z.array(invoiceItemSchema).min(1, 'Add at least one line item'),
+  /// Empty is the normal invoice: one due date, one payment.
+  schedule: z.array(instalmentSchema).max(24, 'That is too many steps').default([]),
 });
 
 /** An edit replaces the lines wholesale, so it is the same shape as a create. */
