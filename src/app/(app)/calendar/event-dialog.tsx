@@ -22,6 +22,11 @@ export type EventDraft = {
   clientId: string;
 };
 
+/** A link rather than a place: most meetings are a call these days. */
+export function isLink(value: string): boolean {
+  return /^https?:\/\//i.test(value.trim());
+}
+
 export function blankEvent(day: string): EventDraft {
   return {
     title: '',
@@ -61,6 +66,9 @@ export function EventDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [doomed, setDoomed] = useState(false);
+  // Online unless it is plainly an address: a meeting is a link far more often
+  // than it is a room, so that is what the field opens as.
+  const [online, setOnline] = useState(draft.location === '' || isLink(draft.location));
 
   const set = <K extends keyof EventDraft>(key: K, value: EventDraft[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -247,16 +255,63 @@ export function EventDialog({
         </div>
 
         <div className="mt-4">
-          <label className="label" htmlFor="event-location">
-            Where
-          </label>
+          <div className="flex items-center justify-between gap-4">
+            <label className="label mb-0" htmlFor="event-location">
+              {online ? 'Link' : 'Where'}
+            </label>
+            <div className="flex items-center gap-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setOnline(true)}
+                aria-pressed={online}
+                className={`rounded-full px-2.5 py-1 transition-colors ${
+                  online ? 'bg-accent-soft text-foreground font-medium' : 'text-muted'
+                }`}
+              >
+                Online
+              </button>
+              <button
+                type="button"
+                onClick={() => setOnline(false)}
+                aria-pressed={!online}
+                className={`rounded-full px-2.5 py-1 transition-colors ${
+                  online ? 'text-muted' : 'bg-accent-soft text-foreground font-medium'
+                }`}
+              >
+                In person
+              </button>
+            </div>
+          </div>
           <input
             id="event-location"
-            className="input-soft"
-            placeholder="Their office, a call, the venue"
+            type={online ? 'url' : 'text'}
+            className="input-soft mt-1.5"
+            placeholder={online ? 'Meet, Zoom or Teams link' : 'Their office, the venue'}
             value={form.location}
             onChange={(event) => set('location', event.target.value)}
           />
+          {isLink(form.location) && (
+            <a
+              href={form.location}
+              target="_blank"
+              rel="noreferrer"
+              className="text-accent mt-2 inline-flex items-center gap-1.5 text-sm hover:underline"
+            >
+              <svg
+                aria-hidden
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M15 3h6v6M21 3l-9 9M10 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" />
+              </svg>
+              Join the call
+            </a>
+          )}
         </div>
 
         <div className="mt-4">
