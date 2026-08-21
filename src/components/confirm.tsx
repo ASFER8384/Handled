@@ -18,6 +18,7 @@ export function ConfirmDialog({
   title,
   body,
   confirmLabel = 'Delete',
+  busyLabel = 'Deleting…',
   word,
   busy,
   onConfirm,
@@ -26,6 +27,8 @@ export function ConfirmDialog({
   title: string;
   body: string;
   confirmLabel?: string;
+  /** What the button says while it is working. Not everything is a delete. */
+  busyLabel?: string;
   /** Typed before the button will work. Left out, the button is live. */
   word?: string;
   busy?: boolean;
@@ -52,7 +55,7 @@ export function ConfirmDialog({
             onClick={onConfirm}
             className="rounded-lg bg-red-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-800 disabled:opacity-40"
           >
-            {busy ? 'Deleting…' : confirmLabel}
+            {busy ? busyLabel : confirmLabel}
           </button>
         </div>
       }

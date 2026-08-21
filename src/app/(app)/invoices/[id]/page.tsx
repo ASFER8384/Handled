@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
-import { balanceCents, formatMoney, paidCents, subtotalCents, taxCents } from '@/lib/money';
+import { balanceCents, paidCents, subtotalCents, taxCents } from '@/lib/money';
 import { PageHeader, StatusBadge, formatDate } from '@/components/ui';
 import { InvoiceActions } from './invoice-actions';
 import { SaveAsTemplate } from './save-as-template';
@@ -12,6 +12,7 @@ import { shows } from '@/lib/invoice-parts';
 import { scheduleRows } from '@/lib/invoice-schedule';
 import { PrintButton } from './print-button';
 import { PaymentForm } from './payment-form';
+import { PaymentList } from './payment-list';
 
 export default async function InvoiceDetailPage({ params }: PageProps<'/invoices/[id]'>) {
   const ctx = await requireWorkspace();
@@ -111,24 +112,18 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
 
           <div className="card p-5" data-print-hide>
             <h2 className="font-medium">Payments</h2>
-            {invoice.payments.length === 0 ? (
-              <p className="text-muted mt-2 text-sm">Nothing recorded yet.</p>
-            ) : (
-              <ul className="divide-line mt-3 divide-y text-sm">
-                {invoice.payments.map((payment) => (
-                  <li key={payment.id} className="flex items-center justify-between py-2">
-                    <span className="text-muted">
-                      {formatDate(payment.paidAt)} ·{' '}
-                      {payment.method.replace('_', ' ').toLowerCase()}
-                      {payment.reference ? ` · ${payment.reference}` : ''}
-                    </span>
-                    <span className="tabular-nums">
-                      {formatMoney(payment.amountCents, ctx.currency)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <PaymentList
+              invoiceId={invoice.id}
+              currency={ctx.currency}
+              locked={invoice.status === 'VOID'}
+              payments={invoice.payments.map((payment) => ({
+                id: payment.id,
+                amountCents: payment.amountCents,
+                method: payment.method,
+                reference: payment.reference,
+                paidAt: payment.paidAt.toISOString(),
+              }))}
+            />
           </div>
         </div>
 
