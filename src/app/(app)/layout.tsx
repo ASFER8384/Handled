@@ -12,7 +12,7 @@ const RAIL = [
   // Invoices and the templates they are written from are the same job, so they
   // sit under one heading rather than as two unrelated rows.
   {
-    label: 'Billing',
+    label: 'Finance',
     icon: 'invoices',
     children: [
       { href: '/invoices', label: 'Invoices' },
