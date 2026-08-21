@@ -16,7 +16,16 @@ const ICONS: Record<string, string> = {
   library: 'M5 4h5v16H5zM12 4h4l3 16h-4z',
 };
 
-export type RailItem = { href: string; label: string; icon: string };
+/**
+ * A row in the rail: either somewhere to go, or a heading with somewhere to
+ * go underneath it. A heading has no href of its own — it opens.
+ */
+export type RailItem = {
+  label: string;
+  icon: string;
+  href?: string;
+  children?: readonly { href: string; label: string }[];
+};
 
 /**
  * Collapsed to an icon rail, opening into a labelled drawer on hover.
@@ -58,37 +67,19 @@ export function Rail({
         </div>
 
         <nav className="mt-2 flex flex-col gap-0.5">
-          {items.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-            return (
-              <Link
+          {items.map((item) =>
+            item.children ? (
+              <Group key={item.label} item={item} pathname={pathname} />
+            ) : (
+              <Row
                 key={item.href}
-                href={item.href}
-                aria-current={active ? 'page' : undefined}
-                className={`mx-2 flex h-[42px] items-center gap-3.5 rounded-lg pl-[14px] transition-colors ${
-                  active
-                    ? 'bg-white/15 font-semibold text-white'
-                    : 'font-medium text-white/55 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                <svg
-                  aria-hidden
-                  viewBox="0 0 24 24"
-                  className="h-[18px] w-[18px] shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d={ICONS[item.icon]} />
-                </svg>
-                <span className="text-[15px] whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-data-open:opacity-100">
-                  {item.label}
-                </span>
-              </Link>
-            );
-          })}
+                href={item.href!}
+                label={item.label}
+                icon={item.icon}
+                active={within(pathname, item.href!)}
+              />
+            ),
+          )}
         </nav>
       </div>
 
@@ -202,5 +193,141 @@ export function Rail({
         )}
       </div>
     </aside>
+  );
+}
+
+/** A row is lit for its own page and for anything filed under it. */
+function within(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function Icon({ name }: { name: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      className="h-[18px] w-[18px] shrink-0"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d={ICONS[name]} />
+    </svg>
+  );
+}
+
+/** The label only exists when the rail is open, so it fades with the width. */
+const LABEL =
+  'text-[15px] whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-data-open:opacity-100';
+
+function Row({
+  href,
+  label,
+  icon,
+  active,
+}: {
+  href: string;
+  label: string;
+  icon: string;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? 'page' : undefined}
+      className={`mx-2 flex h-[42px] items-center gap-3.5 rounded-lg pl-[14px] transition-colors ${
+        active
+          ? 'bg-white/15 font-semibold text-white'
+          : 'font-medium text-white/55 hover:bg-white/10 hover:text-white'
+      }`}
+    >
+      <Icon name={icon} />
+      <span className={LABEL}>{label}</span>
+    </Link>
+  );
+}
+
+/**
+ * A heading and the pages under it.
+ *
+ * It opens itself when you are already somewhere inside it — arriving on a
+ * page and finding the rail claiming you are nowhere is disorienting — and
+ * after that you own it: the click is remembered until the route changes to
+ * somewhere else in the group.
+ *
+ * The children are laid out in a grid whose single row goes from 0fr to 1fr,
+ * which animates to the height of the content without anyone having to know
+ * what that height is. They collapse with the rail as well as with the
+ * heading, so a shut rail is a column of icons and nothing else.
+ */
+function Group({ item, pathname }: { item: RailItem; pathname: string }) {
+  const inside = (item.children ?? []).some((child) => within(pathname, child.href));
+  const [open, setOpen] = useState(inside);
+  const [was, setWas] = useState(inside);
+  if (was !== inside) {
+    setWas(inside);
+    setOpen(inside);
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className={`mx-2 flex h-[42px] w-[calc(100%-1rem)] items-center gap-3.5 rounded-lg pr-3 pl-[14px] transition-colors ${
+          inside
+            ? 'font-semibold text-white hover:bg-white/10'
+            : 'font-medium text-white/55 hover:bg-white/10 hover:text-white'
+        }`}
+      >
+        <Icon name={item.icon} />
+        <span className={`${LABEL} flex-1 text-left`}>{item.label}</span>
+        <svg
+          aria-hidden
+          viewBox="0 0 24 24"
+          className={`h-4 w-4 shrink-0 transition-[opacity,transform] duration-200 group-hover:opacity-100 group-data-open:opacity-100 ${
+            open ? 'rotate-180' : ''
+          } opacity-0`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+
+      <div
+        className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+          open
+            ? 'grid-rows-[0fr] group-hover:grid-rows-[1fr] group-data-open:grid-rows-[1fr]'
+            : 'grid-rows-[0fr]'
+        }`}
+      >
+        <div className="overflow-hidden">
+          {(item.children ?? []).map((child) => {
+            const active = within(pathname, child.href);
+            return (
+              <Link
+                key={child.href}
+                href={child.href}
+                aria-current={active ? 'page' : undefined}
+                className={`mx-2 mt-0.5 flex h-[38px] items-center rounded-lg pl-[46px] text-[15px] whitespace-nowrap transition-colors ${
+                  active
+                    ? 'bg-white/15 font-semibold text-white'
+                    : 'font-medium text-white/55 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {child.label}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }

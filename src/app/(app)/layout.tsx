@@ -9,8 +9,16 @@ const RAIL = [
   { href: '/projects', label: 'Projects', icon: 'projects' },
   { href: '/clients', label: 'Contacts', icon: 'clients' },
   { href: '/calendar', label: 'Calendar', icon: 'calendar' },
-  { href: '/invoices', label: 'Invoices', icon: 'invoices' },
-  { href: '/library', label: 'Library', icon: 'library' },
+  // Invoices and the templates they are written from are the same job, so they
+  // sit under one heading rather than as two unrelated rows.
+  {
+    label: 'Billing',
+    icon: 'invoices',
+    children: [
+      { href: '/invoices', label: 'Invoices' },
+      { href: '/library', label: 'Library' },
+    ],
+  },
   { href: '/tasks', label: 'Tasks', icon: 'tasks' },
   { href: '/automations', label: 'Automations', icon: 'automations' },
 ] as const;
