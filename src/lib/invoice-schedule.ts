@@ -12,7 +12,7 @@ export type Instalment = {
   dueAt: Date | null;
 };
 
-export type InstalmentState = 'PAID' | 'PART PAID' | 'DUE' | 'UPCOMING';
+export type InstalmentState = 'PAID' | 'PART PAID' | 'OVERDUE' | 'UPCOMING';
 
 export type InstalmentRow = Instalment & {
   state: InstalmentState;
@@ -45,7 +45,7 @@ export function scheduleRows(
         : covered > 0
           ? 'PART PAID'
           : overdue
-            ? 'DUE'
+            ? 'OVERDUE'
             : 'UPCOMING';
 
     return { ...instalment, state, paidCents: covered };

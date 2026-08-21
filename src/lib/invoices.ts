@@ -22,6 +22,39 @@ export async function nextInvoiceNumber(tx: Tx, workspaceId: string): Promise<st
 }
 
 /**
+ * Past its date, with money still owed.
+ *
+ * Overdue is not a status an invoice is put into — nothing happens on the day
+ * it turns, and a stored one would need something to run at midnight to keep
+ * it true. It is read off the invoice each time it is shown: sent, still owed,
+ * and the date has gone by.
+ *
+ * The comparison is by day, not by moment: an invoice due today is not late
+ * at nine in the morning.
+ */
+export function isOverdue(
+  invoice: { status: InvoiceStatus; dueAt: Date | null },
+  balance: number,
+  today = new Date(),
+): boolean {
+  if (invoice.status !== 'SENT' && invoice.status !== 'PARTIALLY_PAID') return false;
+  if (balance <= 0 || !invoice.dueAt) return false;
+  return startOfDay(invoice.dueAt) < startOfDay(today);
+}
+
+/** Whole days between the due date and today, for saying how late it is. */
+export function daysLate(dueAt: Date, today = new Date()): number {
+  const day = 24 * 60 * 60 * 1000;
+  return Math.round((startOfDay(today).getTime() - startOfDay(dueAt).getTime()) / day);
+}
+
+function startOfDay(value: Date): Date {
+  const copy = new Date(value);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+/**
  * Payment state is derived, never hand-set: the stored status only records
  * whether the invoice was sent or voided.
  */

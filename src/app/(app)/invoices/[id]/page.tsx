@@ -10,6 +10,7 @@ import { InvoiceSheet } from '@/components/invoice-sheet';
 import { companyBrand } from '@/lib/company';
 import { shows } from '@/lib/invoice-parts';
 import { scheduleRows } from '@/lib/invoice-schedule';
+import { daysLate, isOverdue } from '@/lib/invoices';
 import { PrintButton } from './print-button';
 import { PaymentForm } from './payment-form';
 import { PaymentList } from './payment-list';
@@ -36,6 +37,7 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
   const tax = taxCents(invoice.items, invoice.taxRateBp);
   const paid = paidCents(invoice.payments);
   const balance = balanceCents(invoice.items, invoice.payments, invoice.taxRateBp);
+  const late = isOverdue(invoice, balance);
 
   return (
     <>
@@ -73,9 +75,15 @@ export default async function InvoiceDetailPage({ params }: PageProps<'/invoices
             className="border-line flex flex-wrap items-center gap-x-8 gap-y-2 text-sm"
             data-print-hide
           >
-            <StatusBadge status={invoice.status} />
+            <StatusBadge status={invoice.status} overdue={late} />
             <span className="text-muted">Issued {formatDate(invoice.issuedAt)}</span>
-            <span className="text-muted">Due {formatDate(invoice.dueAt)}</span>
+            {late && invoice.dueAt ? (
+              <span className="font-medium text-red-700">
+                {daysLate(invoice.dueAt)} {daysLate(invoice.dueAt) === 1 ? 'day' : 'days'} late
+              </span>
+            ) : (
+              <span className="text-muted">Due {formatDate(invoice.dueAt)}</span>
+            )}
           </div>
 
           <InvoiceSheet

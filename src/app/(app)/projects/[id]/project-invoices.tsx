@@ -8,6 +8,7 @@ import { Dialog } from '@/components/dialog';
 import { ConfirmDialog } from '@/components/confirm';
 import { Select } from '@/components/select';
 import { StatusBadge, formatDate } from '@/components/ui';
+import { daysLate, isOverdue } from '@/lib/invoices';
 import { formatMoney, parseMoneyToCents } from '@/lib/money';
 import { api } from '@/lib/client-fetch';
 import { placeUnder, type Placement } from '@/lib/place-under';
@@ -129,7 +130,7 @@ export function ProjectInvoices({
                   >
                     {invoice.number}
                   </Link>
-                  <StatusBadge status={invoice.status} />
+                  <StatusBadge status={invoice.status} overdue={overdue(invoice)} />
                 </div>
                 <p className="text-muted mt-0.5 text-sm">{where(invoice, currency)}</p>
               </div>
@@ -442,6 +443,14 @@ function Line({ label, value, strong }: { label: string; value: string; strong?:
 }
 
 /** Where an invoice has got to, said the way you would say it out loud. */
+/** Sent, still owed, and the date has gone by. */
+function overdue(invoice: ProjectInvoice): boolean {
+  return isOverdue(
+    { status: invoice.status, dueAt: invoice.dueAt ? new Date(invoice.dueAt) : null },
+    invoice.balanceCents,
+  );
+}
+
 function where(invoice: ProjectInvoice, currency: string): string {
   if (invoice.status === 'DRAFT') {
     return 'Not sent yet';
@@ -453,6 +462,10 @@ function where(invoice: ProjectInvoice, currency: string): string {
     return `Paid in full${invoice.issuedAt ? `, sent ${formatDate(invoice.issuedAt)}` : ''}`;
   }
   const owing = `${formatMoney(invoice.balanceCents, currency)} outstanding`;
+  if (overdue(invoice) && invoice.dueAt) {
+    const days = daysLate(new Date(invoice.dueAt));
+    return `${owing}, ${days} ${days === 1 ? 'day' : 'days'} late`;
+  }
   return invoice.dueAt ? `${owing}, due ${formatDate(invoice.dueAt)}` : owing;
 }
 

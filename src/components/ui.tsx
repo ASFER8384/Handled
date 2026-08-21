@@ -95,12 +95,19 @@ const STATUS_TONES: Record<InvoiceStatus, string> = {
   VOID: 'bg-neutral-100 text-neutral-500 line-through',
 };
 
-export function StatusBadge({ status }: { status: InvoiceStatus }) {
+/**
+ * Overdue is not one of the stored statuses — it is read off the date — so it
+ * arrives as a flag rather than as a status, and outranks what is stored:
+ * an invoice a month late is late first and sent second.
+ */
+export function StatusBadge({ status, overdue }: { status: InvoiceStatus; overdue?: boolean }) {
   return (
     <span
-      className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_TONES[status]}`}
+      className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
+        overdue ? 'bg-red-50 text-red-800' : STATUS_TONES[status]
+      }`}
     >
-      {STATUS_LABELS[status]}
+      {overdue ? 'Overdue' : STATUS_LABELS[status]}
     </span>
   );
 }

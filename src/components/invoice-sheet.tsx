@@ -357,7 +357,15 @@ export function InvoiceSheet({
                     className="py-2.5 text-right text-xs tracking-widest uppercase"
                     style={step.state === 'PAID' ? { color: theme.hex } : undefined}
                   >
-                    <span className={step.state === 'PAID' ? 'font-semibold' : 'text-muted'}>
+                    <span
+                      className={
+                        step.state === 'PAID'
+                          ? 'font-semibold'
+                          : step.state === 'OVERDUE'
+                            ? 'font-semibold text-red-700'
+                            : 'text-muted'
+                      }
+                    >
                       {step.state}
                     </span>
                   </td>

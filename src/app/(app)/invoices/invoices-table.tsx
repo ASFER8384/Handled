@@ -11,6 +11,7 @@ import { api } from '@/lib/client-fetch';
 import { placeUnder, type Placement } from '@/lib/place-under';
 import { ConfirmDialog } from '@/components/confirm';
 import { InvoiceMenuPanel, invoiceActions, menuHeight } from '@/components/invoice-menu';
+import { daysLate, isOverdue } from '@/lib/invoices';
 import type { InvoiceStatus } from '@/generated/prisma/enums';
 
 export type InvoiceRow = {
@@ -31,10 +32,23 @@ export type InvoiceRow = {
   clientEmail: string | null;
   /** Where this one could be filed, if it is not on a project yet. */
   clientProjects: { id: string; name: string }[];
+  /** When it went out, which is not the same as when it was last touched. */
+  issuedAt: string | null;
+  /** How many payments have been recorded against it. */
+  payments: number;
+  /** Only for the invoices that are paid in steps. */
+  schedule: {
+    done: number;
+    total: number;
+    nextAt: string | null;
+    nextLabel: string | null;
+  } | null;
 };
 
 const STATUSES = [
   { value: 'all', label: 'Any status' },
+  // Not a stored status: read off the date, and the one people come here for.
+  { value: 'overdue', label: 'Overdue' },
   { value: 'DRAFT', label: 'Draft' },
   { value: 'SENT', label: 'Sent' },
   { value: 'PARTIALLY_PAID', label: 'Part paid' },
@@ -57,6 +71,59 @@ const WHENS = [
  * page you write it on; anything sent opens as the document, because that is
  * the thing the other side is holding.
  */
+/** Sent, still owed, and the date has gone by. Read, never stored. */
+function late(row: InvoiceRow): boolean {
+  return isOverdue(
+    { status: row.status, dueAt: row.dueAt ? new Date(row.dueAt) : null },
+    row.balanceCents,
+  );
+}
+
+function lateBy(row: InvoiceRow): number {
+  return row.dueAt ? daysLate(new Date(row.dueAt)) : 0;
+}
+
+/**
+ * How far through paying it the client is.
+ *
+ * An invoice paid in steps says which step is next and when it is wanted,
+ * because that is the question being asked of the row. One paid in one go has
+ * only ever got a count to give.
+ */
+function Progress({ row }: { row: InvoiceRow }) {
+  if (row.schedule) {
+    const { done, total, nextAt, nextLabel } = row.schedule;
+    return (
+      <span className="block">
+        <span className="flex items-center gap-2">
+          <span className="tabular-nums">
+            {done}/{total}
+          </span>
+          <span className="bg-accent-soft h-1.5 w-16 overflow-hidden rounded-full">
+            <span
+              className="block h-full rounded-full bg-emerald-500"
+              style={{ width: `${total ? (done / total) * 100 : 0}%` }}
+            />
+          </span>
+        </span>
+        {nextAt && (
+          <span className="text-muted mt-1 block text-xs">
+            Next: {formatDate(nextAt)}
+            {nextLabel ? ` · ${nextLabel}` : ''}
+          </span>
+        )}
+      </span>
+    );
+  }
+
+  if (row.payments === 0) return <span className="text-muted">—</span>;
+  return (
+    <span className="text-muted">
+      {row.payments} {row.payments === 1 ? 'payment' : 'payments'}
+    </span>
+  );
+}
+
 export function InvoicesTable({ rows, currency }: { rows: InvoiceRow[]; currency: string }) {
   const router = useRouter();
   const [status, setStatus] = useState('all');
@@ -80,7 +147,9 @@ export function InvoicesTable({ rows, currency }: { rows: InvoiceRow[]; currency
 
     return rows
       .filter((row) => !gone.includes(row.id))
-      .filter((row) => status === 'all' || row.status === status)
+      .filter((row) =>
+        status === 'all' ? true : status === 'overdue' ? late(row) : row.status === status,
+      )
       .filter((row) => !since || new Date(row.updatedAt) >= since);
   }, [rows, status, when, gone]);
 
@@ -162,15 +231,21 @@ export function InvoicesTable({ rows, currency }: { rows: InvoiceRow[]; currency
       </div>
 
       <div className="card mt-4 overflow-x-auto">
-        <table className="w-full min-w-[52rem] text-sm">
+        {/* Nothing wraps: a row is read across, and a status folded onto two
+            lines is harder to scan than a table you push sideways. The card
+            scrolls when the columns will not fit. */}
+        <table className="w-full min-w-[76rem] text-sm whitespace-nowrap">
           <thead className="text-muted border-line border-b text-left">
             <tr className="text-xs tracking-widest uppercase">
               <th className="px-5 py-3 font-medium">Invoice</th>
               <th className="px-5 py-3 font-medium">Last edited</th>
+              <th className="px-5 py-3 font-medium">Sent</th>
               <th className="px-5 py-3 font-medium">Status</th>
               <th className="px-5 py-3 font-medium">Project</th>
               <th className="px-5 py-3 font-medium">Client</th>
-              <th className="px-5 py-3 text-right font-medium">Total</th>
+              <th className="px-5 py-3 font-medium">Payments</th>
+              <th className="px-5 py-3 text-right font-medium">Amount</th>
+              <th className="px-5 py-3 text-right font-medium">Balance</th>
               <th className="w-12 px-5 py-3" />
             </tr>
           </thead>
@@ -183,15 +258,35 @@ export function InvoicesTable({ rows, currency }: { rows: InvoiceRow[]; currency
                   </Link>
                 </td>
                 <td className="text-muted px-5 py-3">{formatDate(row.updatedAt)}</td>
+                <td className="text-muted px-5 py-3">
+                  {row.issuedAt ? formatDate(row.issuedAt) : '—'}
+                </td>
                 <td className="px-5 py-3">
-                  <StatusBadge status={row.status} />
+                  <StatusBadge status={row.status} overdue={late(row)} />
+                  {late(row) && (
+                    <span className="mt-1 block text-xs text-red-700">
+                      {lateBy(row)} {lateBy(row) === 1 ? 'day' : 'days'} late
+                    </span>
+                  )}
                 </td>
                 <td className="text-muted px-5 py-3">
                   {row.project ?? <FileOnProject row={row} onFiled={() => router.refresh()} />}
                 </td>
                 <td className="px-5 py-3">{row.client}</td>
+                <td className="px-5 py-3">
+                  <Progress row={row} />
+                </td>
                 <td className="px-5 py-3 text-right tabular-nums">
                   {formatMoney(row.totalCents, currency)}
+                </td>
+                <td className="px-5 py-3 text-right tabular-nums">
+                  {row.balanceCents > 0 ? (
+                    <span className={late(row) ? 'font-medium text-red-700' : ''}>
+                      {formatMoney(row.balanceCents, currency)}
+                    </span>
+                  ) : (
+                    <span className="text-muted">{formatMoney(0, currency)}</span>
+                  )}
                 </td>
                 <td className="px-5 py-3 text-right">
                   {(() => {
