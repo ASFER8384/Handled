@@ -233,6 +233,8 @@ export const instalmentSchema = z.object({
 
 export const invoiceSchema = z.object({
   clientId: z.string().min(1, 'Pick a client'),
+  /// Left out, the workspace's own sequence gives it one.
+  number: z.string().trim().max(30).optional(),
   projectId: optionalText(40),
   dueAt: optionalDate,
   notes: optionalText(2000),

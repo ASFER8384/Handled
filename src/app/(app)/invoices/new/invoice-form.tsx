@@ -29,6 +29,8 @@ type ClientOption = {
 };
 
 type Values = {
+  /** Typed over when the workspace's own sequence is not what you number by. */
+  number: string;
   clientId: string;
   projectId: string;
   dueAt: string;
@@ -68,6 +70,8 @@ export type InvoiceStart = {
   schedule?: { label: string; dueAt: string; amount: string; share?: number }[];
   /** Which sheet design it is written on. */
   design?: string | null;
+  /** The number it already carries, when one is being rewritten. */
+  number?: string;
 };
 
 /**
@@ -89,6 +93,7 @@ export function InvoiceForm({
   start,
   invoiceId,
   number,
+  nextNumber,
   title,
   subtitle,
 }: {
@@ -111,6 +116,8 @@ export function InvoiceForm({
   /** Set when an invoice that already exists is being rewritten. */
   invoiceId?: string;
   number?: string;
+  /** What the sequence would give this one, shown as the field's placeholder. */
+  nextNumber?: string;
   /** The page's own heading, so saving can sit in the same row as the title. */
   title: string;
   subtitle?: string;
@@ -147,6 +154,7 @@ export function InvoiceForm({
     formState: { errors, isSubmitting },
   } = useForm<Values>({
     defaultValues: {
+      number: start?.number ?? '',
       clientId: start?.clientId ?? clients[0]?.id ?? '',
       projectId: start?.projectId ?? '',
       dueAt: start?.dueAt ?? '',
@@ -234,6 +242,7 @@ export function InvoiceForm({
       {
         method: invoiceId ? 'PUT' : 'POST',
         body: {
+          number: values.number.trim() || undefined,
           clientId: values.clientId,
           projectId: values.projectId || undefined,
           dueAt: values.dueAt,
@@ -258,6 +267,10 @@ export function InvoiceForm({
   }
 
   const dueDate = useWatch({ control, name: 'dueAt' });
+  // What the sheet says at the top, which is the typed number until there is
+  // a saved one to fall back to.
+  const typedNumber = useWatch({ control, name: 'number' });
+  const shownNumber = typedNumber?.trim() || number || nextNumber || 'Given when saved';
   const chosenProjectId = useWatch({ control, name: 'projectId' });
   const chosenProject = projects.find((entry) => entry.id === chosenProjectId) ?? null;
   // Who it is for and when it falls due are settings on the invoice rather
@@ -305,7 +318,7 @@ export function InvoiceForm({
 
           {preview ? (
             <InvoiceSheet
-              number={number ?? 'Given when saved'}
+              number={shownNumber}
               from={from}
               fromEmail={shows(hidden, 'contact') ? fromEmail : ''}
               fromAddress={shows(hidden, 'address') ? fromAddress : null}
@@ -377,9 +390,7 @@ export function InvoiceForm({
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-bold tracking-tight">INVOICE</p>
-                    <p className="mt-1 text-sm text-white/75 tabular-nums">
-                      {number ?? 'Given when saved'}
-                    </p>
+                    <p className="mt-1 text-sm text-white/75 tabular-nums">{shownNumber}</p>
                   </div>
                 </header>
               ) : (
@@ -450,9 +461,18 @@ export function InvoiceForm({
 
                 <dl className="space-y-4 text-sm">
                   <div className="flex items-center justify-between gap-4">
-                    <dt className="text-muted">Invoice #</dt>
-                    <dd className={number ? 'font-medium tabular-nums' : 'text-muted'}>
-                      {number ?? 'Given when saved'}
+                    <dt className="text-muted">
+                      <label htmlFor="invoice-number">Invoice #</label>
+                    </dt>
+                    <dd>
+                      {/* Numbering runs across the workspace, so a client's
+                          first invoice is rarely 0001. Type your own over it. */}
+                      <input
+                        id="invoice-number"
+                        placeholder={nextNumber ?? 'Given when saved'}
+                        className="input-plain w-[9.5rem] text-right tabular-nums"
+                        {...register('number')}
+                      />
                     </dd>
                   </div>
                   <div className="flex items-center justify-between gap-4">

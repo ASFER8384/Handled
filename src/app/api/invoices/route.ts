@@ -30,13 +30,26 @@ export const POST = handler(async (ctx, request: Request) => {
     if (!project) throw new HttpError(422, "That project doesn't belong to this client");
   }
 
+  // Numbering is the workspace's, not the client's: whoever it is for, this
+  // is the fourth invoice you have written. Some businesses number per client
+  // or per year instead, so the number can be typed over — it only has to be
+  // one you have not used before.
+  const chosen = data.number?.trim();
+  if (chosen) {
+    const clash = await prisma.invoice.findFirst({
+      where: { workspaceId: ctx.workspaceId, number: chosen },
+      select: { id: true },
+    });
+    if (clash) throw new HttpError(422, `Invoice ${chosen} already exists`);
+  }
+
   const invoice = await prisma.$transaction(async (tx) => {
     return tx.invoice.create({
       data: {
         workspaceId: ctx.workspaceId,
         clientId: client.id,
         projectId: data.projectId ?? null,
-        number: await nextInvoiceNumber(tx, ctx.workspaceId),
+        number: chosen || (await nextInvoiceNumber(tx, ctx.workspaceId)),
         design: data.design ?? 'classic',
         themeColor: data.themeColor ?? 'ink',
         themeFont: data.themeFont ?? 'sans',

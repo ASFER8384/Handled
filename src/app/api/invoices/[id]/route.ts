@@ -20,7 +20,7 @@ export const PUT = handler(async (ctx, request: Request, { params }: Params) => 
 
   const invoice = await prisma.invoice.findFirst({
     where: { id, workspaceId: ctx.workspaceId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, number: true },
   });
   if (!invoice) notFound('Invoice');
   if (invoice.status !== 'DRAFT') {
@@ -41,6 +41,17 @@ export const PUT = handler(async (ctx, request: Request, { params }: Params) => 
     if (!project) throw new HttpError(422, "That project doesn't belong to this client");
   }
 
+  // Renumbering a draft is allowed; landing on a number already in use is
+  // not, or two invoices would answer to the same name.
+  const chosen = data.number?.trim();
+  if (chosen && chosen !== invoice.number) {
+    const clash = await prisma.invoice.findFirst({
+      where: { workspaceId: ctx.workspaceId, number: chosen, id: { not: id } },
+      select: { id: true },
+    });
+    if (clash) throw new HttpError(422, `Invoice ${chosen} already exists`);
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.invoiceItem.deleteMany({ where: { invoiceId: id } });
     // The schedule is rewritten with the lines: it is part of the same
@@ -49,6 +60,7 @@ export const PUT = handler(async (ctx, request: Request, { params }: Params) => 
     await tx.invoice.update({
       where: { id },
       data: {
+        number: chosen || invoice.number,
         clientId: client.id,
         projectId: data.projectId ?? null,
         dueAt: data.dueAt ?? null,

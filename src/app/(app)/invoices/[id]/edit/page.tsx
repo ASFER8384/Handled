@@ -67,6 +67,7 @@ export default async function EditInvoicePage({ params }: PageProps<'/invoices/[
           invoiceId={invoice.id}
           number={invoice.number}
           start={{
+            number: invoice.number,
             clientId: invoice.clientId,
             projectId: invoice.projectId,
             dueAt: invoice.dueAt ? invoice.dueAt.toLocaleDateString('en-CA') : '',

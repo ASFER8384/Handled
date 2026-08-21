@@ -3,6 +3,7 @@ import { requireWorkspace } from '@/lib/session';
 import { EmptyState } from '@/components/ui';
 import { dueDateFromNow, findTemplate } from '@/lib/invoice-templates';
 import { companyBrand } from '@/lib/company';
+import { nextInvoiceNumber } from '@/lib/invoices';
 import { InvoiceForm } from './invoice-form';
 
 export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) {
@@ -34,6 +35,10 @@ export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) 
 
   const brand = await companyBrand(ctx.workspaceId, ctx.userEmail);
 
+  // Shown as the field's placeholder, so the number can be seen before it is
+  // given and typed over when your books are numbered some other way.
+  const suggested = await nextInvoiceNumber(prisma, ctx.workspaceId);
+
   const clients = await prisma.client.findMany({
     where: { workspaceId: ctx.workspaceId },
     select: {
@@ -64,6 +69,7 @@ export default async function NewInvoicePage(props: PageProps<'/invoices/new'>) 
               : 'It starts as a draft. Nothing is sent yet.'
           }
           clients={clients}
+          nextNumber={suggested}
           currency={ctx.currency}
           from={brand.name || ctx.workspaceName}
           fromEmail={brand.contact}
