@@ -161,6 +161,7 @@ model Workspace {
   tasks            Task[]
   automations      Automation[]
   automationRuns   AutomationRun[]
+  events           Event[]
 
   customFields CustomField[]
 
@@ -210,6 +211,7 @@ model Client {
   invoices        Invoice[]
   automationRuns  AutomationRun[]
   projectContacts ProjectContact[]
+  events          Event[]
 
   @@index([workspaceId])
   @@index([workspaceId, name])
@@ -349,6 +351,7 @@ model Project {
   contacts       ProjectContact[]
   dates          ProjectDate[]
   fieldValues    ProjectFieldValue[]
+  events         Event[]
 
   @@index([workspaceId, stageId])
   @@index([clientId])
@@ -471,7 +474,7 @@ model Invoice {
   /// Which of the sheet designs this one is drawn in — a layout, not a colour.
   /// Kept with the invoice: the document they were sent must not be restyled
   /// underneath them when the gallery gains a new look.
-  design    String       @default("classic")
+  design     String        @default("classic")
   /// Parts of the letterhead left off this invoice: 'logo', 'pay', and so on.
   /// Empty means the whole thing, which is what every older invoice has.
   hidden     String[]      @default([])
@@ -561,6 +564,37 @@ model InvoiceInstalment {
 
   @@index([invoiceId])
   @@map("invoice_instalment")
+}
+
+/// Something in the diary that is not a job: a call, a viewing, a day off.
+///
+/// Everything else on the calendar is drawn from work that already exists — a
+/// project's date, a task, an invoice falling due. This is the one thing you
+/// can put on a day because it is happening, whether or not it belongs to
+/// anything. It may still name a project and a person when it does.
+model Event {
+  id       String    @id @default(cuid())
+  title    String
+  startAt  DateTime
+  /// Left empty for something with no end worth saying.
+  endAt    DateTime?
+  allDay   Boolean   @default(false)
+  location String?
+  note     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// Deleting the project leaves the event standing: it still happened.
+  projectId   String?
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  clientId    String?
+  client      Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, startAt])
+  @@map("event")
 }
 
 model Payment {

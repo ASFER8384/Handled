@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { NewProjectOnDay } from '@/components/create-new';
+import { EventDialog, blankEvent, type EventDraft } from './event-dialog';
 import { Select } from '@/components/select';
 import { Tip } from '@/components/ui';
 import {
@@ -43,13 +45,30 @@ const WEEKDAY_NAMES = [
  * the page, and a grid boxed inside a card with margins around it is a month
  * you have to lean in for.
  */
-export function CalendarView({ events, timezone }: { events: CalendarEvent[]; timezone: string }) {
+export function CalendarView({
+  events,
+  timezone,
+  projects,
+  clients,
+}: {
+  events: CalendarEvent[];
+  timezone: string;
+  /** Offered when an event is written, never required. */
+  projects: { id: string; name: string }[];
+  clients: { id: string; name: string }[];
+}) {
   const today = new Date();
   const [cursor, setCursor] = useState(() => new Date());
   const [span, setSpan] = useState<SpanKey>('month');
   const [off, setOff] = useState<LayerKey[]>([]);
   const [picked, setPicked] = useState<string | null>(null);
+  // Where the little day menu goes. A cell clips what grows out of it, so the
+  // menu is drawn on the page and told where to sit instead.
+  const [pickedAt, setPickedAt] = useState<CSSProperties | null>(null);
   const [creating, setCreating] = useState<string | null>(null);
+  // The calendar's own events open here rather than navigating away: they
+  // have no page of their own, and never needed one.
+  const [editing, setEditing] = useState<EventDraft | null>(null);
 
   const shown = events.filter((event) => !off.includes(event.layer));
 
@@ -179,50 +198,34 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
           <h2 className="mt-6 text-[15px] font-semibold">Handled</h2>
           <ul className="mt-3 space-y-0.5">
             {CALENDAR_LAYERS.map((layer) => {
-              const soon = 'comingSoon' in layer ? layer.comingSoon : null;
-              const on = !off.includes(layer.key) && !soon;
+              const on = !off.includes(layer.key);
               const count = events.filter((event) => event.layer === layer.key).length;
 
               // The swatch is the switch: filled is on, hollow is off. One
               // mark rather than a box beside a mark, which is the same
               // answer twice.
-              const row = (
-                <label
-                  className={`-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm ${
-                    soon ? 'cursor-default opacity-45' : 'hover:bg-accent-soft/40 cursor-pointer'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={on}
-                    disabled={Boolean(soon)}
-                    onChange={() =>
-                      setOff((current) =>
-                        on ? [...current, layer.key] : current.filter((key) => key !== layer.key),
-                      )
-                    }
-                    className="sr-only"
-                  />
-                  <span
-                    aria-hidden
-                    className={`shrink-0 ${on || soon ? layer.swatchOn : layer.swatchOff}`}
-                  />
-                  {layer.label}
-                  {!soon && count > 0 && (
-                    <span className="text-muted ml-auto text-xs tabular-nums">{count}</span>
-                  )}
-                </label>
-              );
-
               return (
                 <li key={layer.key}>
-                  {soon ? (
-                    <Tip label={soon} floating>
-                      {row}
-                    </Tip>
-                  ) : (
-                    row
-                  )}
+                  <label className="hover:bg-accent-soft/40 -mx-2 flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={() =>
+                        setOff((current) =>
+                          on ? [...current, layer.key] : current.filter((key) => key !== layer.key),
+                        )
+                      }
+                      className="sr-only"
+                    />
+                    <span
+                      aria-hidden
+                      className={`shrink-0 ${on ? layer.swatchOn : layer.swatchOff}`}
+                    />
+                    {layer.label}
+                    {count > 0 && (
+                      <span className="text-muted ml-auto text-xs tabular-nums">{count}</span>
+                    )}
+                  </label>
                 </li>
               );
             })}
@@ -258,23 +261,113 @@ export function CalendarView({ events, timezone }: { events: CalendarEvent[]; ti
                     day={day}
                     index={index}
                     events={shown.filter((event) => covers(event, day.key))}
-                    picked={picked === day.key}
-                    onPick={() => setPicked(picked === day.key ? null : day.key)}
-                    onCreate={() => {
-                      setCreating(day.key);
-                      setPicked(null);
+                    onPick={(rect) => {
+                      if (picked === day.key) {
+                        setPicked(null);
+                        return;
+                      }
+                      setPicked(day.key);
+                      setPickedAt(under(rect));
                     }}
+                    onOpen={setEditing}
                   />
                 ))}
               </div>
             </div>
           ) : (
-            <TimeGrid days={days} events={shown} onCreate={(key) => setCreating(key)} />
+            <TimeGrid
+              days={days}
+              events={shown}
+              onCreate={(key, hour) =>
+                setEditing(
+                  hour === undefined
+                    ? blankEvent(key)
+                    : {
+                        ...blankEvent(key),
+                        from: `${String(hour).padStart(2, '0')}:00`,
+                        to: `${String(Math.min(23, hour + 1)).padStart(2, '0')}:00`,
+                      },
+                )
+              }
+              onOpen={setEditing}
+            />
           )}
         </div>
       </div>
 
+      {picked &&
+        pickedAt &&
+        createPortal(
+          <div
+            data-day-menu
+            style={pickedAt}
+            className="bg-surface fixed z-50 w-[210px] rounded-xl py-1.5 shadow-2xl ring-1 ring-black/10"
+          >
+            <p className="border-line mb-1 border-b px-3.5 pb-2 text-sm font-medium">
+              {new Date(`${picked}T00:00`).toLocaleDateString('en-GB', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(blankEvent(picked));
+                setPicked(null);
+              }}
+              className="hover:bg-accent-soft/60 flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm transition-colors"
+            >
+              <svg
+                aria-hidden
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M4 6.5h16v14H4zM8 4v4M16 4v4M4 11h16" />
+              </svg>
+              Add an event
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCreating(picked);
+                setPicked(null);
+              }}
+              className="hover:bg-accent-soft/60 flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm transition-colors"
+            >
+              <svg
+                aria-hidden
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 7.5h18v12H3zM8 7.5V5.5h8v2" />
+              </svg>
+              Create a project
+            </button>
+          </div>,
+          document.body,
+        )}
+
       {creating && <NewProjectOnDay startDate={creating} onClose={() => setCreating(null)} />}
+
+      {editing && (
+        <EventDialog
+          draft={editing}
+          projects={projects}
+          clients={clients}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </div>
   );
 }
@@ -290,10 +383,13 @@ function TimeGrid({
   days,
   events,
   onCreate,
+  onOpen,
 }: {
   days: CalendarDay[];
   events: CalendarEvent[];
-  onCreate: (key: string) => void;
+  /** The hour is where the click landed, so an event starts at the hour. */
+  onCreate: (key: string, hour?: number) => void;
+  onOpen: (draft: EventDraft) => void;
 }) {
   const hours = useRef<HTMLDivElement>(null);
 
@@ -343,7 +439,7 @@ function TimeGrid({
             {events
               .filter((event) => covers(event, day.key) && inAllDayStrip(event, day.key))
               .map((event) => (
-                <Bar key={event.id} event={event} />
+                <Bar key={event.id} event={event} onOpen={onOpen} />
               ))}
           </div>
         ))}
@@ -368,12 +464,12 @@ function TimeGrid({
                     {inHour.length === 0 ? (
                       <button
                         type="button"
-                        onClick={() => onCreate(day.key)}
-                        aria-label={`Start a project on ${day.key}`}
+                        onClick={() => onCreate(day.key, hour)}
+                        aria-label={`Add an event at ${hourLabel(hour)} on ${day.key}`}
                         className="hover:bg-accent-soft/40 h-full w-full cursor-pointer rounded transition-colors"
                       />
                     ) : (
-                      inHour.map((event) => <Bar key={event.id} event={event} />)
+                      inHour.map((event) => <Bar key={event.id} event={event} onOpen={onOpen} />)
                     )}
                   </div>
                 );
@@ -387,7 +483,14 @@ function TimeGrid({
 }
 
 /** One thing on one day, drawn the same in every view. */
-function Bar({ event }: { event: CalendarEvent }) {
+function Bar({
+  event,
+  onOpen,
+}: {
+  event: CalendarEvent;
+  /** Only the calendar's own events have anything to open. */
+  onOpen?: (draft: EventDraft) => void;
+}) {
   const layer = CALENDAR_LAYERS.find((entry) => entry.key === event.layer)!;
   const body = (
     <span
@@ -400,6 +503,19 @@ function Bar({ event }: { event: CalendarEvent }) {
     </span>
   );
 
+  if (event.event && onOpen) {
+    const own = event.event;
+    return (
+      <button
+        type="button"
+        onClick={() => onOpen({ ...own })}
+        className="block w-full text-left hover:brightness-95"
+      >
+        {body}
+      </button>
+    );
+  }
+
   return event.href ? (
     <Link href={event.href} className="block hover:brightness-95">
       {body}
@@ -409,21 +525,35 @@ function Bar({ event }: { event: CalendarEvent }) {
   );
 }
 
+/**
+ * Where a day's menu sits: just under the date, and pulled back inside the
+ * window when the day is against an edge.
+ */
+function under(rect: DOMRect): CSSProperties {
+  const width = 210;
+  const height = 132;
+  const margin = 12;
+  const view = document.documentElement;
+  const left = Math.min(rect.left + 8, view.clientWidth - width - margin);
+  const below = rect.top + 36;
+  const top = below + height > view.clientHeight ? Math.max(margin, rect.bottom - height) : below;
+  return { top, left, width };
+}
+
 /** One day of the month: the first few things on it, and a count of the rest. */
 function MonthCell({
   day,
   index,
   events,
-  picked,
   onPick,
-  onCreate,
+  onOpen,
 }: {
   day: CalendarDay;
   index: number;
   events: CalendarEvent[];
-  picked: boolean;
-  onPick: () => void;
-  onCreate: () => void;
+  /** Hands back its own box, so the menu can be drawn over the page. */
+  onPick: (rect: DOMRect) => void;
+  onOpen: (draft: EventDraft) => void;
 }) {
   return (
     <div
@@ -434,7 +564,7 @@ function MonthCell({
     >
       <button
         type="button"
-        onClick={onPick}
+        onClick={(event) => onPick(event.currentTarget.getBoundingClientRect())}
         aria-label={`Add something on ${day.key}`}
         className="absolute inset-0 h-full w-full cursor-pointer"
       />
@@ -450,7 +580,7 @@ function MonthCell({
       <ul className="relative mt-1 space-y-1">
         {events.slice(0, 3).map((event) => (
           <li key={event.id}>
-            <Bar event={event} />
+            <Bar event={event} onOpen={onOpen} />
           </li>
         ))}
 
@@ -458,37 +588,6 @@ function MonthCell({
           <li className="text-muted px-1.5 text-xs">+{events.length - 3} more</li>
         )}
       </ul>
-
-      {picked && (
-        <div className="bg-surface absolute top-9 left-2 z-30 w-[210px] rounded-xl py-1.5 shadow-2xl ring-1 ring-black/10">
-          <p className="border-line mb-1 border-b px-3.5 pb-2 text-sm font-medium">
-            {new Date(`${day.key}T00:00`).toLocaleDateString('en-GB', {
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-            })}
-          </p>
-          <button
-            type="button"
-            onClick={onCreate}
-            className="hover:bg-accent-soft/60 flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm transition-colors"
-          >
-            <svg
-              aria-hidden
-              viewBox="0 0 24 24"
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 7.5h18v12H3zM8 7.5V5.5h8v2" />
-            </svg>
-            Create a project
-          </button>
-        </div>
-      )}
     </div>
   );
 }

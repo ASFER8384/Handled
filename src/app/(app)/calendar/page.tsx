@@ -4,10 +4,15 @@ import { formatMoneyCompact } from '@/lib/money';
 import { dayKey, type CalendarEvent, type LayerKey } from '@/lib/calendar';
 import { CalendarView } from './calendar-view';
 
+/** '14:00' as a time field wants it. */
+function clock(value: Date): string {
+  return `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}`;
+}
+
 export default async function CalendarPage() {
   const ctx = await requireWorkspace();
 
-  const [projects, dates, tasks, invoices] = await Promise.all([
+  const [projects, dates, tasks, invoices, own, pickable, clients] = await Promise.all([
     prisma.project.findMany({
       where: { workspaceId: ctx.workspaceId, eventDate: { not: null } },
       select: {
@@ -43,6 +48,21 @@ export default async function CalendarPage() {
         client: { select: { name: true } },
         items: { select: { quantity: true, unitPriceCents: true } },
       },
+    }),
+    // What the calendar owns: things in the diary that are not work yet.
+    prisma.event.findMany({
+      where: { workspaceId: ctx.workspaceId },
+      orderBy: { startAt: 'asc' },
+    }),
+    prisma.project.findMany({
+      where: { workspaceId: ctx.workspaceId },
+      select: { id: true, name: true },
+      orderBy: { updatedAt: 'desc' },
+    }),
+    prisma.client.findMany({
+      where: { workspaceId: ctx.workspaceId },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
     }),
   ]);
 
@@ -88,6 +108,29 @@ export default async function CalendarPage() {
       done: task.done,
     })),
 
+    ...own.map((event) => ({
+      id: `event-${event.id}`,
+      layer: 'meeting' as const,
+      title: event.title,
+      from: dayKey(event.startAt),
+      to: dayKey(event.endAt ?? event.startAt),
+      time: event.allDay ? null : at(event.startAt),
+      // No page of its own: it opens where it is drawn.
+      href: null,
+      event: {
+        id: event.id,
+        title: event.title,
+        day: dayKey(event.startAt),
+        from: event.allDay ? '09:00' : clock(event.startAt),
+        to: event.endAt && !event.allDay ? clock(event.endAt) : '',
+        allDay: event.allDay,
+        location: event.location ?? '',
+        note: event.note ?? '',
+        projectId: event.projectId ?? '',
+        clientId: event.clientId ?? '',
+      },
+    })),
+
     // Money owed lands on the day it is owed. Drafts are left out: nothing has
     // been asked for yet, so there is no date anybody is waiting on.
     ...invoices.map((invoice) => {
@@ -107,5 +150,7 @@ export default async function CalendarPage() {
     }),
   ];
 
-  return <CalendarView events={events} timezone="Asia/Dubai" />;
+  return (
+    <CalendarView events={events} timezone="Asia/Dubai" projects={pickable} clients={clients} />
+  );
 }

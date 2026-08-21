@@ -24,6 +24,7 @@ import { NotesTab } from './notes-tab';
 import { FilesTab } from './files-tab';
 import { ActivityTab } from './activity-tab';
 import { AddPersonButton } from './add-person-button';
+import { ScheduleButton } from './schedule-button';
 import { TaskTable } from '@/components/task-table';
 import { AboutPanel } from './about-panel';
 import { DetailsTab } from './details-tab';
@@ -240,25 +241,16 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
           </div>
 
           <div className="flex items-center gap-4">
-            <Link
-              href={`/projects/${project.id}?tab=tasks`}
-              className="hover:text-accent flex items-center gap-2 font-medium transition-colors"
-            >
-              <svg
-                aria-hidden
-                viewBox="0 0 24 24"
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="3.5" y="5" width="17" height="16" rx="2" />
-                <path d="M8 3v4M16 3v4M3.5 10h17M12 14v4M10 16h4" />
-              </svg>
-              Schedule
-            </Link>
+            <ScheduleButton
+              project={{ id: project.id, name: project.name }}
+              people={[
+                { id: project.client.id, name: project.client.name },
+                ...project.contacts.map((entry) => ({
+                  id: entry.clientId,
+                  name: entry.client.name,
+                })),
+              ]}
+            />
 
             <span aria-hidden className="bg-line h-6 w-px" />
 

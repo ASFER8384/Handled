@@ -269,6 +269,26 @@ export const paymentSchema = z.object({
   paidAt: optionalDate,
 });
 
+// --- Calendar events --------------------------------------------------------
+
+/**
+ * Something in the diary that is not a job.
+ *
+ * The times arrive as local strings from a date field — '2026-08-28T14:00' —
+ * so they are read in the browser's own zone rather than shifted into UTC by
+ * an ISO suffix nobody typed.
+ */
+export const eventSchema = z.object({
+  title: z.string().trim().min(1, 'Give it a name').max(120),
+  startAt: z.string().trim().min(1, 'When is it?'),
+  endAt: optionalText(40),
+  allDay: z.coerce.boolean().default(false),
+  location: optionalText(160),
+  note: optionalText(2000),
+  projectId: optionalText(40),
+  clientId: optionalText(40),
+});
+
 // --- Tasks ------------------------------------------------------------------
 
 export const taskSchema = z.object({
@@ -348,6 +368,7 @@ export type ProjectInput = z.input<typeof projectSchema>;
 export type InvoiceInput = z.input<typeof invoiceSchema>;
 export type PaymentInput = z.input<typeof paymentSchema>;
 export type TaskInput = z.input<typeof taskSchema>;
+export type EventInput = z.input<typeof eventSchema>;
 
 // --- Views of the Contacts table --------------------------------------------
 

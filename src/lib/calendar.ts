@@ -25,12 +25,10 @@ export const CALENDAR_LAYERS = [
   },
   {
     key: 'meeting',
-    label: 'Meetings',
+    label: 'Events',
     swatchOn: 'h-3 w-3 rounded-full bg-orange-500',
     swatchOff: 'h-3 w-3 rounded-full border-2 border-orange-500',
     bar: 'bg-orange-500/15 text-orange-900',
-    /** Nothing books meetings yet, so the row is listed but cannot be used. */
-    comingSoon: 'Waiting on a scheduler',
   },
   {
     key: 'payment',
@@ -95,6 +93,19 @@ export type CalendarEvent = {
   href: string | null;
   /** Ticked-off tasks are drawn struck through rather than hidden. */
   done?: boolean;
+  /** Set on the things the calendar owns, which open here rather than away. */
+  event?: {
+    id: string;
+    title: string;
+    day: string;
+    from: string;
+    to: string;
+    allDay: boolean;
+    location: string;
+    note: string;
+    projectId: string;
+    clientId: string;
+  };
 };
 
 /** A day in the grid, and everything known about it. */
