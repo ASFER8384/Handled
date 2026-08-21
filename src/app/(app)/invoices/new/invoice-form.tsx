@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { FormSelect } from '@/components/form-select';
 import { formatMoney, formatRate, parseMoneyToCents } from '@/lib/money';
-import { formatDate } from '@/components/ui';
 import { Dialog } from '@/components/dialog';
 import { api } from '@/lib/client-fetch';
 import { InvoiceSheet } from '@/components/invoice-sheet';
@@ -423,9 +422,27 @@ export function InvoiceForm({
               {/* who it is to, and when it falls due */}
               <div className="mt-8 grid gap-8 sm:grid-cols-[minmax(0,1fr)_260px]">
                 <div>
-                  <p className="text-muted text-sm">Bill to</p>
-                  <p className="mt-1.5 font-medium">{client?.name ?? 'Nobody yet'}</p>
-                  {client?.email && <p className="text-muted text-sm">{client.email}</p>}
+                  {/* Printed on the invoice, so chosen on the invoice. The
+                      project is not printed, and lives in the filing dialog. */}
+                  <label className="text-muted text-sm" htmlFor="invoice-client">
+                    Bill to
+                  </label>
+                  <FormSelect
+                    id="invoice-client"
+                    control={control}
+                    name="clientId"
+                    searchable
+                    className="mt-1.5 max-w-[280px]"
+                    placeholder="Pick a contact"
+                    required="Pick a client"
+                    options={clients.map((entry) => ({
+                      value: entry.id,
+                      label: entry.name,
+                      hint: entry.email ?? undefined,
+                    }))}
+                  />
+                  {errors.clientId && <p className="field-error">{errors.clientId.message}</p>}
+                  {client?.email && <p className="text-muted mt-1.5 text-sm">{client.email}</p>}
                   {chosenProject && (
                     <p className="text-muted mt-2 text-sm">For {chosenProject.name}</p>
                   )}
@@ -443,9 +460,18 @@ export function InvoiceForm({
                     <dd className="text-muted">When you send it</dd>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <dt className="text-muted">Payment due</dt>
-                    <dd className={dueDate ? 'font-medium' : 'text-muted'}>
-                      {dueDate ? formatDate(new Date(`${dueDate}T00:00`)) : 'Not set'}
+                    <dt className="text-muted">
+                      <label htmlFor="invoice-due">
+                        {steps.fields.length ? 'First due' : 'Payment due'}
+                      </label>
+                    </dt>
+                    <dd>
+                      <input
+                        id="invoice-due"
+                        type="date"
+                        className="input-plain w-[9.5rem] text-right"
+                        {...register('dueAt')}
+                      />
                     </dd>
                   </div>
                   <div className="border-line flex items-center justify-between gap-4 border-t pt-4">
@@ -701,50 +727,27 @@ export function InvoiceForm({
           {formError && <p className="field-error mt-4">{formError}</p>}
 
           {filing && (
-            <Dialog fit width={460} title="Who it is for" onClose={() => setFiling(false)}>
-              <div className="space-y-4">
-                <div>
-                  <label className="label" htmlFor="invoice-client">
-                    Bill to
-                  </label>
-                  <FormSelect
-                    id="invoice-client"
-                    control={control}
-                    name="clientId"
-                    placeholder="Pick a contact"
-                    options={clients.map((entry) => ({ value: entry.id, label: entry.name }))}
-                  />
-                  {errors.clientId && <p className="field-error">{errors.clientId.message}</p>}
-                </div>
-
-                <div>
-                  <label className="label" htmlFor="invoice-project">
-                    Project
-                  </label>
-                  <FormSelect
-                    id="invoice-project"
-                    control={control}
-                    name="projectId"
-                    placeholder="No project"
-                    options={projects.map((project) => ({
-                      value: project.id,
-                      label: project.name,
-                    }))}
-                  />
-                  <p className="text-muted mt-1.5 text-xs">
-                    {projects.length === 0
-                      ? 'This client has no projects yet. It can be filed later from the invoices list.'
-                      : 'Optional. An invoice can stand on its own and be filed later.'}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="label" htmlFor="invoice-due">
-                    Payment due
-                  </label>
-                  <input id="invoice-due" type="date" className="input" {...register('dueAt')} />
-                </div>
-              </div>
+            <Dialog fit width={460} title="File it on a project" onClose={() => setFiling(false)}>
+              {/* Everything the client reads is on the sheet itself. This is
+                  the one thing that is not: which job it belongs to. */}
+              <label className="label" htmlFor="invoice-project">
+                Project
+              </label>
+              <FormSelect
+                id="invoice-project"
+                control={control}
+                name="projectId"
+                placeholder="No project"
+                options={projects.map((project) => ({
+                  value: project.id,
+                  label: project.name,
+                }))}
+              />
+              <p className="text-muted mt-1.5 text-xs">
+                {projects.length === 0
+                  ? 'This client has no projects yet. It can be filed later from the invoices list.'
+                  : 'Optional. An invoice can stand on its own and be filed later.'}
+              </p>
 
               <div className="mt-6 flex items-center gap-3">
                 {/* The dialog is mounted on the body, so it reaches the form
@@ -756,10 +759,10 @@ export function InvoiceForm({
                   onClick={() => setFiling(false)}
                   className="btn-primary"
                 >
-                  {isSubmitting ? 'Saving…' : 'Save'}
+                  {isSubmitting ? 'Saving...' : 'Save as draft'}
                 </button>
                 <button type="button" onClick={() => setFiling(false)} className="btn-ghost">
-                  Done
+                  Cancel
                 </button>
               </div>
             </Dialog>
