@@ -439,7 +439,13 @@ function TimeGrid({
             {events
               .filter((event) => covers(event, day.key) && inAllDayStrip(event, day.key))
               .map((event) => (
-                <Bar key={event.id} event={event} onOpen={onOpen} />
+                <Bar
+                  key={event.id}
+                  event={event}
+                  day={day.key}
+                  weekStart={day.key === days[0].key}
+                  onOpen={onOpen}
+                />
               ))}
           </div>
         ))}
@@ -485,21 +491,43 @@ function TimeGrid({
 /** One thing on one day, drawn the same in every view. */
 function Bar({
   event,
+  day,
+  weekStart,
   onOpen,
 }: {
   event: CalendarEvent;
+  /** The day this segment is drawn on, for something that covers several. */
+  day?: string;
+  /** Sunday, where a run that carries over has to say its name again. */
+  weekStart?: boolean;
   /** Only the calendar's own events have anything to open. */
   onOpen?: (draft: EventDraft) => void;
 }) {
   const layer = CALENDAR_LAYERS.find((entry) => entry.key === event.layer)!;
+
+  // A fortnight-long project covers fourteen days, and writing its name on
+  // every one of them reads as fourteen projects. The name is said where the
+  // run starts and again at the top of each week, which is where the eye
+  // picks it up; the days in between are the same bar carried across.
+  const started = !day || event.from === day;
+  const ends = !day || event.to === day;
+  const named = started || Boolean(weekStart);
+
   const body = (
     <span
-      className={`block truncate rounded px-1.5 py-0.5 text-xs ${layer.bar} ${
-        event.done ? 'line-through opacity-60' : ''
-      }`}
+      className={`block truncate px-1.5 py-0.5 text-xs ${layer.bar} ${
+        started ? 'rounded-l' : ''
+      } ${ends ? 'rounded-r' : ''} ${event.done ? 'line-through opacity-60' : ''}`}
     >
-      {event.time && <span className="mr-1 tabular-nums">{event.time}</span>}
-      {event.title}
+      {named ? (
+        <>
+          {event.time && <span className="mr-1 tabular-nums">{event.time}</span>}
+          {event.title}
+        </>
+      ) : (
+        // Keeps the row its own height without saying anything again.
+        <>&nbsp;</>
+      )}
     </span>
   );
 
@@ -577,10 +605,12 @@ function MonthCell({
         {day.day}
       </span>
 
-      <ul className="relative mt-1 space-y-1">
+      {/* Pulled to the cell's edges so a run of days meets across them
+          instead of breaking into a dashed line. */}
+      <ul className="relative -mx-1.5 mt-1 space-y-1">
         {events.slice(0, 3).map((event) => (
           <li key={event.id}>
-            <Bar event={event} onOpen={onOpen} />
+            <Bar event={event} day={day.key} weekStart={index % 7 === 0} onOpen={onOpen} />
           </li>
         ))}
 
