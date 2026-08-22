@@ -84,7 +84,7 @@ export default async function DashboardPage() {
     {
       label: 'New leads',
       value: String(leadCount),
-      hint: 'Projects still sitting at Enquiry. Nobody has sent them a proposal yet.',
+      hint: 'Projects still on the opportunity side of your pipeline. Nothing is booked yet.',
     },
     {
       label: 'Open tasks',
@@ -210,7 +210,7 @@ export default async function DashboardPage() {
         <section className="card flex flex-col overflow-hidden">
           <div className="border-line flex items-center gap-1.5 border-b px-6 py-5">
             <h2 className="text-lg font-semibold">Leads</h2>
-            <InfoHint text="Projects at Enquiry or Proposal sent, the ones still deciding." />
+            <InfoHint text="Projects still on the opportunity side of your pipeline — the ones deciding." />
           </div>
 
           {leads.length === 0 ? (
