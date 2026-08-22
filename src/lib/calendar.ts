@@ -25,7 +25,7 @@ export const CALENDAR_LAYERS = [
   },
   {
     key: 'meeting',
-    label: 'Events',
+    label: 'Meetings',
     swatchOn: 'h-3 w-3 rounded-full bg-orange-500',
     swatchOff: 'h-3 w-3 rounded-full border-2 border-orange-500',
     bar: 'bg-orange-500/15 text-orange-900',

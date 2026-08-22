@@ -330,7 +330,7 @@ export function CalendarView({
               >
                 <path d="M4 6.5h16v14H4zM8 4v4M16 4v4M4 11h16" />
               </svg>
-              Add an event
+              Add a meeting
             </button>
             <button
               type="button"

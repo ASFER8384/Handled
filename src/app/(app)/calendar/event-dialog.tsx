@@ -122,7 +122,7 @@ export function EventDialog({
       <Dialog
         fit
         width={520}
-        title={form.id ? 'Edit event' : 'New event'}
+        title={form.id ? 'Edit meeting' : 'New meeting'}
         onClose={onClose}
         footer={
           <div className="flex items-center justify-between gap-3">
@@ -332,7 +332,7 @@ export function EventDialog({
 
       {doomed && (
         <ConfirmDialog
-          title="Delete this event?"
+          title="Delete this meeting?"
           body={`${form.title} comes off the calendar. Nothing else is touched.`}
           confirmLabel="Delete it"
           word="delete"
