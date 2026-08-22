@@ -1,8 +1,7 @@
-import { readFile } from 'node:fs/promises';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handler, HttpError, notFound } from '@/lib/api';
-import { MAX_UPLOAD_BYTES, deleteUpload, saveUpload, storagePath } from '@/lib/uploads';
+import { MAX_UPLOAD_BYTES, deleteUpload, readUpload, saveUpload } from '@/lib/uploads';
 
 type Params = { params: Promise<{ slot: string }> };
 
@@ -24,7 +23,7 @@ export const GET = handler(async (ctx, _request: Request, { params }: Params) =>
   const key = workspace?.[columns.key];
   if (!key) notFound('Logo');
 
-  const bytes = await readFile(storagePath(key)).catch(() => null);
+  const bytes = await readUpload(key);
   if (!bytes) notFound('Logo');
 
   return new NextResponse(new Uint8Array(bytes), {

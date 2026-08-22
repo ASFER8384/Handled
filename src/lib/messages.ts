@@ -1,7 +1,6 @@
-import { readFile } from 'node:fs/promises';
 import { prisma } from '@/lib/prisma';
 import { sendEmail } from '@/lib/email';
-import { storagePath } from '@/lib/uploads';
+import { readUpload } from '@/lib/uploads';
 import { invoiceView } from '@/lib/invoice-view';
 import { invoicePdf } from '@/lib/invoice-pdf';
 
@@ -26,7 +25,7 @@ export async function deliver(messageId: string): Promise<{ delivered: boolean; 
   const carried = [];
   for (const file of files) {
     if (!file.storageKey) continue;
-    const bytes = await readFile(storagePath(file.storageKey)).catch(() => null);
+    const bytes = await readUpload(file.storageKey);
     if (!bytes) continue;
     carried.push({
       filename: file.name,

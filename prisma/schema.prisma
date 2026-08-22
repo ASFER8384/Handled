@@ -162,6 +162,7 @@ model Workspace {
   automations      Automation[]
   automationRuns   AutomationRun[]
   events           Event[]
+  uploads          Upload[]
 
   customFields CustomField[]
 
@@ -595,6 +596,29 @@ model Event {
 
   @@index([workspaceId, startAt])
   @@map("event")
+}
+
+/// The bytes of an uploaded file, kept in the database rather than on disk.
+///
+/// A serverless deployment has no disk worth the name: what one request writes
+/// the next request cannot find, because it is a different machine. Files went
+/// to .uploads, which worked on a laptop and quietly lost every logo and
+/// attachment in production. They live here now, where they survive a deploy.
+///
+/// The id is the key already written on the workspace and on project files, so
+/// nothing that points at a file had to be repointed.
+model Upload {
+  id        String   @id
+  mime      String
+  size      Int
+  bytes     Bytes
+  createdAt DateTime @default(now())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("upload")
 }
 
 model Payment {

@@ -1,8 +1,7 @@
-import { readFile } from 'node:fs/promises';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handler, notFound } from '@/lib/api';
-import { storagePath } from '@/lib/uploads';
+import { readUpload } from '@/lib/uploads';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -14,7 +13,7 @@ export const GET = handler(async (ctx, _request: Request, { params }: Params) =>
   });
   if (!file?.storageKey) notFound('File');
 
-  const bytes = await readFile(storagePath(file.storageKey)).catch(() => null);
+  const bytes = await readUpload(file.storageKey);
   if (!bytes) notFound('File');
 
   return new NextResponse(new Uint8Array(bytes), {

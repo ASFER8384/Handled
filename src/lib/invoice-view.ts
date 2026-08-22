@@ -1,6 +1,5 @@
-import { readFile } from 'node:fs/promises';
 import { prisma } from '@/lib/prisma';
-import { storagePath } from '@/lib/uploads';
+import { readUpload } from '@/lib/uploads';
 import { companyBrand } from '@/lib/company';
 import { balanceCents, paidCents, subtotalCents, taxCents } from '@/lib/money';
 import { shows } from '@/lib/invoice-parts';
@@ -127,7 +126,7 @@ async function logoBytes(
   if (!key || !mime) return null;
   if (mime !== 'image/png' && mime !== 'image/jpeg') return null;
 
-  const bytes = await readFile(storagePath(key)).catch(() => null);
+  const bytes = await readUpload(key);
   if (!bytes) return null;
   return { dataUri: `data:${mime};base64,${bytes.toString('base64')}` };
 }
