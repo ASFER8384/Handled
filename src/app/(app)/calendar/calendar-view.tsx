@@ -199,7 +199,12 @@ export function CalendarView({
           <ul className="mt-3 space-y-0.5">
             {CALENDAR_LAYERS.map((layer) => {
               const on = !off.includes(layer.key);
-              const count = events.filter((event) => event.layer === layer.key).length;
+              // Counted over the days on screen, not over everything there is:
+              // a sidebar saying 1 while the month shows nothing is a number
+              // you cannot go and look at.
+              const count = events.filter(
+                (event) => event.layer === layer.key && days.some((day) => covers(event, day.key)),
+              ).length;
 
               // The swatch is the switch: filled is on, hollow is off. One
               // mark rather than a box beside a mark, which is the same

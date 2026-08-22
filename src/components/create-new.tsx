@@ -207,13 +207,6 @@ const TIMEZONES = [
   { value: 'America/Los_Angeles', label: 'GMT-8 · Los Angeles' },
 ];
 
-const STAGE_OPTIONS = [
-  { value: 'INQUIRY', label: 'Enquiry' },
-  { value: 'PROPOSAL_SENT', label: 'Proposal sent' },
-  { value: 'BOOKED', label: 'Booked' },
-  { value: 'IN_PROGRESS', label: 'In progress' },
-];
-
 type ProjectValues = {
   name: string;
   clientId: string;
@@ -225,7 +218,7 @@ type ProjectValues = {
   endTime: string;
   allDay: boolean;
   timezone: string;
-  stage: string;
+  stageId: string;
   leadSource: string;
   description: string;
 };
@@ -247,6 +240,10 @@ function ProjectDialog({
   onDone: () => void;
 }) {
   const [clients, setClients] = useState<ClientOption[] | null>(null);
+  // The pipeline is the workspace's own — renamed, reordered, added to — so
+  // the stages are read from it rather than named here. A list written in the
+  // dialog was a list of four stages this workspace has never had.
+  const [stages, setStages] = useState<{ id: string; name: string }[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const {
@@ -256,7 +253,7 @@ function ProjectDialog({
     watch,
     formState: { errors, isSubmitting },
   } = useForm<ProjectValues>({
-    defaultValues: { stage: 'INQUIRY', allDay: true, timezone: 'Asia/Dubai', startDate },
+    defaultValues: { allDay: true, timezone: 'Asia/Dubai', startDate },
   });
 
   const allDay = watch('allDay');
@@ -271,6 +268,15 @@ function ProjectDialog({
       .catch(() => {
         if (live) setClients([]);
       });
+    fetch('/api/pipeline-stages')
+      .then((response) => response.json())
+      .then((payload: { stages: { id: string; name: string }[] }) => {
+        if (live) setStages(payload.stages ?? []);
+      })
+      .catch(() => {
+        if (live) setStages([]);
+      });
+
     return () => {
       live = false;
     };
@@ -283,7 +289,7 @@ function ProjectDialog({
       body: {
         name: values.name,
         clientId: values.clientId,
-        stage: values.stage,
+        stageId: values.stageId,
         type: values.type,
         leadSource: values.leadSource,
         location: values.location,
@@ -459,10 +465,11 @@ function ProjectDialog({
                 <FormSelect
                   id="project-stage"
                   control={control}
-                  name="stage"
-                  options={STAGE_OPTIONS.map((stage) => ({
-                    value: stage.value,
-                    label: stage.label,
+                  name="stageId"
+                  placeholder="The first stage of your pipeline"
+                  options={stages.map((stage) => ({
+                    value: stage.id,
+                    label: stage.name,
                   }))}
                 />
               </div>
