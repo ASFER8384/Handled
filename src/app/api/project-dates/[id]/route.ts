@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handler, notFound, parseBody } from '@/lib/api';
 import { projectDatePatchSchema } from '@/lib/validation';
+import { readWhen } from '@/lib/when';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -19,7 +20,7 @@ export const PATCH = handler(async (ctx, request: Request, { params }: Params) =
   if (!(await owned(id, ctx.workspaceId))) notFound('Date');
 
   const when = (value: string | null | undefined) =>
-    value === undefined ? undefined : value ? new Date(value) : null;
+    value === undefined ? undefined : value ? readWhen(value) : null;
 
   const date = await prisma.projectDate.update({
     where: { id },

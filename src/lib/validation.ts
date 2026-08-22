@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { INVOICE_PART_KEYS } from '@/lib/invoice-parts';
+import { readWhen } from '@/lib/when';
 
 const optionalText = (max: number) =>
   z
@@ -13,7 +14,7 @@ const optionalDate = z
   .string()
   .trim()
   .optional()
-  .transform((value) => (value ? new Date(value) : undefined))
+  .transform((value) => (value ? readWhen(value) : undefined))
   .refine((value) => value === undefined || !Number.isNaN(value.getTime()), 'Invalid date');
 
 // --- Auth -------------------------------------------------------------------

@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { handler, HttpError, parseBody } from '@/lib/api';
 import { eventSchema } from '@/lib/validation';
+import { readWhen } from '@/lib/when';
+
+/** Null rather than an Invalid Date, so the caller can say what it means. */
+export function when(value: string): Date | null {
+  const parsed = readWhen(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 export const GET = handler(async (ctx) => {
   const events = await prisma.event.findMany({
     where: { workspaceId: ctx.workspaceId },
@@ -36,15 +43,6 @@ export const POST = handler(async (ctx, request: Request) => {
 
   return NextResponse.json({ event }, { status: 201 });
 });
-
-/**
- * '2026-08-28T14:00' as it was typed, rather than shifted by a timezone
- * nobody wrote down. A date on its own is read as that day.
- */
-export function when(value: string): Date | null {
-  const parsed = new Date(value.length === 10 ? `${value}T00:00` : value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
 
 /**
  * An event can name a project and a person, but only ones that are yours:

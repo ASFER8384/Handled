@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { handler, notFound, parseBody } from '@/lib/api';
 import { projectPatchSchema } from '@/lib/validation';
 import { fireTrigger } from '@/lib/automations';
+import { readWhen } from '@/lib/when';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -30,7 +31,7 @@ export const PATCH = handler(async (ctx, request: Request, { params }: Params) =
   // Text clears to null when emptied, and so does a date: a date can be taken
   // off a project rather than only ever changed.
   const when = (value: string | null | undefined) =>
-    value === undefined ? undefined : value ? new Date(value) : null;
+    value === undefined ? undefined : value ? readWhen(value) : null;
 
   // Somebody already on the project who becomes its client would otherwise
   // appear twice: once as the client, once in the list beside them.

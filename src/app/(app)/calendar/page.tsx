@@ -19,7 +19,6 @@ export default async function CalendarPage() {
         id: true,
         name: true,
         eventDate: true,
-        endsAt: true,
         allDay: true,
         stage: { select: { group: true, hidden: true } },
       },
@@ -77,12 +76,15 @@ export default async function CalendarPage() {
   const events: CalendarEvent[] = [
     // Work that is on is drawn apart from work that might be: the whole point
     // of looking at the month is telling those two apart at a glance.
+    // The day it is on, not the days it takes. A project that runs a fortnight
+    // is one booking, and painting it across fourteen cells says the diary is
+    // full when what is full is one job.
     ...projects.map((project) => ({
       id: `project-${project.id}`,
       layer: projectLayer(project.stage),
       title: project.name,
       from: dayKey(project.eventDate!),
-      to: dayKey(project.endsAt ?? project.eventDate!),
+      to: dayKey(project.eventDate!),
       time: project.allDay ? null : at(project.eventDate!),
       href: `/projects/${project.id}`,
     })),

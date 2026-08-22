@@ -43,7 +43,9 @@ export const CALENDAR_LAYERS = [
     swatchOn:
       'h-3.5 w-3.5 rounded-[3px] ring-1 ring-inset ring-blue-500/60 bg-[repeating-linear-gradient(45deg,#3b82f6_0_2px,transparent_2px_5px)]',
     swatchOff: 'h-3.5 w-3.5 rounded-[3px] border-2 border-blue-500',
-    bar: 'bg-blue-500/[0.08] text-blue-900 ring-1 ring-inset ring-blue-500/30',
+    /* Hatched, the way a pencilled-in booking is hatched on a paper diary: it
+       is the same blue as a booked project, drawn as not-quite-solid. */
+    bar: 'bg-[repeating-linear-gradient(45deg,#3b82f6_0_6px,#7aa9f7_6px_12px)] font-medium text-white',
   },
   {
     key: 'archived',
