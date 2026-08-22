@@ -12,7 +12,7 @@ import {
   totalCents,
 } from '@/lib/money';
 import { EmptyState, formatDate } from '@/components/ui';
-import { LEAD_SOURCES, PROJECT_TYPES } from '@/lib/stages';
+import { LEAD_SOURCES, PROJECT_TYPES, listOrDefault } from '@/lib/stages';
 import { TypeSelect } from './type-select';
 import { ProjectInvoices } from './project-invoices';
 import { scheduleRows } from '@/lib/invoice-schedule';
@@ -50,6 +50,8 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
         include: {
           client: true,
           stage: true,
+          // For the lists this business picks its types and sources from.
+          workspace: { select: { projectTypes: true, leadSources: true } },
           tasks: { orderBy: [{ done: 'asc' }, { dueAt: 'asc' }] },
           invoices: {
             orderBy: { createdAt: 'desc' },
@@ -107,13 +109,21 @@ export default async function ProjectDetailPage(props: PageProps<'/projects/[id]
     ]);
   if (!project) notFound();
 
-  // The starting list plus anything this workspace has typed in before.
+  // The workspace's own lists — or the defaults, until it writes its own —
+  // plus anything already typed onto a project, so an older answer never
+  // disappears from the dropdown that offered it.
   const sources = [
-    ...new Set([...LEAD_SOURCES, ...usedSources.map((row) => row.leadSource as string)]),
+    ...new Set([
+      ...listOrDefault(project.workspace?.leadSources ?? [], LEAD_SOURCES),
+      ...usedSources.map((row) => row.leadSource as string),
+    ]),
   ].sort();
 
   const types = [
-    ...new Set([...PROJECT_TYPES, ...usedTypes.map((row) => row.type as string)]),
+    ...new Set([
+      ...listOrDefault(project.workspace?.projectTypes ?? [], PROJECT_TYPES),
+      ...usedTypes.map((row) => row.type as string),
+    ]),
   ].sort();
 
   // Opened from an invoice: the Email tab starts with a covering note for it

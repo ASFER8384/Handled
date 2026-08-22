@@ -290,6 +290,17 @@ export const eventSchema = z.object({
   clientId: optionalText(40),
 });
 
+/** The workspace's own project types and lead sources, in the order given. */
+const listOfNames = z
+  .array(z.string().trim().min(1).max(60))
+  .max(40)
+  .transform((values) => [...new Set(values)]);
+
+export const workspaceListsSchema = z.object({
+  projectTypes: listOfNames.optional(),
+  leadSources: listOfNames.optional(),
+});
+
 // --- Tasks ------------------------------------------------------------------
 
 export const taskSchema = z.object({

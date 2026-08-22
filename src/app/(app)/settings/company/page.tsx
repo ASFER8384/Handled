@@ -3,8 +3,10 @@ import { prisma } from '@/lib/prisma';
 import { requireWorkspace } from '@/lib/session';
 import { DEFAULT_COLOUR, DEFAULT_FONT, type ColourKey, type FontKey } from '@/lib/invoice-theme';
 import type { Socials } from '@/lib/company-fields';
+import { LEAD_SOURCES, PROJECT_TYPES, listOrDefault } from '@/lib/stages';
 import { CompanyForm } from './company-form';
 import { BankForm } from './bank-form';
+import { ListEditor } from './list-editor';
 
 /**
  * What the Company tab is made of, in the order a business fills it in.
@@ -16,6 +18,7 @@ import { BankForm } from './bank-form';
 const SECTIONS = [
   { key: 'brand', label: 'Company brand' },
   { key: 'bank', label: 'Bank details & tax' },
+  { key: 'lists', label: 'Types & sources' },
 ];
 
 export default async function CompanySettingsPage(props: PageProps<'/settings/company'>) {
@@ -58,6 +61,8 @@ export default async function CompanySettingsPage(props: PageProps<'/settings/co
       brandColor: true,
       logoKey: true,
       logoAltKey: true,
+      projectTypes: true,
+      leadSources: true,
     },
   });
 
@@ -107,6 +112,28 @@ export default async function CompanySettingsPage(props: PageProps<'/settings/co
             themeColor={(workspace?.themeColor as ColourKey) ?? DEFAULT_COLOUR}
             themeFont={(workspace?.themeFont as FontKey) ?? DEFAULT_FONT}
           />
+        ) : section.key === 'lists' ? (
+          <div className="space-y-6">
+            <section className="card p-6">
+              <ListEditor
+                label="Project types"
+                hint="The kinds of work you do. They fill the Project type dropdown when a project is created."
+                field="projectTypes"
+                initial={listOrDefault(workspace?.projectTypes ?? [], PROJECT_TYPES)}
+                placeholder="Elopement, Corporate retreat…"
+              />
+            </section>
+
+            <section className="card p-6">
+              <ListEditor
+                label="Lead sources"
+                hint="Where work comes from. Worth keeping short: it is only useful if you can tell at a glance which one earns its keep."
+                field="leadSources"
+                initial={listOrDefault(workspace?.leadSources ?? [], LEAD_SOURCES)}
+                placeholder="Wedding fair, Old client…"
+              />
+            </section>
+          </div>
         ) : (
           <BankForm
             currency={workspace?.currency ?? ctx.currency}

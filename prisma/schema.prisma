@@ -144,6 +144,12 @@ model Workspace {
   logoMime          String?
   logoAltKey        String?
   logoAltMime       String?
+  /// The kinds of work this business does, and where it comes from. Empty
+  /// means the list Handled ships with: a photographer and a caterer do not
+  /// have the same project types, but neither should have to invent them on
+  /// day one.
+  projectTypes      String[] @default([])
+  leadSources       String[] @default([])
   /// What a file starts out looking like, before it is changed on the file.
   themeColor        String   @default("ink")
   themeFont         String   @default("sans")

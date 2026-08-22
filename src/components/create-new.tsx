@@ -177,26 +177,6 @@ function ContactDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
   return <NewContactDialog onClose={onClose} onDone={onDone} />;
 }
 
-const PROJECT_TYPES = [
-  'Wedding',
-  'Portrait session',
-  'Commercial shoot',
-  'Event',
-  'Consulting',
-  'Retainer',
-  'Other',
-];
-
-const LEAD_SOURCES = [
-  'Referral',
-  'Instagram',
-  'Website',
-  'Google',
-  'Word of mouth',
-  'Repeat client',
-  'Other',
-];
-
 const TIMEZONES = [
   { value: 'Asia/Dubai', label: 'GMT+4 · Dubai' },
   { value: 'Asia/Riyadh', label: 'GMT+3 · Riyadh' },
@@ -244,6 +224,13 @@ function ProjectDialog({
   // the stages are read from it rather than named here. A list written in the
   // dialog was a list of four stages this workspace has never had.
   const [stages, setStages] = useState<{ id: string; name: string }[]>([]);
+  // Project types and lead sources belong to the business, not to Handled: a
+  // photographer and a caterer share almost none of them, so they are edited
+  // in Settings and read from there.
+  const [lists, setLists] = useState<{ projectTypes: string[]; leadSources: string[] }>({
+    projectTypes: [],
+    leadSources: [],
+  });
   const [formError, setFormError] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const {
@@ -268,6 +255,13 @@ function ProjectDialog({
       .catch(() => {
         if (live) setClients([]);
       });
+    fetch('/api/settings/lists')
+      .then((response) => response.json())
+      .then((payload: { projectTypes: string[]; leadSources: string[] }) => {
+        if (live) setLists(payload);
+      })
+      .catch(() => {});
+
     fetch('/api/pipeline-stages')
       .then((response) => response.json())
       .then((payload: { stages: { id: string; name: string }[] }) => {
@@ -357,7 +351,7 @@ function ProjectDialog({
             id="project-type"
             control={control}
             name="type"
-            options={PROJECT_TYPES.map((type) => ({ value: type, label: type }))}
+            options={lists.projectTypes.map((type) => ({ value: type, label: type }))}
           />
         </div>
 
@@ -494,7 +488,7 @@ function ProjectDialog({
                   id="project-source"
                   control={control}
                   name="leadSource"
-                  options={LEAD_SOURCES.map((source) => ({ value: source, label: source }))}
+                  options={lists.leadSources.map((source) => ({ value: source, label: source }))}
                 />
               </div>
 

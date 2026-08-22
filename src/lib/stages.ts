@@ -45,8 +45,14 @@ export const STAGE_GROUPS: {
   },
 ];
 
-/** What new workspaces can pick from. A workspace's own types join this list. */
-/** Where work came from. A workspace can type in anything beyond these. */
+/**
+ * What a workspace starts with, before it says otherwise.
+ *
+ * These are defaults, not the list: the kinds of work a photographer does and
+ * the kinds a caterer does have almost nothing in common, so both are editable
+ * in Settings. A workspace that has never touched them uses these, which is
+ * better than an empty dropdown on the first day.
+ */
 export const LEAD_SOURCES = [
   'Instagram',
   'Google',
@@ -66,3 +72,8 @@ export const PROJECT_TYPES = [
   'Photoshoot',
   'Wedding',
 ];
+
+/** The workspace's own list, or the default when it has not written one. */
+export function listOrDefault(stored: string[], fallback: string[]): string[] {
+  return stored.length > 0 ? stored : fallback;
+}
