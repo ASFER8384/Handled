@@ -20,7 +20,7 @@ export default async function CalendarPage() {
         name: true,
         eventDate: true,
         allDay: true,
-        stage: { select: { group: true, hidden: true } },
+        stage: { select: { name: true, group: true, hidden: true } },
       },
     }),
     prisma.projectDate.findMany({
@@ -68,10 +68,24 @@ export default async function CalendarPage() {
   const at = (date: Date) =>
     date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
-  // A project sitting in a hidden stage is put away rather than deleted, so it
-  // is still drawn — just in the layer people turn off first.
-  const projectLayer = (stage: { group: string; hidden: boolean } | null): LayerKey =>
-    stage?.hidden ? 'archived' : stage?.group === 'PROJECT' ? 'booked' : 'tentative';
+  /**
+   * Which of the three project layers a project is drawn in.
+   *
+   * Put away counts twice over: a stage taken off the board is plainly put
+   * away, and so is a stage called Archived that someone has chosen to keep
+   * on the board. Reading only the first would have the board say Archived 1
+   * and the calendar say 0 about the same project, which is the kind of
+   * disagreement that makes both numbers useless.
+   */
+  const isArchived = (stage: { name: string; hidden: boolean }) =>
+    stage.hidden || stage.name.trim().toLowerCase() === 'archived';
+
+  const projectLayer = (stage: { name: string; group: string; hidden: boolean } | null): LayerKey =>
+    stage && isArchived(stage)
+      ? 'archived'
+      : stage?.group === 'PROJECT'
+        ? 'booked'
+        : 'tentative';
 
   const events: CalendarEvent[] = [
     // Work that is on is drawn apart from work that might be: the whole point

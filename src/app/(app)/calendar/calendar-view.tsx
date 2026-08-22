@@ -228,7 +228,16 @@ export function CalendarView({
                     />
                     {layer.label}
                     {count > 0 && (
-                      <span className="text-muted ml-auto text-xs tabular-nums">{count}</span>
+                      // Why it can differ from the pipeline: the calendar can
+                      // only draw work that has a date, and only counts what
+                      // the days on screen hold.
+                      <Tip
+                        label="On the days shown. Work with no date is not on the calendar."
+                        floating
+                        className="ml-auto"
+                      >
+                        <span className="text-muted text-xs tabular-nums">{count}</span>
+                      </Tip>
                     )}
                   </label>
                 </li>
